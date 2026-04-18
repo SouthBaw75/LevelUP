@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import { useAuth } from "@/hooks/useAuth";
 
 export default function LandingPage() {
-  const { user, loading, signIn } = useAuth();
+  const { user, loading, signIn, configured } = useAuth();
   const router = useRouter();
 
   useEffect(() => {
@@ -41,6 +41,18 @@ export default function LandingPage() {
           <div className="font-mono text-[10px] uppercase tracking-widest opacity-60">
             Google sign-in · no ads · no calories counted without consent
           </div>
+          {!configured && (
+            <div className="panel panel-magenta p-3 mt-2 text-left">
+              <div className="font-mono text-[10px] uppercase tracking-widest text-[color:var(--color-magenta)] mb-1">
+                ⚠ System offline
+              </div>
+              <div className="font-mono text-[11px] leading-relaxed opacity-90">
+                Firebase keys not detected. Edit{" "}
+                <code className="text-[color:var(--color-lemon)]">.env.local</code>
+                {" "}and restart the dev server to enable sign-in.
+              </div>
+            </div>
+          )}
         </div>
 
         <div className="absolute bottom-6 font-mono text-[10px] uppercase tracking-widest opacity-50">
