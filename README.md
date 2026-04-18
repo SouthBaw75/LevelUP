@@ -27,7 +27,7 @@ tank, pushing a mission from Earth toward the Moon, Mars, or beyond.
 | UI          | Next.js 15 (App Router) · React 19 · TypeScript |
 | Styling     | Tailwind v4 with a custom synthwave theme + CRT scanlines |
 | Auth + DB   | Firebase Auth (Google) · Firestore              |
-| AI          | Genkit + Gemini 2.0 Flash (`@genkit-ai/googleai`) |
+| AI          | Firebase AI Logic (`firebase/ai`) · Gemini 2.5 Flash |
 | Hosting     | Firebase App Hosting                            |
 | Health sync | Apple Shortcuts → `/api/health-sync` webhook    |
 
@@ -58,10 +58,15 @@ Open http://localhost:3000, click **Insert Coin**, sign in with Google.
    npx firebase deploy --only firestore:rules,firestore:indexes
    ```
 
-### Gemini / Genkit
+### Commander Rex (Firebase AI Logic)
 
-Grab an API key from [Google AI Studio](https://aistudio.google.com/app/apikey)
-and set `GOOGLE_GENAI_API_KEY`. That's it — Rex will speak.
+1. In Firebase Console, open **Build → AI Logic** → enable the service (pick
+   the **Gemini Developer API** backend — the free tier option).
+2. That's it — no separate API key needed. The web SDK (`firebase/ai`) proxies
+   requests through Firebase using your existing web config.
+
+**Recommended**: enable [Firebase App Check](https://firebase.google.com/docs/app-check)
+for production to prevent abuse of the AI endpoint from outside your app.
 
 ### Apple Health sync (iOS)
 
@@ -127,7 +132,6 @@ their own subtree; `healthDays` is server-write-only.
 # First time only
 npx firebase init apphosting    # pick your project
 npx firebase apphosting:secrets:set FIREBASE_SERVICE_ACCOUNT_JSON
-npx firebase apphosting:secrets:set GOOGLE_GENAI_API_KEY
 npx firebase apphosting:secrets:set HEALTH_SYNC_SECRET
 
 # Deploy

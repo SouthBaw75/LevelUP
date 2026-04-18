@@ -22,12 +22,7 @@ import type {
 } from "@/lib/schema";
 import { DESTINATIONS } from "@/lib/mission";
 import { cn } from "@/lib/utils";
-
-type RexAction =
-  | { type: "water"; amountMl: number }
-  | { type: "meal"; description: string; mealType: "breakfast" | "lunch" | "dinner" | "snack"; estimatedCalories?: number; estimatedProteinG?: number; estimatedCarbsG?: number; estimatedFatG?: number }
-  | { type: "snack"; description: string; estimatedCalories?: number }
-  | { type: "exercise"; activity: string; durationMin?: number; distanceKm?: number; intensity?: "low" | "moderate" | "high"; estimatedCalories?: number };
+import { askRex, type LogAction } from "@/lib/ai/rex";
 
 function ChatInner() {
   const { user } = useAuth();
@@ -73,37 +68,25 @@ function ChatInner() {
     try {
       await appendMessage(user.uid, { role: "user", content: message });
 
-      const idToken = await user.getIdToken();
       const missionSummary = mission
         ? `${DESTINATIONS[mission.destination].label} — fuel ${Math.round(mission.distanceTraveled * 100)}%, LS ${mission.lifeSupportMl}/${mission.settings.lifeSupportFloorMlPerDay}ml`
         : undefined;
 
-      const res = await fetch("/api/chat", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${idToken}`,
+      const data = await askRex({
+        message,
+        tone: userDoc.settings.tone,
+        context: {
+          todayWaterMl: todayTotals.waterMl,
+          todayKcalIn: todayTotals.kcalIn,
+          todayKcalOut: todayTotals.kcalOut,
+          steps: health?.steps ?? 0,
+          streak: userDoc.streak,
+          level: userDoc.level,
+          missionSummary,
         },
-        body: JSON.stringify({
-          message,
-          tone: userDoc.settings.tone,
-          context: {
-            todayWaterMl: todayTotals.waterMl,
-            todayKcalIn: todayTotals.kcalIn,
-            todayKcalOut: todayTotals.kcalOut,
-            steps: health?.steps ?? 0,
-            streak: userDoc.streak,
-            level: userDoc.level,
-            missionSummary,
-          },
-        }),
       });
 
-      if (!res.ok) throw new Error("Rex is off-grid");
-      const data = (await res.json()) as { reply: string; actions: RexAction[] };
-
-      // Apply actions client-side (user auth, tx-safe)
-      for (const a of data.actions ?? []) {
+      for (const a of (data.actions ?? []) as LogAction[]) {
         if (a.type === "water") {
           await recordLog(user.uid, "water", { amountMl: a.amountMl }, "chat");
         } else if (a.type === "meal") {

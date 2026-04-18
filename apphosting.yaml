@@ -22,7 +22,5 @@ env:
     availability: [BUILD, RUNTIME]
   - variable: FIREBASE_SERVICE_ACCOUNT_JSON
     secret: FIREBASE_SERVICE_ACCOUNT_JSON
-  - variable: GOOGLE_GENAI_API_KEY
-    secret: GOOGLE_GENAI_API_KEY
   - variable: HEALTH_SYNC_SECRET
     secret: HEALTH_SYNC_SECRET
