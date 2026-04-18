@@ -1,0 +1,35 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // Users own all their subtrees. Writes to health data come through the
+    // Admin SDK on the server, so client writes are forbidden there.
+    match /users/{uid} {
+      allow read: if request.auth != null && request.auth.uid == uid;
+      allow create: if request.auth != null && request.auth.uid == uid;
+      allow update: if request.auth != null && request.auth.uid == uid;
+
+      match /logs/{logId} {
+        allow read, create, update: if request.auth != null && request.auth.uid == uid;
+      }
+
+      match /missions/{missionId} {
+        allow read, create, update: if request.auth != null && request.auth.uid == uid;
+      }
+
+      match /achievements/{id} {
+        allow read: if request.auth != null && request.auth.uid == uid;
+        allow create, update: if request.auth != null && request.auth.uid == uid;
+      }
+
+      match /conversation/{msgId} {
+        allow read, create: if request.auth != null && request.auth.uid == uid;
+      }
+
+      // Health days are written server-side only (via Admin SDK).
+      match /healthDays/{date} {
+        allow read: if request.auth != null && request.auth.uid == uid;
+        allow write: if false;
+      }
+    }
+  }
+}
