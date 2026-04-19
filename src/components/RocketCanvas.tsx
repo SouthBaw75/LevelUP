@@ -72,7 +72,7 @@ export function RocketCanvas({
       // Flame
       if (fuelActive) {
         const flicker = (Math.sin(t / 60) + 1) / 2;
-        drawFlame(ctx!, x, y + 14, flicker);
+        drawFlame(ctx!, x, y + 5, flicker);
       }
 
       drawRocket(ctx!, x, y);
