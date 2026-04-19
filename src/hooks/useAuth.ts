@@ -22,32 +22,30 @@ export function useAuth() {
       return;
     }
     const auth = getClientAuth();
-    // Handle redirect result on page load — must await before subscribing
-    getRedirectResult(auth)
-      .then((result) => {
-        if (result?.user) setUser(result.user);
-      })
-      .catch(() => {})
-      .finally(() => {
-        const unsub = onAuthStateChanged(auth, (u) => {
-          setUser(u);
-          setLoading(false);
-        });
-        // Store unsub for cleanup — returned below via ref
-        (auth as any).__unsub = unsub;
-      });
-    return () => (auth as any).__unsub?.();
+
+    // Subscribe to auth state — fires immediately with null, then again after redirect
+    const unsub = onAuthStateChanged(auth, (u) => {
+      setUser(u);
+      setLoading(false);
+    });
+
+    // Process any pending redirect result — this will trigger onAuthStateChanged
+    getRedirectResult(auth).catch(() => {});
+
+    return unsub;
   }, [configured]);
 
   async function signIn() {
     if (!configured) {
-      alert(
-        "Firebase isn't configured yet. Copy .env.local.example to .env.local, fill in your Firebase + Gemini keys, then restart `npm run dev`.",
-      );
+      alert("Firebase isn't configured. Fill in .env.local and restart.");
       return;
     }
-    const auth = getClientAuth();
-    await signInWithRedirect(auth, new GoogleAuthProvider());
+    try {
+      const auth = getClientAuth();
+      await signInWithRedirect(auth, new GoogleAuthProvider());
+    } catch (e) {
+      console.error("signIn error:", e);
+    }
   }
 
   async function signOutUser() {
