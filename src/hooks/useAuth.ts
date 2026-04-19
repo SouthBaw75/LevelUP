@@ -4,7 +4,8 @@ import { useEffect, useState } from "react";
 import {
   GoogleAuthProvider,
   onAuthStateChanged,
-  signInWithPopup,
+  signInWithRedirect,
+  getRedirectResult,
   signOut,
   type User,
 } from "firebase/auth";
@@ -21,6 +22,8 @@ export function useAuth() {
       return;
     }
     const auth = getClientAuth();
+    // Handle redirect result on page load
+    getRedirectResult(auth).catch(() => {});
     const unsub = onAuthStateChanged(auth, (u) => {
       setUser(u);
       setLoading(false);
@@ -36,7 +39,7 @@ export function useAuth() {
       return;
     }
     const auth = getClientAuth();
-    await signInWithPopup(auth, new GoogleAuthProvider());
+    await signInWithRedirect(auth, new GoogleAuthProvider());
   }
 
   async function signOutUser() {
