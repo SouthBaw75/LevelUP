@@ -22,13 +22,21 @@ export function useAuth() {
       return;
     }
     const auth = getClientAuth();
-    // Handle redirect result on page load
-    getRedirectResult(auth).catch(() => {});
-    const unsub = onAuthStateChanged(auth, (u) => {
-      setUser(u);
-      setLoading(false);
-    });
-    return unsub;
+    // Handle redirect result on page load — must await before subscribing
+    getRedirectResult(auth)
+      .then((result) => {
+        if (result?.user) setUser(result.user);
+      })
+      .catch(() => {})
+      .finally(() => {
+        const unsub = onAuthStateChanged(auth, (u) => {
+          setUser(u);
+          setLoading(false);
+        });
+        // Store unsub for cleanup — returned below via ref
+        (auth as any).__unsub = unsub;
+      });
+    return () => (auth as any).__unsub?.();
   }, [configured]);
 
   async function signIn() {
