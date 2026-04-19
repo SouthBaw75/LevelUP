@@ -1,0 +1,5 @@
+[[headers]]
+  for = "/*"
+  [headers.values]
+    Content-Security-Policy = "frame-src 'self' https://*.firebaseapp.com https://accounts.google.com; frame-ancestors 'none'"
+    X-Frame-Options = "SAMEORIGIN"
