@@ -223,12 +223,15 @@ export function artSvg(cardId, faction, type) {
     default: body = assetComposition(r); break;
   }
   body = body.replaceAll('%ID%', id);
-  return svgOpen(id)
+  let out = svgOpen(id)
     + `<rect x="0" y="0" width="${W}" height="${H}" fill="url(#bg${id})"/>`
     + gridLayer(r)
     + body
     + `<rect x="0" y="0" width="${W}" height="${H}" fill="none" stroke="#000" stroke-opacity="0.35" stroke-width="2"/>`
     + `</svg>`;
+  // bake literal palette colors so the SVG works anywhere (no CSS vars needed)
+  for (let i = 0; i < 5; i++) out = out.replaceAll(`var(--art-c${i})`, p[i]);
+  return out;
 }
 
 // ---- drop-in real artwork convention (see client/assets/card-art/README.md) ----
@@ -264,11 +267,6 @@ function probe(cardId, i) {
  */
 export function mountArt(frameEl, cardId, faction, type, { pending = true } = {}) {
   frameEl.classList.add('art-frame');
-  frameEl.style.setProperty('--art-c0', pal(faction)[0]);
-  frameEl.style.setProperty('--art-c1', pal(faction)[1]);
-  frameEl.style.setProperty('--art-c2', pal(faction)[2]);
-  frameEl.style.setProperty('--art-c3', pal(faction)[3]);
-  frameEl.style.setProperty('--art-c4', pal(faction)[4]);
   frameEl.innerHTML = artSvg(cardId, faction, type);
   if (pending) {
     const tag = document.createElement('span');

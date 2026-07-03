@@ -700,8 +700,15 @@ function toggleEmoteWheel(ev) {
     emoteWheel.appendChild(b);
   }
   els['g-emote'].parentElement.appendChild(emoteWheel);
-  const closeOnce = () => { emoteWheel?.remove(); emoteWheel = null; };
-  setTimeout(() => document.addEventListener('mousedown', closeOnce, { once: true }), 0);
+  const closeIfOutside = (ev2) => {
+    if (emoteWheel && !emoteWheel.contains(ev2.target) && ev2.target !== els['g-emote']) {
+      emoteWheel.remove(); emoteWheel = null;
+      document.removeEventListener('mousedown', closeIfOutside);
+    } else if (!emoteWheel) {
+      document.removeEventListener('mousedown', closeIfOutside);
+    }
+  };
+  setTimeout(() => document.addEventListener('mousedown', closeIfOutside), 0);
 }
 
 function showEmoteBubble(id, mine) {

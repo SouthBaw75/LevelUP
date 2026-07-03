@@ -71,6 +71,15 @@
 
 /* ---------- battlefield ---------- */
 .board-zone { flex: 1; min-height: 0; display: flex; flex-direction: column; position: relative; }
+.board-zone::before {
+  content: ""; position: absolute; inset: 4% 10%; pointer-events: none;
+  background: radial-gradient(58% 46% at 50% 50%, rgba(90, 130, 190, 0.05), transparent 70%);
+  border-radius: 24px;
+}
+.board-row::before {
+  content: ""; position: absolute; left: 14%; right: 14%; top: 12px; bottom: 12px;
+  border: 1px dashed rgba(120, 160, 220, 0.055); border-radius: 14px; pointer-events: none;
+}
 .board-row {
   flex: 1; display: flex; align-items: center; justify-content: center; gap: 12px;
   padding: 8px 0; min-height: 124px; position: relative;
@@ -99,7 +108,7 @@
 .hand-zone { position: relative; height: 158px; z-index: 20; }
 .hand-fan { position: absolute; inset: 0; display: flex; justify-content: center; pointer-events: none; }
 .hand-card {
-  position: absolute; bottom: -52px; pointer-events: auto;
+  position: absolute; bottom: -44px; pointer-events: auto;
   transform-origin: 50% 120%;
   transition: transform 0.18s ease, bottom 0.18s ease, filter 0.18s;
   cursor: pointer;
@@ -176,7 +185,7 @@
 .emote-btn { width: 40px; height: 40px; border-radius: 50%; border: 1px solid var(--edge-hi); background: var(--panel2); font-size: 17px; transition: border-color 0.15s, box-shadow 0.15s; }
 .emote-btn:hover { border-color: var(--cy); box-shadow: 0 0 10px rgba(34,211,238,0.3); }
 .emote-wheel {
-  position: absolute; bottom: 52px; left: 0; z-index: 60;
+  position: absolute; bottom: 52px; right: 0; z-index: 60;
   display: flex; flex-direction: column; gap: 5px; padding: 8px;
   background: var(--panel); border: 1px solid var(--edge-hi); border-radius: 8px;
   box-shadow: 0 12px 40px rgba(0,0,0,0.7);
