@@ -65,6 +65,16 @@
 }
 .deck-pill svg { width: 14px; height: 14px; }
 .deck-pill .fatigue-warn { color: var(--red); }
+/* empty-deck warn state (class lands on the pill itself) */
+.deck-pill.fatigue-warn { color: var(--red); border-color: rgba(244, 88, 106, 0.55); }
+/* fatigue event: urgent double-pulse on the deck pill (transform/filter only) */
+.deck-pill.fatigue-pulse { animation: fatigue-pill 0.85s cubic-bezier(0.34, 1.56, 0.64, 1); }
+@keyframes fatigue-pill {
+  15% { transform: scale(1.18); filter: drop-shadow(0 0 10px rgba(244, 88, 106, 0.9)) brightness(1.6); }
+  45% { transform: scale(1); filter: drop-shadow(0 0 4px rgba(244, 88, 106, 0.5)); }
+  62% { transform: scale(1.12); filter: drop-shadow(0 0 9px rgba(244, 88, 106, 0.8)) brightness(1.4); }
+  100% { transform: scale(1); filter: none; }
+}
 
 .opp-hand { display: flex; margin-left: auto; padding-right: 8px; }
 .opp-hand .card-back { margin-left: -34px; transform: rotate(180deg); }
@@ -288,6 +298,13 @@
   100% { filter: none; }
 }
 
+/* ~60ms brightness dip on the struck frame so even −1 damage has a beat */
+.anim-hit-dip .unit-frame, .anim-hit-dip .hero-portrait { animation: hit-dip 0.12s steps(2, jump-none) both; }
+@keyframes hit-dip {
+  0% { filter: brightness(0.55); }
+  100% { filter: none; }
+}
+
 /* red vignette edge-flash across the table when a CEO takes damage */
 .hero-hurt-vignette {
   position: absolute; inset: 0; z-index: 88; pointer-events: none; border-radius: 8px;
@@ -323,9 +340,10 @@
 
 /* ---------- summon: dust puff + double ground shockwave ---------- */
 .dust-mote {
-  position: absolute; z-index: 145; width: 8px; height: 8px; border-radius: 50%; pointer-events: none;
-  background: radial-gradient(circle, rgba(235, 240, 248, 0.95), rgba(190, 200, 215, 0.2));
-  animation: dust-drift 0.62s ease-out forwards;
+  position: absolute; z-index: 145; width: 10px; height: 10px; border-radius: 50%; pointer-events: none;
+  background: radial-gradient(circle, rgba(235, 240, 248, 0.95), rgba(205, 215, 230, 0.35) 70%);
+  box-shadow: 0 0 8px rgba(220, 230, 245, 0.45);
+  animation: dust-drift 0.88s ease-out forwards;
 }
 @keyframes dust-drift {
   from { transform: translate(-50%, -50%) translate(0, 0) rotate(0deg) scale(0.6); opacity: 0.9; }
@@ -420,8 +438,21 @@
   from { transform: translate(-50%, -50%) scale(0.35); opacity: 1; }
   to { transform: translate(-50%, -50%) scale(1.6); opacity: 0; }
 }
-/* stat chips overshoot-pop when their number changes */
-.stat-chip.chip-pop { animation: chip-pop 0.45s cubic-bezier(0.34, 1.56, 0.64, 1); }
+/* debuff: red warning ring contracting inward onto the weakened unit */
+.debuff-ring {
+  position: absolute; z-index: 152; width: 96px; height: 96px; border-radius: 50%; pointer-events: none;
+  transform: translate(-50%, -50%);
+  border: 2px solid rgba(255, 91, 113, 0.9);
+  box-shadow: 0 0 14px rgba(244, 88, 106, 0.7), inset 0 0 10px rgba(244, 88, 106, 0.35);
+  animation: debuff-ring-in 0.5s cubic-bezier(0.5, 0, 0.6, 1) forwards;
+}
+@keyframes debuff-ring-in {
+  from { transform: translate(-50%, -50%) scale(1.55); opacity: 0; }
+  30% { opacity: 1; }
+  to { transform: translate(-50%, -50%) scale(0.4); opacity: 0; }
+}
+/* stat chips overshoot-pop when their number changes (integrity too) */
+.stat-chip.chip-pop, .integrity.chip-pop { animation: chip-pop 0.45s cubic-bezier(0.34, 1.56, 0.64, 1); }
 @keyframes chip-pop { 0% { transform: scale(1); } 38% { transform: scale(1.35); } 100% { transform: scale(1); } }
 
 /* ---------- hero power charge-up (cause precedes effect) ---------- */
@@ -436,6 +467,13 @@
   from { transform: translate(-50%, -50%) scale(1.6); opacity: 0; }
   35% { opacity: 1; }
   to { transform: translate(-50%, -50%) scale(0.32); opacity: 0.9; }
+}
+/* legendary touchdown: gold variant of the contracting ring */
+.charge-ring.gold {
+  width: 118px; height: 118px;
+  border-color: rgba(255, 224, 138, 0.95);
+  box-shadow: 0 0 16px rgba(232, 180, 90, 0.75), inset 0 0 12px rgba(255, 224, 138, 0.35);
+  animation-duration: 0.36s;
 }
 .hero-plate.anim-power-charge { animation: power-charge 0.24s ease-in; }
 @keyframes power-charge {
@@ -499,7 +537,8 @@
   to { transform: translate(-50%, -50%) scale(1.5); opacity: 0; }
 }
 
-.fly-card { position: absolute; z-index: 165; pointer-events: none; transition: left 0.42s cubic-bezier(0.3, 0.8, 0.4, 1), top 0.42s cubic-bezier(0.3, 0.8, 0.4, 1), transform 0.42s ease, opacity 0.3s; }
+/* flights are transform-only (left/top set once at spawn) — compositor-friendly */
+.fly-card { position: absolute; z-index: 165; pointer-events: none; transition: transform 0.42s cubic-bezier(0.3, 0.8, 0.4, 1), opacity 0.3s; }
 
 /* draw flight: inner card bows into an arc + slight rotation that settles */
 .arc-inner { animation: arc-hop 0.44s ease-out both; }
@@ -527,13 +566,15 @@
 @keyframes card-sheen { to { background-position: -130% 0; } }
 
 /* unit animation states */
-/* summon: drop in from above → squash on touchdown → spring → settle */
-.unit.anim-summon { animation: summon-in 0.46s cubic-bezier(0.22, 1, 0.36, 1); }
+/* summon: deep drop from above → pre-landing glow flare → squash on
+   touchdown → spring → settle (touchdown ≈ 48% of 0.5s ≈ 240ms) */
+.unit.anim-summon { animation: summon-in 0.5s cubic-bezier(0.22, 1, 0.36, 1); }
 @keyframes summon-in {
-  0% { opacity: 0; transform: translateY(-34px) scale(0.8); filter: brightness(2.6); }
-  45% { opacity: 1; transform: translateY(0) scale(1); filter: brightness(1.7); }
-  58% { transform: translateY(1px) scale(1.06, 0.9); filter: brightness(1.4); }
-  78% { transform: translateY(-2px) scale(0.97, 1.04); filter: brightness(1.12); }
+  0% { opacity: 0; transform: translateY(-70px) scale(0.8); filter: brightness(2.6); }
+  28% { opacity: 1; transform: translateY(-16px) scale(0.96); filter: brightness(3) drop-shadow(0 0 18px rgba(205, 228, 255, 0.75)); }
+  48% { transform: translateY(0) scale(1); filter: brightness(1.8) drop-shadow(0 0 8px rgba(205, 228, 255, 0.35)); }
+  60% { transform: translateY(1px) scale(1.07, 0.89); filter: brightness(1.4); }
+  80% { transform: translateY(-2px) scale(0.97, 1.04); filter: brightness(1.12); }
   100% { opacity: 1; transform: translateY(0) scale(1); filter: none; }
 }
 /* legendary landing: one-time gold shimmer sweep across the frame */
@@ -559,20 +600,23 @@
 .unit.anim-windup-down { animation: windup-down 0.13s cubic-bezier(0.5, 0, 1, 0.5) both; z-index: 40; }
 @keyframes windup-up { to { transform: translateY(9px) rotate(-3deg) scale(0.97); } }
 @keyframes windup-down { to { transform: translateY(-9px) rotate(3deg) scale(0.97); } }
-/* attack strike: hard lunge with vertical stretch, then ease-out settle */
+/* attack strike: hard lunge with vertical stretch, then ease-out settle.
+   The lunge vector is target-relative: anim.js sets --lx/--ly to ~60% of the
+   attacker→target distance (capped), so cross-board / hero attacks connect
+   instead of tapping air. Fallback: the old fixed ±54px vertical. */
 .unit.anim-lunge-up { animation: lunge-up 0.42s cubic-bezier(0.22, 1, 0.36, 1); z-index: 40; }
 .unit.anim-lunge-down { animation: lunge-down 0.42s cubic-bezier(0.22, 1, 0.36, 1); z-index: 40; }
 @keyframes lunge-up {
   0% { transform: translateY(9px) rotate(-3deg) scale(0.97); }
-  30% { transform: translateY(-54px) scale(0.94, 1.14); }
-  48% { transform: translateY(-44px) scale(1.05, 0.96); }
-  100% { transform: translateY(0) scale(1); }
+  30% { transform: translate(var(--lx, 0px), var(--ly, -54px)) scale(0.94, 1.14); }
+  48% { transform: translate(calc(var(--lx, 0px) * 0.82), calc(var(--ly, -54px) * 0.82)) scale(1.05, 0.96); }
+  100% { transform: translate(0, 0) scale(1); }
 }
 @keyframes lunge-down {
   0% { transform: translateY(-9px) rotate(3deg) scale(0.97); }
-  30% { transform: translateY(54px) scale(0.94, 1.14); }
-  48% { transform: translateY(44px) scale(1.05, 0.96); }
-  100% { transform: translateY(0) scale(1); }
+  30% { transform: translate(var(--lx, 0px), var(--ly, 54px)) scale(0.94, 1.14); }
+  48% { transform: translate(calc(var(--lx, 0px) * 0.82), calc(var(--ly, 54px) * 0.82)) scale(1.05, 0.96); }
+  100% { transform: translate(0, 0) scale(1); }
 }
 /* motion-blur streak trailing the lunge */
 .unit.anim-lunge-up::after, .unit.anim-lunge-down::after {
@@ -640,6 +684,13 @@
   animation: banner-streak 0.85s cubic-bezier(0.5, 0, 0.2, 1) 0.14s forwards;
 }
 @keyframes banner-streak { to { transform: skewX(-18deg) translateX(760%); } }
+
+/* fatigue mini-banner: smaller, red, urgent */
+.turn-banner.fatigue {
+  font-size: 24px; padding: 10px 0;
+  color: var(--red); text-shadow: 0 0 26px rgba(244, 88, 106, 0.7);
+}
+.turn-banner.fatigue .sub { color: rgba(255, 160, 172, 0.85); }
 
 /* fatigue flash: pulses twice */
 .fatigue-flash { position: absolute; inset: 0; z-index: 85; pointer-events: none; background: radial-gradient(circle at 50% 50%, transparent 40%, rgba(244, 88, 106, 0.28)); animation: fatigue-f 0.78s ease forwards; }

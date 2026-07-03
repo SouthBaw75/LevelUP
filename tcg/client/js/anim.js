@@ -27,6 +27,11 @@ let fxLayer = null;
 const queue = [];
 let playing = false;
 let cancelled = false;
+// Generation token: bumped by initAnim/stopAnim so any drain() loop or delayed
+// fx callback started under an older generation can detect it is stale and
+// bail instead of applying an old batch to new hooks or respawning fx onto a
+// cleared #fx-layer (e.g. concede mid-batch → rematch).
+let gen = 0;
 
 // Tracks whose CEO power (if any) is the direct cause of the very next event —
 // set when a heroPower event plays, consumed by the following damage/heal
@@ -35,6 +40,7 @@ let cancelled = false;
 let pendingPowerCaster = null;
 
 export function initAnim(h) {
+  gen++; // invalidate any in-flight drain/delayed fx from a previous game
   hooks = h;
   if (!fxLayer) {
     fxLayer = document.createElement('div');
@@ -49,7 +55,9 @@ export function initAnim(h) {
 }
 
 export function stopAnim() {
+  gen++; // stale-mark every pending drain step and delayed fx callback
   cancelled = true;
+  playing = false;
   queue.length = 0;
   if (fxLayer) fxLayer.innerHTML = '';
 }
@@ -65,25 +73,36 @@ export function queueBatch(batch) {
 export function isAnimating() { return playing; }
 
 async function drain() {
+  const g = gen; // this drain is only valid for the generation it started in
   playing = true;
   cancelled = false;
-  while (queue.length) {
+  while (queue.length && g === gen) {
     const batch = queue.shift();
     const events = Array.isArray(batch.events) ? batch.events : [];
     for (const ev of events) {
-      if (cancelled) break;
+      if (cancelled || g !== gen) break;
       try { hooks.logEvent(ev); } catch (err) { console.error(err); }
       try { await playEvent(ev); } catch (err) { console.error('[anim]', ev.e, err); }
+      if (g !== gen) break; // initAnim/stopAnim happened while we were awaiting
     }
-    if (cancelled) break;
+    if (cancelled || g !== gen) break;
     hooks.applyView(batch);
     await wait(60); // let layout settle between batches
+    if (g !== gen) break;
   }
+  if (g !== gen) return; // stale drain: never touch state or call new-game hooks
   playing = false;
   hooks.onBatchDone?.();
 }
 
 const wait = (ms) => new Promise((r) => setTimeout(r, ms));
+
+/** setTimeout that no-ops if initAnim/stopAnim ran before it fired — required
+ *  for every delayed callback that appends to or mutates the fx layer / board. */
+function fxTimeout(fn, ms) {
+  const g = gen;
+  setTimeout(() => { if (g === gen) fn(); }, ms);
+}
 
 function centerOf(el) {
   const r = el.getBoundingClientRect();
@@ -147,11 +166,16 @@ export function floatNum(el, text, cls, opts = {}) {
   setTimeout(() => n.remove(), 1050);
 }
 
-function impactAt(el) {
+function impactAt(el, amount = 3) {
   if (!el) return;
   const { x, y } = centerOf(el);
   const f = document.createElement('div');
   f.className = 'impact-flash';
+  // scale the flash with the hit: small pokes get a tight, still-full-opacity
+  // flash (~60px) so even −1 lands with a visible beat
+  const sz = amount <= 2 ? 60 : 90;
+  f.style.width = sz + 'px';
+  f.style.height = sz + 'px';
   f.style.left = x + 'px';
   f.style.top = y + 'px';
   fxLayer.appendChild(f);
@@ -163,21 +187,21 @@ function dustBurst(el) {
   if (!el) return;
   const { x, y } = centerOf(el);
   const groundY = y + 34;
-  for (let i = 0; i < 7; i++) {
+  for (let i = 0; i < 8; i++) {
     const p = document.createElement('div');
     p.className = 'dust-mote';
     const ang = Math.PI + Math.random() * Math.PI; // upward hemisphere
-    const dist = 16 + Math.random() * 24;
-    const size = 5 + Math.random() * 5; // 5-10px variance
+    const dist = 26 + Math.random() * 34; // wider travel so it reads on the dark board
+    const size = 7 + Math.random() * 7; // 7-14px variance
     p.style.width = size + 'px';
     p.style.height = size + 'px';
-    p.style.left = x + (Math.random() * 26 - 13) + 'px';
+    p.style.left = x + (Math.random() * 30 - 15) + 'px';
     p.style.top = groundY + 'px';
-    p.style.setProperty('--dx', (Math.cos(ang) * dist * 0.5) + 'px');
-    p.style.setProperty('--dy', (Math.sin(ang) * dist - 16) + 'px');
+    p.style.setProperty('--dx', (Math.cos(ang) * dist * 0.6) + 'px');
+    p.style.setProperty('--dy', (Math.sin(ang) * dist - 20) + 'px');
     p.style.setProperty('--dr', ((Math.random() * 120 - 60) | 0) + 'deg');
     fxLayer.appendChild(p);
-    setTimeout(() => p.remove(), 640);
+    setTimeout(() => p.remove(), 900);
   }
   const ring = document.createElement('div');
   ring.className = 'summon-ring';
@@ -255,9 +279,14 @@ function healBurst(el) {
 /** Shield break: cyan-white flash ring + 6 hex shards spinning outward. */
 function shieldShatter(el) {
   if (!el) return;
-  const { x, y } = centerOf(el);
+  const r = el.getBoundingClientRect();
+  const x = r.left + r.width / 2, y = r.top + r.height / 2;
   const ring = document.createElement('div');
   ring.className = 'shield-ring';
+  // ring sized to the unit it protected (~1.2×), not a fixed 60px
+  const sz = Math.max(r.width, r.height) * 1.2;
+  ring.style.width = sz + 'px';
+  ring.style.height = sz + 'px';
   ring.style.left = x + 'px';
   ring.style.top = y + 'px';
   fxLayer.appendChild(ring);
@@ -287,6 +316,30 @@ function buffRing(el) {
   ring.style.top = y + 'px';
   fxLayer.appendChild(ring);
   setTimeout(() => ring.remove(), 560);
+}
+
+/** Debuff: red warning ring contracting inward onto the weakened unit. */
+function debuffRing(el) {
+  if (!el) return;
+  const { x, y } = centerOf(el);
+  const ring = document.createElement('div');
+  ring.className = 'debuff-ring';
+  ring.style.left = x + 'px';
+  ring.style.top = y + 'px';
+  fxLayer.appendChild(ring);
+  setTimeout(() => ring.remove(), 560);
+}
+
+/** Legendary touchdown: gold ring contracting onto the landed asset. */
+function legendRing(el) {
+  if (!el) return;
+  const { x, y } = centerOf(el);
+  const ring = document.createElement('div');
+  ring.className = 'charge-ring gold';
+  ring.style.left = x + 'px';
+  ring.style.top = y + 'px';
+  fxLayer.appendChild(ring);
+  setTimeout(() => ring.remove(), 400);
 }
 
 /** Hero power wind-up: ring contracting into the caster's portrait. */
@@ -319,19 +372,21 @@ function fireShell(fromEl, toEl, duration = 260) {
   const a = centerOf(fromEl), b = centerOf(toEl);
   const shell = document.createElement('div');
   shell.className = 'shell-projectile';
+  // position once at launch; all motion is compositor-friendly transform
   shell.style.left = a.x + 'px';
   shell.style.top = a.y + 'px';
+  shell.style.transform = 'translate(-50%,-50%)';
   fxLayer.appendChild(shell);
   void shell.offsetWidth;
   const midX = (a.x + b.x) / 2, midY = Math.min(a.y, b.y) - 44;
   const half = duration / 2;
-  shell.style.transition = `left ${half}ms ease-out, top ${half}ms ease-out`;
-  shell.style.left = midX + 'px';
-  shell.style.top = midY + 'px';
-  setTimeout(() => {
-    shell.style.transition = `left ${half}ms ease-in, top ${half}ms ease-in`;
-    shell.style.left = b.x + 'px';
-    shell.style.top = b.y + 'px';
+  // phase 1: arc up to the midpoint
+  shell.style.transition = `transform ${half}ms ease-out`;
+  shell.style.transform = `translate(-50%,-50%) translate(${midX - a.x}px, ${midY - a.y}px)`;
+  fxTimeout(() => {
+    // phase 2: accelerate down onto the target
+    shell.style.transition = `transform ${half}ms ease-in`;
+    shell.style.transform = `translate(-50%,-50%) translate(${b.x - a.x}px, ${b.y - a.y}px)`;
   }, half);
   setTimeout(() => shell.remove(), duration + 40);
 }
@@ -397,18 +452,19 @@ function powerBeam(fromEl, toEl, color = '#7dd8ff', duration = 220) {
     beam.style.opacity = '0';
     setTimeout(() => beam.remove(), 180);
   }, duration);
-  // bright head particle traveling the beam, bursting on arrival
+  // bright head particle traveling the beam, bursting on arrival — the travel
+  // is transform-only (left/top set once at spawn)
   const head = document.createElement('div');
   head.className = 'beam-head';
   head.style.setProperty('--beam-color', color);
   head.style.left = a.x + 'px';
   head.style.top = a.y + 'px';
+  head.style.transform = 'translate(-50%,-50%)';
   fxLayer.appendChild(head);
   void head.offsetWidth;
-  head.style.transition = `left ${duration}ms cubic-bezier(.5,0,1,.5), top ${duration}ms cubic-bezier(.5,0,1,.5)`;
-  head.style.left = b.x + 'px';
-  head.style.top = b.y + 'px';
-  setTimeout(() => {
+  head.style.transition = `transform ${duration}ms cubic-bezier(.5,0,1,.5)`;
+  head.style.transform = `translate(-50%,-50%) translate(${b.x - a.x}px, ${b.y - a.y}px)`;
+  fxTimeout(() => {
     head.remove();
     const burst = document.createElement('div');
     burst.className = 'beam-burst';
@@ -426,7 +482,8 @@ function pulseClass(el, cls, ms) {
   setTimeout(() => el.classList.remove(cls), ms);
 }
 
-/** Fly an element (ghost) from rect A to rect B. */
+/** Fly an element (ghost) from rect A to rect B. left/top are set once at the
+ *  origin; the flight itself is a pure transform transition (translate+scale). */
 function fly(ghost, from, to, ms = 420, { fade = false, scaleTo = 1 } = {}) {
   ghost.classList.add('fly-card');
   ghost.style.left = from.x + 'px';
@@ -436,11 +493,38 @@ function fly(ghost, from, to, ms = 420, { fade = false, scaleTo = 1 } = {}) {
   // force layout so the transition runs
   void ghost.offsetWidth;
   ghost.style.transitionDuration = ms + 'ms';
-  ghost.style.left = to.x + 'px';
-  ghost.style.top = to.y + 'px';
-  ghost.style.transform = `translate(-50%,-50%) scale(${scaleTo})`;
+  ghost.style.transform = `translate(-50%,-50%) translate(${to.x - from.x}px, ${to.y - from.y}px) scale(${scaleTo})`;
   if (fade) ghost.style.opacity = '0';
   setTimeout(() => ghost.remove(), ms + 80);
+}
+
+/** FLIP removal: record sibling unit positions, remove the element, then
+ *  invert-transform the siblings and transition them to identity so the row
+ *  re-centers smoothly instead of teleporting. Generation-guarded. */
+function flipRemove(el, g = gen) {
+  const row = el.parentElement;
+  if (!row) { el.remove(); return; }
+  const sibs = [...row.querySelectorAll('.unit')].filter((u) => u !== el);
+  const before = sibs.map((u) => u.getBoundingClientRect().left);
+  el.remove();
+  sibs.forEach((u, i) => {
+    const dx = before[i] - u.getBoundingClientRect().left;
+    if (Math.abs(dx) < 0.5) return;
+    u.style.transition = 'none';
+    u.style.transform = `translateX(${dx}px)`;
+    requestAnimationFrame(() => {
+      if (g !== gen) { u.style.transition = ''; u.style.transform = ''; return; }
+      requestAnimationFrame(() => {
+        if (g !== gen) { u.style.transition = ''; u.style.transform = ''; return; }
+        u.style.transition = 'transform 200ms cubic-bezier(0, 0, 0.2, 1)';
+        u.style.transform = 'translateX(0)';
+        setTimeout(() => {
+          u.style.transition = '';
+          u.style.transform = '';
+        }, 240);
+      });
+    });
+  });
 }
 
 export function showBanner(text, sub, cls = '') {
@@ -454,6 +538,10 @@ export function showBanner(text, sub, cls = '') {
 
 // ---------- per-event playback ----------
 async function playEvent(ev) {
+  // Generation this event started under. Any code that runs after an internal
+  // `await` must re-check (g0 === gen) before touching the DOM or scheduling
+  // fx — stopAnim/initAnim may have reset the game while we were waiting.
+  const g0 = gen;
   const you = hooks.youIndex();
   // Whoever's power (if any) immediately preceded THIS event — only
   // meaningful to the damage/heal case right below. Reset for every event
@@ -510,9 +598,14 @@ async function playEvent(ev) {
       table.appendChild(f);
       setTimeout(() => f.remove(), 800);
       screenShake('small');
+      // mini-banner so an empty deck reads as the systemic event it is
+      showBanner('FATIGUE', 'DECK EMPTY −' + ev.amount, 'fatigue');
+      // pulse the empty deck pill (carries .fatigue-warn once deckCount hits 0)
+      const pill = hooks.deckAnchor(ev.player);
+      if (pill) pulseClass(pill, 'fatigue-pulse', 900);
       const hero = hooks.resolveTarget('hero' + ev.player);
       floatNum(hero, 'FATIGUE −' + ev.amount, 'dmg', { size: 'med' });
-      await wait(520);
+      await wait(640);
       break;
     }
     case 'cardPlayed': {
@@ -537,13 +630,23 @@ async function playEvent(ev) {
         ghost.style.transitionDuration = '160ms';
         ghost.style.opacity = '1';
         ghost.style.transform = 'translate(-50%,-50%) scale(1)';
+        // After the reveal beat, slide the ghost aside to the lower-left of
+        // the table (transform-only) so it never occludes summons/impacts at
+        // board center while it lingers.
+        const tr = hooks.tableEl()?.getBoundingClientRect();
+        const px = tr ? (tr.left + 120) - cx : -Math.round(innerWidth * 0.32);
+        const py = tr ? (tr.bottom - 245) - cy : Math.round(innerHeight * 0.22);
+        fxTimeout(() => {
+          ghost.style.transitionDuration = '420ms';
+          ghost.style.transform = `translate(-50%,-50%) translate(${px}px, ${py}px) scale(0.8) rotate(-5deg)`;
+        }, 340);
         // Non-blocking: fades/removes itself well after the queue has moved
         // on, so it lingers through the effect's own animation(s).
         const linger = mine ? 1100 : 1500;
-        setTimeout(() => {
+        fxTimeout(() => {
           ghost.style.transitionDuration = '220ms';
           ghost.style.opacity = '0';
-          ghost.style.transform = 'translate(-50%,-50%) scale(0.85) translateY(-24px)';
+          ghost.style.transform = `translate(-50%,-50%) translate(${px}px, ${py - 22}px) scale(0.72) rotate(-5deg)`;
           setTimeout(() => ghost.remove(), 260);
         }, linger);
         // Only block long enough for the reveal pop-in plus a short beat to
@@ -563,17 +666,22 @@ async function playEvent(ev) {
           const units = [...row.querySelectorAll('.unit')];
           const before = typeof ev.position === 'number' ? units[ev.position] : null;
           row.insertBefore(el, before || null);
-          // legendary assets land with a one-time gold shimmer sweep
+          // legendary assets land with a one-time gold shimmer sweep, plus a
+          // contracting gold charge-ring + small shake on touchdown
           if (el.classList.contains('rarity-legendary')) {
             el.classList.add('anim-legend-sweep');
             setTimeout(() => el.classList.remove('anim-legend-sweep'), 950);
+            fxTimeout(() => {
+              legendRing(el);
+              screenShake('small');
+            }, 230);
           }
-          // dust + shockwave at touchdown (~55% into the drop), so the burst
+          // dust + shockwave at touchdown (~48% into the drop), so the burst
           // syncs with the squash frame instead of the spawn frame
-          setTimeout(() => dustBurst(el), 210);
+          fxTimeout(() => dustBurst(el), 230);
         }
       }
-      await wait(430);
+      await wait(460);
       break;
     }
     case 'attack': {
@@ -589,7 +697,24 @@ async function playEvent(ev) {
         pulseClass(atk, up ? 'anim-windup-up' : 'anim-windup-down', 135);
       }
       await wait(115);
+      if (g0 !== gen) break; // reset while winding up: no strike/impact fx
       if (atk) {
+        // target-relative lunge: drive the strike keyframes with the actual
+        // vector to the target (~60% of the distance, capped for readability)
+        // so cross-board / hero attacks connect instead of tapping air
+        if (tgt) {
+          const a = centerOf(atk), b = centerOf(tgt);
+          let dx = b.x - a.x, dy = b.y - a.y;
+          const dist = Math.hypot(dx, dy) || 1;
+          const mag = Math.min(dist * 0.6, 120);
+          dx = (dx / dist) * mag;
+          dy = (dy / dist) * mag;
+          atk.style.setProperty('--lx', dx.toFixed(1) + 'px');
+          atk.style.setProperty('--ly', dy.toFixed(1) + 'px');
+        } else {
+          atk.style.removeProperty('--lx');
+          atk.style.removeProperty('--ly');
+        }
         // (b) strike: hard lunge with a motion streak trailing behind
         pulseClass(atk, up ? 'anim-lunge-up' : 'anim-lunge-down', 430);
         if (tgt) fireShell(atk, tgt, 180);
@@ -597,7 +722,8 @@ async function playEvent(ev) {
       if (tgt) {
         // (c) impact + follow-through: white flash frame, knockback with
         // spring return, explosion + shake + hit-stop to sell the weight
-        setTimeout(() => {
+        // (generation-guarded: must never respawn fx after stopAnim/initAnim)
+        fxTimeout(() => {
           pulseClass(tgt, 'anim-white-flash', 160);
           pulseClass(tgt, up ? 'anim-knock-up' : 'anim-knock-down', 430);
           explosionBurst(tgt);
@@ -621,8 +747,10 @@ async function playEvent(ev) {
           const color = getComputedStyle(casterHero).getPropertyValue('--fc').trim() || '#7dd8ff';
           powerBeam(casterHero, tgt, color || '#7dd8ff');
         } else {
-          impactAt(tgt);
+          impactAt(tgt, ev.amount);
         }
+        // brief brightness dip on the struck frame so even −1 has a beat
+        pulseClass(tgt, 'anim-hit-dip', 150);
         // number size scales with the hit: 1-2 small, 3-4 medium, 5+ crit
         const size = ev.amount >= 5 ? 'crit' : ev.amount >= 3 ? 'med' : 'small';
         floatNum(tgt, '−' + ev.amount, 'dmg', { size });
@@ -630,11 +758,16 @@ async function playEvent(ev) {
           heroHurtVignette();
           screenShake('medium');
         }
+        // live-update visible stat chips so sequential events read correctly
+        // (clamped at 0 — chips must never display negative values; the
+        // death/gameOver that follows resolves them)
         const integ = tgt.querySelector?.('.integrity');
-        if (integ) pulseClass(integ, 'hurt', 450);
-        // live-update visible stat chip so sequential events read correctly
-        // (clamped at 0 — a dying unit's chip must never display negative HP;
-        // the death event that follows removes it)
+        if (integ) {
+          pulseClass(integ, 'hurt', 450);
+          if (/^\d+$/.test(integ.textContent)) {
+            integ.textContent = String(Math.max(0, Number(integ.textContent) - ev.amount));
+          }
+        }
         const hp = tgt.querySelector?.('.hp-chip');
         if (hp && /^-?\d+$/.test(hp.textContent)) {
           hp.textContent = String(Math.max(0, Number(hp.textContent) - ev.amount));
@@ -649,6 +782,18 @@ async function playEvent(ev) {
       if (tgt) {
         healBurst(tgt);
         floatNum(tgt, '+' + ev.amount, 'heal', { size: ev.amount >= 4 ? 'med' : undefined });
+        // live-increment the visible chip (unit hp / hero integrity) so a heal
+        // mid-batch reads immediately, mirroring the damage path
+        const hp = tgt.querySelector?.('.hp-chip');
+        if (hp && /^-?\d+$/.test(hp.textContent)) {
+          hp.textContent = String(Number(hp.textContent) + ev.amount);
+          pulseClass(hp, 'chip-pop', 460);
+        }
+        const integ = tgt.querySelector?.('.integrity');
+        if (integ && /^\d+$/.test(integ.textContent)) {
+          integ.textContent = String(Number(integ.textContent) + ev.amount);
+          pulseClass(integ, 'chip-pop', 460);
+        }
       }
       await wait(320);
       break;
@@ -657,6 +802,8 @@ async function playEvent(ev) {
       const tgt = hooks.resolveTarget(ev.targetId);
       if (tgt) {
         shieldShatter(tgt);
+        // brief white flash on the frame so the pop registers on the unit too
+        pulseClass(tgt, 'anim-white-flash', 170);
         tgt.classList.remove('has-shield');
       }
       await wait(380);
@@ -667,9 +814,10 @@ async function playEvent(ev) {
       const el = hooks.resolveTarget(ev.unitId);
       if (el && el.classList.contains('unit')) {
         el.classList.add('anim-death'); // white-out flash, then crack + collapse
-        setTimeout(() => deathBurst(el), 100); // shards fly right after the flash peak
+        fxTimeout(() => deathBurst(el), 100); // shards fly right after the flash peak
         await wait(550);
-        el.remove();
+        if (g0 !== gen) break; // game reset while we were mid-death
+        flipRemove(el, g0); // FLIP: neighbors glide into the gap instead of snapping
       } else {
         await wait(150);
       }
@@ -678,12 +826,19 @@ async function playEvent(ev) {
     case 'buff': {
       const el = hooks.resolveTarget(ev.unitId);
       if (el) {
-        pulseClass(el, 'anim-buff', 560);
-        buffRing(el);
-        // deltas may be negative (debuffs like Depreciation −2/−2): format
-        // signs properly and clamp the live chips at 0 like the engine does
+        // deltas may be negative (debuffs like Depreciation −2/−2): debuffs
+        // get a shake + red contracting ring, buffs the green pulse + ring
+        const neg = (ev.attack ?? 0) < 0 || (ev.health ?? 0) < 0;
+        if (neg) {
+          pulseClass(el, 'anim-shake', 350);
+          debuffRing(el);
+        } else {
+          pulseClass(el, 'anim-buff', 560);
+          buffRing(el);
+        }
+        // format signs properly and clamp the live chips at 0 like the engine
         const sgn = (n) => (n >= 0 ? '+' + n : '−' + Math.abs(n));
-        floatNum(el, `${sgn(ev.attack ?? 0)}/${sgn(ev.health ?? 0)}`, (ev.attack ?? 0) < 0 || (ev.health ?? 0) < 0 ? 'dmg' : 'buff');
+        floatNum(el, `${sgn(ev.attack ?? 0)}/${sgn(ev.health ?? 0)}`, neg ? 'dmg' : 'buff');
         const atk = el.querySelector?.('.atk-chip');
         const hp = el.querySelector?.('.hp-chip');
         if (atk && typeof ev.attack === 'number' && /^-?\d+$/.test(atk.textContent)) atk.textContent = String(Math.max(0, Number(atk.textContent) + ev.attack));
@@ -713,6 +868,7 @@ async function playEvent(ev) {
         pulseClass(hero, 'anim-power-charge', 240);
         chargeRing(hero);
         await wait(200);
+        if (g0 !== gen) break;
         pulseClass(hero, 'anim-buff', 450);
       }
       await wait(240);
