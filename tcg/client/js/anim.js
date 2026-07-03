@@ -8,6 +8,7 @@
 
 import { getCard } from './state.js';
 import { renderCard, renderUnit, renderCardBack } from './components/card.js';
+import * as audio from './audio.js';
 
 let hooks = null;
 // hooks = {
@@ -191,6 +192,7 @@ async function playEvent(ev) {
       break;
     }
     case 'cardPlayed': {
+      audio.playSfx('sfx-play');
       // reveal the played card center-screen (brief for your own plays)
       const mine = ev.player === you;
       if (ev.cardId && getCard(ev.cardId)) {
@@ -234,6 +236,7 @@ async function playEvent(ev) {
       break;
     }
     case 'attack': {
+      audio.playSfx('sfx-attack');
       const atk = hooks.resolveTarget(ev.attackerId);
       const tgt = hooks.resolveTarget(ev.targetId);
       if (atk) {
@@ -245,6 +248,7 @@ async function playEvent(ev) {
       break;
     }
     case 'damage': {
+      if (ev.targetId && ev.targetId.startsWith('hero')) audio.playSfx('sfx-ceo-damage');
       const tgt = hooks.resolveTarget(ev.targetId);
       if (tgt) {
         pulseClass(tgt, 'anim-shake', 350);
@@ -285,6 +289,7 @@ async function playEvent(ev) {
       break;
     }
     case 'death': {
+      audio.playSfx('sfx-destroy');
       const el = hooks.resolveTarget(ev.unitId);
       if (el && el.classList.contains('unit')) {
         el.classList.add('anim-death');

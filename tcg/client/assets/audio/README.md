@@ -4,8 +4,8 @@ Drop audio files into **this folder** (`tcg/client/assets/audio/`) using the
 exact names below and they play automatically — no code changes needed. Any file
 that isn't here yet is simply silent, so you can add sounds one at a time.
 
-Players can mute/unmute everything with the 🔊 button in the bottom-right corner
-(the choice is remembered).
+Players can turn Music and Sound Effects on/off independently via the ⚙ button
+in the bottom-right corner, in the lobby or in-game (each choice is remembered).
 
 ## File names
 
@@ -19,6 +19,10 @@ Players can mute/unmute everything with the 🔊 button in the bottom-right corn
 | `select-helix.mp3`    | Selecting **Helix Biosystems** | SFX — short |
 | `select-obsidian.mp3` | Selecting **Obsidian Capital** | SFX — short |
 | `ui-select.mp3` *(optional)* | Fallback faction-select sound used for any faction that doesn't have its own `select-<faction>` file | SFX — short |
+| `sfx-play.mp3`    | Any card (asset or operation) being played from hand | SFX — short |
+| `sfx-attack.mp3`  | An asset attacking | SFX — short |
+| `sfx-destroy.mp3` | An asset being destroyed | SFX — short |
+| `sfx-ceo-damage.mp3` | A CEO (either player) taking damage | SFX — short |
 
 ### Notes on names
 - Music tracks are set to **loop** automatically, so they can be seamless clips.
