@@ -63,9 +63,9 @@ C({ id: 'vx_power', name: 'Precision Strike', faction: 'vulcan', type: 'POWER', 
   flavor: 'Collateral is a line item.',
   effects: { targeting: 'any', play: [{ op: 'damage', amount: 1, to: 'target' }] } });
 
-C({ id: 'hx_ceo', name: 'Dr. Elara Soma', faction: 'helix', type: 'CEO', cost: 0, health: 30,
+C({ id: 'hx_ceo', name: 'Dr. Jin-Ho Park', faction: 'helix', type: 'CEO', cost: 0, health: 30,
   powerId: 'hx_power', collectible: false, rarity: 'legendary',
-  text: 'CEO of Helix Biosystems.', flavor: 'Technically she is her own emergency contact. Four times over.' });
+  text: 'CEO of Helix Biosystems.', flavor: 'Technically he is his own emergency contact. Four times over.' });
 C({ id: 'hx_power', name: 'Gene Therapy', faction: 'helix', type: 'POWER', cost: 2,
   collectible: false, text: 'Restore 2 Integrity to any character.',
   flavor: 'Side effects include quarterly growth.',
