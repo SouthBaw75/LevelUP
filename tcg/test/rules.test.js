@@ -42,7 +42,6 @@ test('spent capital refills to max next turn', () => {
   const s = newGame();
   end(s);
   const p1 = s.players[1];
-  const idx = putInHand(s, 1, 'nx_013'); // 0-cost, but spend via subsidy interplay below
   p1.capital = 0; // pretend all spent
   end(s); end(s); // back to p1's turn
   assert.equal(p1.capital, p1.maxCapital);
@@ -270,8 +269,7 @@ test('you CAN target your own stealthed asset; stealth breaks when it deals dama
   const s = newGame();
   giveCapital(s, 0);
   const mine = addUnit(s, 0, 'ntr_021'); // my stealth unit
-  const idx = putInHand(s, 0, 'hx_002'); // +1/+2 friendly
-  s.players[0].faction = 'nexus'; // any faction can be in hand for engine purposes
+  const idx = putInHand(s, 0, 'hx_002'); // +1/+2 friendly (engine doesn't care about deck faction here)
   const r = applyAction(s, 0, { type: 'playCard', handIndex: idx, target: mine.id, position: null });
   assert.equal(r.ok, true);
   // attack -> deals damage -> stealth breaks
@@ -351,7 +349,8 @@ test('ONBOARDING runs when played from hand (draw)', () => {
   const idx = putInHand(s, 0, 'nx_002'); // onboarding: draw 1
   const r = applyAction(s, 0, { type: 'playCard', handIndex: idx, target: null, position: null });
   assert.equal(r.ok, true);
-  assert.equal(s.players[0].hand.length, before + 1); // -played +drawn ... net +0? see below
+  // +1 put in hand, -1 played, +1 drawn => net +1 vs the original count
+  assert.equal(s.players[0].hand.length, before + 1);
   assert.ok(find(r.events, 'draw'));
 });
 
