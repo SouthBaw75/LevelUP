@@ -129,16 +129,29 @@ export function renderCard(defOrId, opts = {}) {
     + (opts.showFlavor && def.flavor ? def.flavor.length : 0);
   if (combinedLen > 90) body.classList.add('tight');
 
-  if (glossKws.length || bodyText) {
+  if (glossKws.length) {
+    const gl = document.createElement('div');
+    gl.className = 'kw-gloss';
+    if (combinedLen > 70) gl.classList.add('long');
+    if (combinedLen > 115) gl.classList.add('xlong');
+    for (const k of glossKws) {
+      const row = document.createElement('div');
+      row.className = 'kwg-row';
+      const nm = document.createElement('div');
+      nm.className = 'kwg-name';
+      nm.textContent = KEYWORD_NAMES[k] || k.toUpperCase();
+      const dc = document.createElement('div');
+      dc.className = 'kwg-desc';
+      dc.textContent = faceGloss(k);
+      row.append(nm, dc);
+      gl.appendChild(row);
+    }
+    body.appendChild(gl);
+  }
+  if (bodyText) {
     const txt = document.createElement('div');
     txt.className = 'card-text';
-    for (const k of glossKws) {
-      const nm = document.createElement('b');
-      nm.className = 'kw-inline';
-      nm.textContent = KEYWORD_NAMES[k] || k.toUpperCase();
-      txt.append(nm, document.createTextNode(' ' + faceGloss(k) + ' '));
-    }
-    if (bodyText) txt.append(document.createTextNode(bodyText));
+    txt.textContent = bodyText;
     if (combinedLen > 70) txt.classList.add('long');
     if (combinedLen > 115) txt.classList.add('xlong');
     body.appendChild(txt);

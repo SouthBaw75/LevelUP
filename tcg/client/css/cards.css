@@ -146,14 +146,29 @@
 .card-back { --cw: 60px; width: var(--cw); height: calc(var(--cw) * 1.4); flex: none; filter: drop-shadow(0 3px 6px rgba(0,0,0,0.5)); }
 .card-back svg { width: 100%; height: 100%; display: block; }
 
-/* ---------- inline keyword name on the card face ---------- */
-/* Each keyword shows as a bold, faction-tinted name inline in the rules text,
-   followed by a short gloss — so a card never just says "FIREWALL." with no
-   explanation. Flows with the text and scales with --cw. */
-.kw-inline {
-  font-weight: 800; letter-spacing: 0.02em;
+/* ---------- keyword gloss on the card face ---------- */
+/* Each keyword shows as its bold, faction-tinted NAME centered on one line,
+   with the plain-English meaning centered on the line below — so a card never
+   just says "FIREWALL." with no explanation. Scales with --cw. */
+.kw-gloss {
+  width: 100%; display: flex; flex-direction: column;
+  gap: calc(var(--cw) * 0.03);
+}
+.kwg-row { text-align: center; }
+.kwg-name {
+  font: 800 calc(var(--cw) * 0.06)/1.1 var(--sans); letter-spacing: 0.03em;
   color: color-mix(in srgb, var(--fc) 82%, #fff);
 }
+.kwg-desc {
+  font: 400 calc(var(--cw) * 0.052)/1.25 var(--sans); color: #b9c6d8;
+  margin-top: calc(var(--cw) * 0.008);
+}
+.kw-gloss.long .kwg-name { font-size: calc(var(--cw) * 0.054); }
+.kw-gloss.long .kwg-desc { font-size: calc(var(--cw) * 0.046); }
+.kw-gloss.long { gap: calc(var(--cw) * 0.022); }
+.kw-gloss.xlong .kwg-name { font-size: calc(var(--cw) * 0.048); }
+.kw-gloss.xlong .kwg-desc { font-size: calc(var(--cw) * 0.04); line-height: 1.18; }
+.kw-gloss.xlong { gap: calc(var(--cw) * 0.016); }
 
 /* ---------- preview layer ---------- */
 #card-preview-layer {
