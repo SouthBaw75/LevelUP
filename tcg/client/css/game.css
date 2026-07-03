@@ -239,6 +239,62 @@
 .shatter-fx { position: absolute; z-index: 155; transform: translate(-50%, -50%); pointer-events: none; color: #fae082; font-size: 34px; animation: shatter 0.55s ease-out forwards; }
 @keyframes shatter { 0% { opacity: 1; transform: translate(-50%, -50%) scale(1); } 100% { opacity: 0; transform: translate(-50%, -50%) scale(2.2) rotate(24deg); } }
 
+/* ---------- summon: dust puff + ground shockwave ---------- */
+.dust-mote {
+  position: absolute; z-index: 145; width: 8px; height: 8px; border-radius: 50%; pointer-events: none;
+  background: radial-gradient(circle, rgba(222, 227, 236, 0.85), rgba(180, 190, 205, 0.15));
+  animation: dust-drift 0.62s ease-out forwards;
+}
+@keyframes dust-drift {
+  from { transform: translate(-50%, -50%) translate(0, 0) scale(0.6); opacity: 0.9; }
+  to { transform: translate(-50%, -50%) translate(var(--dx), var(--dy)) scale(1.5); opacity: 0; }
+}
+.summon-ring {
+  position: absolute; z-index: 144; width: 70px; height: 18px; border-radius: 50%; pointer-events: none;
+  transform: translate(-50%, -50%); border: 2px solid rgba(205, 215, 230, 0.55);
+  animation: ring-expand 0.46s ease-out forwards;
+}
+@keyframes ring-expand {
+  from { transform: translate(-50%, -50%) scale(0.3); opacity: 0.9; }
+  to { transform: translate(-50%, -50%) scale(2.3); opacity: 0; }
+}
+
+/* ---------- attack: artillery shell + explosion ---------- */
+.shell-projectile {
+  position: absolute; z-index: 150; width: 10px; height: 10px; border-radius: 50%; pointer-events: none;
+  transform: translate(-50%, -50%);
+  background: radial-gradient(circle, #fff, #ffb347 60%, transparent);
+  box-shadow: 0 0 10px #ff8c1a, 0 0 20px rgba(255, 90, 26, 0.7);
+}
+.explosion-flash {
+  position: absolute; z-index: 156; width: 120px; height: 120px; border-radius: 50%; pointer-events: none;
+  transform: translate(-50%, -50%);
+  background: radial-gradient(circle, rgba(255, 224, 160, 0.95), rgba(255, 140, 40, 0.55) 42%, transparent 70%);
+  animation: explosion 0.44s ease-out forwards;
+}
+@keyframes explosion {
+  from { transform: translate(-50%, -50%) scale(0.25); opacity: 1; }
+  to { transform: translate(-50%, -50%) scale(1.7); opacity: 0; }
+}
+.shrapnel {
+  position: absolute; z-index: 156; width: 6px; height: 6px; border-radius: 50%; pointer-events: none;
+  background: #ffb347; box-shadow: 0 0 6px #ff8c1a;
+  animation: shrapnel-fly 0.5s ease-out forwards;
+}
+@keyframes shrapnel-fly {
+  from { transform: translate(-50%, -50%) translate(0, 0); opacity: 1; }
+  to { transform: translate(-50%, -50%) translate(var(--dx), var(--dy)); opacity: 0; }
+}
+
+/* ---------- CEO power: energy arc from portrait to target ---------- */
+.power-beam {
+  position: absolute; z-index: 150; height: 4px; border-radius: 3px; pointer-events: none;
+  transform-origin: 0 50%;
+  background: linear-gradient(90deg, var(--beam-color, #7dd8ff), rgba(255, 255, 255, 0.9) 65%, transparent);
+  box-shadow: 0 0 10px var(--beam-color, #7dd8ff), 0 0 18px var(--beam-color, #7dd8ff);
+  transition: opacity 0.16s ease;
+}
+
 .fly-card { position: absolute; z-index: 165; pointer-events: none; transition: left 0.42s cubic-bezier(0.3, 0.8, 0.4, 1), top 0.42s cubic-bezier(0.3, 0.8, 0.4, 1), transform 0.42s ease, opacity 0.3s; }
 
 /* unit animation states */

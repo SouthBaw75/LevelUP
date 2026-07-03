@@ -28,6 +28,12 @@ const queue = [];
 let playing = false;
 let cancelled = false;
 
+// Tracks whose CEO power (if any) is the direct cause of the very next event —
+// set when a heroPower event plays, consumed by the following damage/heal
+// event so it can draw an energy arc from that CEO instead of a generic
+// impact. Reset on every event so it never attaches to something unrelated.
+let pendingPowerCaster = null;
+
 export function initAnim(h) {
   hooks = h;
   if (!fxLayer) {
@@ -39,6 +45,7 @@ export function initAnim(h) {
   queue.length = 0;
   playing = false;
   cancelled = false;
+  pendingPowerCaster = null;
 }
 
 export function stopAnim() {
@@ -107,6 +114,103 @@ function impactAt(el) {
   setTimeout(() => f.remove(), 450);
 }
 
+/** Dust puff + ground shockwave ring where a unit just materialized. */
+function dustBurst(el) {
+  if (!el) return;
+  const { x, y } = centerOf(el);
+  const groundY = y + 34;
+  for (let i = 0; i < 7; i++) {
+    const p = document.createElement('div');
+    p.className = 'dust-mote';
+    const ang = Math.PI + Math.random() * Math.PI; // upward hemisphere
+    const dist = 16 + Math.random() * 24;
+    p.style.left = x + (Math.random() * 26 - 13) + 'px';
+    p.style.top = groundY + 'px';
+    p.style.setProperty('--dx', (Math.cos(ang) * dist * 0.5) + 'px');
+    p.style.setProperty('--dy', (Math.sin(ang) * dist - 16) + 'px');
+    fxLayer.appendChild(p);
+    setTimeout(() => p.remove(), 640);
+  }
+  const ring = document.createElement('div');
+  ring.className = 'summon-ring';
+  ring.style.left = x + 'px';
+  ring.style.top = groundY + 'px';
+  fxLayer.appendChild(ring);
+  setTimeout(() => ring.remove(), 480);
+}
+
+/** Small glowing shell lobbed from attacker to target (artillery-style arc trajectory). */
+function fireShell(fromEl, toEl, duration = 260) {
+  if (!fromEl || !toEl) return;
+  const a = centerOf(fromEl), b = centerOf(toEl);
+  const shell = document.createElement('div');
+  shell.className = 'shell-projectile';
+  shell.style.left = a.x + 'px';
+  shell.style.top = a.y + 'px';
+  fxLayer.appendChild(shell);
+  void shell.offsetWidth;
+  const midX = (a.x + b.x) / 2, midY = Math.min(a.y, b.y) - 44;
+  const half = duration / 2;
+  shell.style.transition = `left ${half}ms ease-out, top ${half}ms ease-out`;
+  shell.style.left = midX + 'px';
+  shell.style.top = midY + 'px';
+  setTimeout(() => {
+    shell.style.transition = `left ${half}ms ease-in, top ${half}ms ease-in`;
+    shell.style.left = b.x + 'px';
+    shell.style.top = b.y + 'px';
+  }, half);
+  setTimeout(() => shell.remove(), duration + 40);
+}
+
+/** Bigger artillery-style explosion: flash + flying shrapnel, for combat impacts. */
+function explosionBurst(el) {
+  if (!el) return;
+  const { x, y } = centerOf(el);
+  const flash = document.createElement('div');
+  flash.className = 'explosion-flash';
+  flash.style.left = x + 'px';
+  flash.style.top = y + 'px';
+  fxLayer.appendChild(flash);
+  setTimeout(() => flash.remove(), 480);
+  for (let i = 0; i < 8; i++) {
+    const p = document.createElement('div');
+    p.className = 'shrapnel';
+    const ang = (Math.PI * 2 * i) / 8 + (Math.random() * 0.4 - 0.2);
+    const dist = 30 + Math.random() * 26;
+    p.style.left = x + 'px';
+    p.style.top = y + 'px';
+    p.style.setProperty('--dx', Math.cos(ang) * dist + 'px');
+    p.style.setProperty('--dy', Math.sin(ang) * dist + 'px');
+    fxLayer.appendChild(p);
+    setTimeout(() => p.remove(), 520);
+  }
+}
+
+/** Energy arc shot from a CEO portrait to the target of their power. */
+function powerBeam(fromEl, toEl, color = '#7dd8ff', duration = 220) {
+  if (!fromEl || !toEl) return;
+  const a = centerOf(fromEl), b = centerOf(toEl);
+  const dx = b.x - a.x, dy = b.y - a.y;
+  const dist = Math.hypot(dx, dy);
+  const angle = (Math.atan2(dy, dx) * 180) / Math.PI;
+  const beam = document.createElement('div');
+  beam.className = 'power-beam';
+  beam.style.left = a.x + 'px';
+  beam.style.top = a.y + 'px';
+  beam.style.width = dist + 'px';
+  beam.style.setProperty('--beam-color', color);
+  beam.style.transform = `rotate(${angle}deg) scaleX(0)`;
+  fxLayer.appendChild(beam);
+  void beam.offsetWidth;
+  beam.style.transition = `transform ${duration}ms cubic-bezier(.2,.8,.3,1)`;
+  beam.style.transform = `rotate(${angle}deg) scaleX(1)`;
+  setTimeout(() => {
+    beam.style.transition = 'opacity 160ms ease';
+    beam.style.opacity = '0';
+    setTimeout(() => beam.remove(), 180);
+  }, duration);
+}
+
 function pulseClass(el, cls, ms) {
   if (!el) return;
   el.classList.add(cls);
@@ -142,6 +246,11 @@ export function showBanner(text, sub, cls = '') {
 // ---------- per-event playback ----------
 async function playEvent(ev) {
   const you = hooks.youIndex();
+  // Whoever's power (if any) immediately preceded THIS event — only
+  // meaningful to the damage/heal case right below. Reset for every event
+  // except when the event itself is the heroPower that arms it for the next one.
+  const powerCaster = pendingPowerCaster;
+  pendingPowerCaster = ev.e === 'heroPower' ? ev.player : null;
   switch (ev.e) {
     case 'turnStart': {
       const yours = ev.player === you;
@@ -239,6 +348,8 @@ async function playEvent(ev) {
           const units = [...row.querySelectorAll('.unit')];
           const before = typeof ev.position === 'number' ? units[ev.position] : null;
           row.insertBefore(el, before || null);
+          // dust + shockwave once it's actually laid out, so it lands "on the field"
+          requestAnimationFrame(() => dustBurst(el));
         }
       }
       await wait(400);
@@ -251,9 +362,10 @@ async function playEvent(ev) {
       if (atk) {
         const up = ev.attackerId.startsWith('u') && atk.closest('.board-row') === hooks.boardRow(you);
         pulseClass(atk, up ? 'anim-lunge-up' : 'anim-lunge-down', 400);
+        if (tgt) fireShell(atk, tgt, 240);
       }
-      if (tgt) setTimeout(() => { pulseClass(tgt, 'anim-shake', 350); impactAt(tgt); }, 160);
-      await wait(420);
+      if (tgt) setTimeout(() => { pulseClass(tgt, 'anim-shake', 350); explosionBurst(tgt); }, 200);
+      await wait(440);
       break;
     }
     case 'damage': {
@@ -261,7 +373,15 @@ async function playEvent(ev) {
       const tgt = hooks.resolveTarget(ev.targetId);
       if (tgt) {
         pulseClass(tgt, 'anim-shake', 350);
-        impactAt(tgt);
+        // A hero power's damage gets an energy arc from the acting CEO instead
+        // of the generic impact flash, so it visually reads as an ability.
+        const casterHero = powerCaster != null ? hooks.resolveTarget('hero' + powerCaster) : null;
+        if (casterHero) {
+          const color = getComputedStyle(casterHero).getPropertyValue('--fc').trim() || '#7dd8ff';
+          powerBeam(casterHero, tgt, color || '#7dd8ff');
+        } else {
+          impactAt(tgt);
+        }
         floatNum(tgt, '−' + ev.amount, 'dmg');
         const integ = tgt.querySelector?.('.integrity');
         if (integ) pulseClass(integ, 'hurt', 450);
