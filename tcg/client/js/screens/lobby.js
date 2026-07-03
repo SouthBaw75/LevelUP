@@ -8,10 +8,12 @@ import {
 import * as net from '../net.js';
 import { showScreen, toast } from '../main.js';
 import { ceoPortraitSvg } from '../art.js';
+import { openHowToPlay, maybeAutoShow, isOpen as howToPlayOpen, close as closeHowToPlay } from '../howtoplay.js';
 
 let root = null;
 let modal = null;           // current modal veil element
 let modalMode = null;       // 'searching' | 'privateHost' | 'privateJoin'
+let firstEntry = true;
 
 export function mount(el) {
   root = el;
@@ -20,10 +22,15 @@ export function mount(el) {
 export function enter() {
   session.inGame = false;
   render();
+  if (firstEntry) {
+    firstEntry = false;
+    maybeAutoShow();
+  }
 }
 
 export function exit() {
   closeModal(false);
+  closeHowToPlay();
 }
 
 export function onOnline(n) {
@@ -32,6 +39,7 @@ export function onOnline(n) {
 }
 
 export function onKey(ev, typing) {
+  if (howToPlayOpen()) return false; // howtoplay.js owns its own Escape handling
   if (ev.key === 'Escape' && modal) { cancelModalAction(); return true; }
   if (ev.key === 'Enter' && modalMode === 'privateJoin' && typing) { submitJoinCode(); return true; }
   return false;
@@ -79,6 +87,7 @@ function render() {
       <div class="lobby-user">
         <span id="lobby-online">${typeof session.online === 'number' ? `<span class="online-dot">●</span> ${session.online} ONLINE` : ''}</span>
         <span>EXEC: <b style="color:var(--ink)">${escapeHtml(getName())}</b></span>
+        <button class="btn ghost small" id="btn-howto">❔ HOW TO PLAY</button>
       </div>
     </div>
     <div class="lobby-main">
@@ -150,6 +159,7 @@ function render() {
   }
 
   // buttons
+  root.querySelector('#btn-howto').addEventListener('click', () => openHowToPlay());
   root.querySelector('#btn-builder').addEventListener('click', () => showScreen('builder'));
   root.querySelector('#btn-queue').addEventListener('click', () => {
     const deck = requireValidDeck();

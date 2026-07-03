@@ -95,7 +95,11 @@ const LS = {
   name: 'ht_name',
   decks: 'ht_decks',
   selectedDeck: 'ht_selected_deck',
+  seenTutorial: 'ht_seen_tutorial',
 };
+
+export function hasSeenTutorial() { return localStorage.getItem(LS.seenTutorial) === '1'; }
+export function setSeenTutorial() { localStorage.setItem(LS.seenTutorial, '1'); }
 
 export function getPid() {
   let pid = localStorage.getItem(LS.pid);
