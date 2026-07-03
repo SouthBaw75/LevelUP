@@ -8,30 +8,38 @@ import { mountArt, factionColor } from '../art.js';
 
 const RARITY_LABEL = { common: 'Common', rare: 'Rare', epic: 'Epic', legendary: 'Legendary' };
 
-// Which keywords to spell out in the inspect preview's reminder box:
-// every stand-alone keyword on the card, plus the ONBOARDING / GOLDEN
-// PARACHUTE timing words if the rules text uses them.
-function reminderKeywords(def) {
-  const out = [];
-  for (const k of def.keywords || []) if (!out.includes(k)) out.push(k);
-  const t = (def.text || '').toLowerCase();
-  if (t.includes('onboarding') && !out.includes('onboarding')) out.push('onboarding');
-  if (t.includes('golden parachute') && !out.includes('parachute')) out.push('parachute');
-  return out;
+// Concise keyword glosses for the card FACE (the full sentences live in
+// state.js KEYWORD_HELP and the How to Play glossary). Kept short so even a
+// two-keyword card reads cleanly at hand size without clipping.
+const KEYWORD_FACE_GLOSS = {
+  firewall: 'Must be attacked first.',
+  fasttrack: 'Can attack immediately.',
+  stealth: 'Hidden until it attacks.',
+  shielded: 'Ignores the first hit.',
+  overtime: 'Attacks twice per turn.',
+  toxic: 'Destroys what it damages.',
+  siphon: 'Its damage heals your CEO.',
+};
+
+// Remove bare "<KEYWORD>." sentences from rules text (e.g. "FIREWALL. SIPHON.")
+// so the face can replace them with real glosses instead of echoing the badge.
+// Ability text like "Onboarding: deal 1 damage." is left untouched.
+function stripKeywordSentences(text, keywords) {
+  let t = text;
+  for (const k of keywords) {
+    const nm = KEYWORD_NAMES[k];
+    if (!nm) continue;
+    t = t.replace(new RegExp(escapeRegExp(nm) + '\\.\\s*', 'g'), '');
+  }
+  return t.trim();
 }
 
-function keywordBadges(keywords) {
-  if (!keywords || !keywords.length) return null;
-  const wrap = document.createElement('div');
-  wrap.className = 'kw-badges';
-  for (const k of keywords) {
-    const b = document.createElement('span');
-    b.className = 'kw-badge kw-' + k;
-    b.textContent = KEYWORD_NAMES[k] || k.toUpperCase();
-    b.title = KEYWORD_HELP[k] || '';
-    wrap.appendChild(b);
-  }
-  return wrap;
+function escapeRegExp(s) {
+  return s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+}
+
+function faceGloss(k) {
+  return KEYWORD_FACE_GLOSS[k] || KEYWORD_HELP[k] || '';
 }
 
 /**
@@ -98,54 +106,46 @@ export function renderCard(defOrId, opts = {}) {
     : def.type === 'CEO' ? 'CHIEF EXECUTIVE' : 'CEO POWER';
   el.appendChild(typeLine);
 
-  // body: keywords + rules text (+ flavor when zoomed)
+  // body: rules text (+ flavor when zoomed)
   const body = document.createElement('div');
   body.className = 'card-body';
-  const kb = keywordBadges(def.keywords);
-  if (kb) body.appendChild(kb);
+
+  // Rules text reads as one flowing block: each standalone keyword appears as
+  // a bold inline name followed by a short plain-English gloss, then the card's
+  // own ability text. So "FIREWALL. SIPHON." renders as
+  //   FIREWALL Must be attacked first. SIPHON Its damage heals your CEO.
+  // instead of a bare, unexplained keyword. Redundant bare keyword sentences
+  // are stripped from the ability text first so nothing is said twice.
+  const glossKws = def.keywords || [];
+  const bodyText = stripKeywordSentences(def.text || '', glossKws);
+  const glossLen = glossKws.reduce((n, k) => n + faceGloss(k).length + KEYWORD_NAMES[k].length + 2, 0);
+
   // Text + flavor share one vertical budget below the name plate — shrink
-  // both together once their combined length would otherwise overflow the
-  // body and get clipped (rather than just shrinking text in isolation).
-  const combinedLen = (def.text ? def.text.length : 0) + (opts.showFlavor && def.flavor ? def.flavor.length : 0);
-  if (combinedLen > 95) body.classList.add('tight');
-  if (def.text) {
+  // together once they'd otherwise overflow the body and get clipped.
+  const combinedLen = bodyText.length + glossLen
+    + (opts.showFlavor && def.flavor ? def.flavor.length : 0);
+  if (combinedLen > 90) body.classList.add('tight');
+
+  if (glossKws.length || bodyText) {
     const txt = document.createElement('div');
     txt.className = 'card-text';
-    txt.textContent = def.text;
-    if (def.text.length > 90 || combinedLen > 95) txt.classList.add('long');
-    if (combinedLen > 130) txt.classList.add('xlong');
-    body.appendChild(txt);
-  }
-  // Keyword reminder text — shown only in the enlarged inspect preview so the
-  // compact card face stays lean. Spells out every keyword the card carries
-  // (plus ONBOARDING/GOLDEN PARACHUTE timing if its text references them) so a
-  // player can read exactly what "FIREWALL. SIPHON." actually does.
-  if (opts.showReminders) {
-    const rem = reminderKeywords(def);
-    if (rem.length) {
-      const box = document.createElement('div');
-      box.className = 'card-reminders';
-      for (const k of rem) {
-        const row = document.createElement('div');
-        row.className = 'reminder-row';
-        const nm = document.createElement('span');
-        nm.className = 'reminder-kw';
-        nm.textContent = KEYWORD_NAMES[k] || k.toUpperCase();
-        const dc = document.createElement('span');
-        dc.className = 'reminder-desc';
-        dc.textContent = KEYWORD_HELP[k] || '';
-        row.append(nm, dc);
-        box.appendChild(row);
-      }
-      body.appendChild(box);
+    for (const k of glossKws) {
+      const nm = document.createElement('b');
+      nm.className = 'kw-inline';
+      nm.textContent = KEYWORD_NAMES[k] || k.toUpperCase();
+      txt.append(nm, document.createTextNode(' ' + faceGloss(k) + ' '));
     }
+    if (bodyText) txt.append(document.createTextNode(bodyText));
+    if (combinedLen > 70) txt.classList.add('long');
+    if (combinedLen > 115) txt.classList.add('xlong');
+    body.appendChild(txt);
   }
   if (opts.showFlavor && def.flavor) {
     const fl = document.createElement('div');
     fl.className = 'card-flavor';
     fl.textContent = def.flavor;
-    if (combinedLen > 95) fl.classList.add('long');
-    if (combinedLen > 130) fl.classList.add('xlong');
+    if (combinedLen > 70) fl.classList.add('long');
+    if (combinedLen > 115) fl.classList.add('xlong');
     body.appendChild(fl);
   }
   el.appendChild(body);
@@ -294,7 +294,7 @@ export function showPreview(defOrId, anchorEl, overrides = {}) {
   if (previewFor === anchorEl && layer.childElementCount) return;
   previewFor = anchorEl;
   layer.innerHTML = '';
-  const card = renderCard(defOrId, { width: 250, showFlavor: true, showReminders: true, interactive: false, ...overrides });
+  const card = renderCard(defOrId, { width: 250, showFlavor: true, interactive: false, ...overrides });
   card.classList.add('preview-card');
   layer.appendChild(card);
   layer.style.display = 'block';
