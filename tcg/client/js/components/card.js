@@ -8,6 +8,18 @@ import { mountArt, factionColor } from '../art.js';
 
 const RARITY_LABEL = { common: 'Common', rare: 'Rare', epic: 'Epic', legendary: 'Legendary' };
 
+// Which keywords to spell out in the inspect preview's reminder box:
+// every stand-alone keyword on the card, plus the ONBOARDING / GOLDEN
+// PARACHUTE timing words if the rules text uses them.
+function reminderKeywords(def) {
+  const out = [];
+  for (const k of def.keywords || []) if (!out.includes(k)) out.push(k);
+  const t = (def.text || '').toLowerCase();
+  if (t.includes('onboarding') && !out.includes('onboarding')) out.push('onboarding');
+  if (t.includes('golden parachute') && !out.includes('parachute')) out.push('parachute');
+  return out;
+}
+
 function keywordBadges(keywords) {
   if (!keywords || !keywords.length) return null;
   const wrap = document.createElement('div');
@@ -103,6 +115,30 @@ export function renderCard(defOrId, opts = {}) {
     if (def.text.length > 90 || combinedLen > 95) txt.classList.add('long');
     if (combinedLen > 130) txt.classList.add('xlong');
     body.appendChild(txt);
+  }
+  // Keyword reminder text — shown only in the enlarged inspect preview so the
+  // compact card face stays lean. Spells out every keyword the card carries
+  // (plus ONBOARDING/GOLDEN PARACHUTE timing if its text references them) so a
+  // player can read exactly what "FIREWALL. SIPHON." actually does.
+  if (opts.showReminders) {
+    const rem = reminderKeywords(def);
+    if (rem.length) {
+      const box = document.createElement('div');
+      box.className = 'card-reminders';
+      for (const k of rem) {
+        const row = document.createElement('div');
+        row.className = 'reminder-row';
+        const nm = document.createElement('span');
+        nm.className = 'reminder-kw';
+        nm.textContent = KEYWORD_NAMES[k] || k.toUpperCase();
+        const dc = document.createElement('span');
+        dc.className = 'reminder-desc';
+        dc.textContent = KEYWORD_HELP[k] || '';
+        row.append(nm, dc);
+        box.appendChild(row);
+      }
+      body.appendChild(box);
+    }
   }
   if (opts.showFlavor && def.flavor) {
     const fl = document.createElement('div');
@@ -258,13 +294,14 @@ export function showPreview(defOrId, anchorEl, overrides = {}) {
   if (previewFor === anchorEl && layer.childElementCount) return;
   previewFor = anchorEl;
   layer.innerHTML = '';
-  const card = renderCard(defOrId, { width: 250, showFlavor: true, interactive: false, ...overrides });
+  const card = renderCard(defOrId, { width: 250, showFlavor: true, showReminders: true, interactive: false, ...overrides });
   card.classList.add('preview-card');
   layer.appendChild(card);
   layer.style.display = 'block';
-  // position beside the anchor, clamped to viewport
+  // position beside the anchor, clamped to viewport. Reminder text can grow
+  // the card past the nominal height, so measure the real rendered height.
   const r = anchorEl.getBoundingClientRect();
-  const cw = 250, ch = cw * 1.45;
+  const cw = 250, ch = card.offsetHeight || cw * 1.45;
   let x = r.right + 14;
   if (x + cw > innerWidth - 8) x = r.left - cw - 14;
   if (x < 8) x = Math.min(Math.max(8, r.left + r.width / 2 - cw / 2), innerWidth - cw - 8);
