@@ -91,17 +91,25 @@ export function renderCard(defOrId, opts = {}) {
   body.className = 'card-body';
   const kb = keywordBadges(def.keywords);
   if (kb) body.appendChild(kb);
+  // Text + flavor share one vertical budget below the name plate — shrink
+  // both together once their combined length would otherwise overflow the
+  // body and get clipped (rather than just shrinking text in isolation).
+  const combinedLen = (def.text ? def.text.length : 0) + (opts.showFlavor && def.flavor ? def.flavor.length : 0);
+  if (combinedLen > 95) body.classList.add('tight');
   if (def.text) {
     const txt = document.createElement('div');
     txt.className = 'card-text';
     txt.textContent = def.text;
-    if (def.text.length > 90) txt.classList.add('long');
+    if (def.text.length > 90 || combinedLen > 95) txt.classList.add('long');
+    if (combinedLen > 130) txt.classList.add('xlong');
     body.appendChild(txt);
   }
   if (opts.showFlavor && def.flavor) {
     const fl = document.createElement('div');
     fl.className = 'card-flavor';
     fl.textContent = def.flavor;
+    if (combinedLen > 95) fl.classList.add('long');
+    if (combinedLen > 130) fl.classList.add('xlong');
     body.appendChild(fl);
   }
   el.appendChild(body);
