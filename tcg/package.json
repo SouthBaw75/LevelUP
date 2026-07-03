@@ -1,0 +1,15 @@
+{
+  "name": "hostile-takeover",
+  "version": "1.0.0",
+  "private": true,
+  "description": "HOSTILE TAKEOVER — an online multiplayer corporate-warfare TCG. Mega-conglomerates battle for market dominance.",
+  "type": "module",
+  "scripts": {
+    "start": "node server/index.js",
+    "dev": "node server/index.js",
+    "test": "node --test test/"
+  },
+  "dependencies": {
+    "ws": "^8.18.0"
+  }
+}
