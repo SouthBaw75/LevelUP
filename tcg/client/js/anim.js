@@ -193,7 +193,12 @@ async function playEvent(ev) {
     }
     case 'cardPlayed': {
       audio.playSfx('sfx-play');
-      // reveal the played card center-screen (brief for your own plays)
+      // Reveal the played card center-screen, then hand off to whatever it
+      // causes (summon, damage, heal, buff, ...) — the very next events in
+      // this same batch — while the card STAYS ON SCREEN. It only fades out
+      // on its own timer afterwards, so the effect always visibly happens
+      // while its cause is still visible, instead of the card vanishing
+      // before you see what it did.
       const mine = ev.player === you;
       if (ev.cardId && getCard(ev.cardId)) {
         const ghost = renderCard(ev.cardId, { width: mine ? 130 : 185, interactive: false, showFlavor: false });
@@ -208,14 +213,18 @@ async function playEvent(ev) {
         ghost.style.transitionDuration = '160ms';
         ghost.style.opacity = '1';
         ghost.style.transform = 'translate(-50%,-50%) scale(1)';
-        const hold = mine ? 240 : 620;
+        // Non-blocking: fades/removes itself well after the queue has moved
+        // on, so it lingers through the effect's own animation(s).
+        const linger = mine ? 1100 : 1500;
         setTimeout(() => {
-          ghost.style.transitionDuration = '200ms';
+          ghost.style.transitionDuration = '220ms';
           ghost.style.opacity = '0';
           ghost.style.transform = 'translate(-50%,-50%) scale(0.85) translateY(-24px)';
-          setTimeout(() => ghost.remove(), 240);
-        }, hold);
-        await wait(hold + 160);
+          setTimeout(() => ghost.remove(), 260);
+        }, linger);
+        // Only block long enough for the reveal pop-in plus a short beat to
+        // register the card before its effect starts playing.
+        await wait(320);
       }
       break;
     }
