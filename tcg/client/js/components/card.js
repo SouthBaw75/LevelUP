@@ -156,7 +156,14 @@ export function renderUnit(unit, opts = {}) {
 
   const name = document.createElement('div');
   name.className = 'unit-name';
-  name.textContent = def.name || unit.cardId;
+  const fullName = def.name || unit.cardId;
+  // Fit the label between the stat chips: shrink long names (.long), and
+  // pre-ellipsize measured overflow — CSS text-overflow can't ellipsize
+  // centered nowrap text (it hard-clips the start of the string).
+  const fit = fitUnitName(fullName);
+  if (fit.long) name.classList.add('long');
+  name.textContent = fit.text;
+  name.title = fullName;
   el.appendChild(name);
 
   // keyword icons row
@@ -193,6 +200,25 @@ export function renderUnit(unit, opts = {}) {
   if (unit.canAttack && !opts.enemy) el.classList.add('ready');
   if (unit.exhausted) el.classList.add('exhausted');
   return el;
+}
+
+// Available label width on a board unit: 92px wide minus 20px padding per
+// side (clear of the overhanging stat chips), minus a letter-spacing buffer.
+const UNIT_NAME_MAX_PX = 50;
+let measureCtx = null;
+
+function fitUnitName(text) {
+  if (!measureCtx) measureCtx = document.createElement('canvas').getContext('2d');
+  const sans = '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif';
+  measureCtx.font = '600 8.5px ' + sans;
+  if (measureCtx.measureText(text).width <= UNIT_NAME_MAX_PX) return { text, long: false };
+  measureCtx.font = '600 7.5px ' + sans;
+  if (measureCtx.measureText(text).width <= UNIT_NAME_MAX_PX) return { text, long: true };
+  let t = text;
+  while (t.length > 1 && measureCtx.measureText(t + '…').width > UNIT_NAME_MAX_PX) {
+    t = t.slice(0, -1).trimEnd();
+  }
+  return { text: t + '…', long: true };
 }
 
 const UNIT_KW_GLYPH = {

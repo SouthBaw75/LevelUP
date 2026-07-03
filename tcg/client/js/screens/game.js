@@ -37,6 +37,11 @@ export function enter(params) {
   mode = null;
   session.inGame = true;
   unitNames.clear();
+  // Re-entering without exit() (e.g. rematch gameStart while already on this
+  // screen): clear last game's terminal overlay and stale UI references.
+  document.querySelector('.gameover-veil')?.remove();
+  rematchOfferPending = false;
+  emoteWheel = null;
 
   if (params && params.view) {
     youIdx = params.you ?? params.view.you?.index ?? 0;

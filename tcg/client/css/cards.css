@@ -174,9 +174,13 @@
   position: absolute; left: 0; right: 0; bottom: 14px; z-index: 2;
   font: 600 8.5px/1.1 var(--sans); text-align: center; color: #dfe8f2;
   background: linear-gradient(0deg, rgba(5, 8, 13, 0.92), rgba(5, 8, 13, 0.55) 75%, transparent);
-  padding: 8px 4px 3px; letter-spacing: 0.02em;
-  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  /* side padding keeps the text clear of the stat chips overlapping the band */
+  padding: 8px 20px 3px; letter-spacing: 0.02em;
+  white-space: nowrap; overflow: hidden;
 }
+/* long names shrink; very long names are pre-ellipsized in JS (centered
+   nowrap text can't use text-overflow — it hard-clips its start) */
+.unit-name.long { font-size: 7.5px; }
 .unit-kws {
   position: absolute; top: -7px; left: 50%; transform: translateX(-50%); z-index: 3;
   display: flex; gap: 2px;
