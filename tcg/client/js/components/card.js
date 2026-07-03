@@ -92,11 +92,14 @@ export function renderCard(defOrId, opts = {}) {
   gem.title = RARITY_LABEL[def.rarity] || 'Common';
   el.appendChild(gem);
 
-  // name plate
+  // name plate — wraps to two lines and shrinks by length so long names like
+  // "Government Subsidy" read in full instead of being cut off with an ellipsis.
   const name = document.createElement('div');
   name.className = 'card-name';
   name.textContent = def.name;
-  if (def.name && def.name.length > 18) name.classList.add('long');
+  const nameLen = def.name ? def.name.length : 0;
+  if (nameLen > 22) name.classList.add('xlong');
+  else if (nameLen > 13) name.classList.add('long');
   el.appendChild(name);
 
   // type line

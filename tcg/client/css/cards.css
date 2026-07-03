@@ -74,17 +74,20 @@
   padding: 2px 4px; border-radius: 2px; pointer-events: none;
 }
 
-/* name plate */
+/* name plate — wraps to at most two lines (shrinks by length) so long names
+   read in full rather than getting clipped to an ellipsis. */
 .card-name {
-  position: relative; z-index: 2; margin: calc(var(--cw) * 0.025) calc(var(--cw) * 0.05) 0;
+  position: relative; z-index: 2; margin: calc(var(--cw) * 0.025) calc(var(--cw) * 0.04) 0;
   text-align: center;
-  font: 700 calc(var(--cw) * 0.075)/1.15 var(--sans); letter-spacing: 0.01em;
+  font: 700 calc(var(--cw) * 0.075)/1.12 var(--sans); letter-spacing: 0.01em;
   color: #eef4fb;
-  padding: calc(var(--cw) * 0.02) calc(var(--cw) * 0.1);
-  background: linear-gradient(90deg, transparent, color-mix(in srgb, var(--fc) 16%, #101828) 22%, color-mix(in srgb, var(--fc) 16%, #101828) 78%, transparent);
-  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  padding: calc(var(--cw) * 0.02) calc(var(--cw) * 0.06);
+  background: linear-gradient(90deg, transparent, color-mix(in srgb, var(--fc) 16%, #101828) 18%, color-mix(in srgb, var(--fc) 16%, #101828) 82%, transparent);
+  display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2;
+  overflow: hidden; overflow-wrap: break-word;
 }
-.card-name.long { font-size: calc(var(--cw) * 0.062); }
+.card-name.long { font-size: calc(var(--cw) * 0.064); line-height: 1.1; }
+.card-name.xlong { font-size: calc(var(--cw) * 0.052); line-height: 1.08; }
 
 .card-typeline {
   text-align: center; font: 600 calc(var(--cw) * 0.048)/1 var(--mono);
