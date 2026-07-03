@@ -633,9 +633,11 @@ async function playEvent(ev) {
         const integ = tgt.querySelector?.('.integrity');
         if (integ) pulseClass(integ, 'hurt', 450);
         // live-update visible stat chip so sequential events read correctly
+        // (clamped at 0 — a dying unit's chip must never display negative HP;
+        // the death event that follows removes it)
         const hp = tgt.querySelector?.('.hp-chip');
         if (hp && /^-?\d+$/.test(hp.textContent)) {
-          hp.textContent = String(Number(hp.textContent) - ev.amount);
+          hp.textContent = String(Math.max(0, Number(hp.textContent) - ev.amount));
           hp.classList.add('damaged');
         }
       }
@@ -678,11 +680,14 @@ async function playEvent(ev) {
       if (el) {
         pulseClass(el, 'anim-buff', 560);
         buffRing(el);
-        floatNum(el, `+${ev.attack ?? 0}/+${ev.health ?? 0}`, 'buff');
+        // deltas may be negative (debuffs like Depreciation −2/−2): format
+        // signs properly and clamp the live chips at 0 like the engine does
+        const sgn = (n) => (n >= 0 ? '+' + n : '−' + Math.abs(n));
+        floatNum(el, `${sgn(ev.attack ?? 0)}/${sgn(ev.health ?? 0)}`, (ev.attack ?? 0) < 0 || (ev.health ?? 0) < 0 ? 'dmg' : 'buff');
         const atk = el.querySelector?.('.atk-chip');
         const hp = el.querySelector?.('.hp-chip');
-        if (atk && typeof ev.attack === 'number' && /^-?\d+$/.test(atk.textContent)) atk.textContent = String(Number(atk.textContent) + ev.attack);
-        if (hp && typeof ev.health === 'number' && /^-?\d+$/.test(hp.textContent)) hp.textContent = String(Number(hp.textContent) + ev.health);
+        if (atk && typeof ev.attack === 'number' && /^-?\d+$/.test(atk.textContent)) atk.textContent = String(Math.max(0, Number(atk.textContent) + ev.attack));
+        if (hp && typeof ev.health === 'number' && /^-?\d+$/.test(hp.textContent)) hp.textContent = String(Math.max(0, Number(hp.textContent) + ev.health));
         // stat chips overshoot-pop so the number change reads
         if (atk) pulseClass(atk, 'chip-pop', 460);
         if (hp) pulseClass(hp, 'chip-pop', 460);
