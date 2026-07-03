@@ -238,14 +238,16 @@ export function artSvg(cardId, faction, type) {
 // assets/card-art/<cardId>.png → .jpg → .webp; cached probe results so the deck
 // builder's big grid doesn't re-probe the same missing files.
 const ART_EXTS = ['png', 'jpg', 'webp'];
+const ICON_EXTS = ['png', 'webp']; // transparency-preserving formats only
 const artCache = new Map(); // cardId -> Promise<string|null> (resolved url or null)
 const ceoCache = new Map(); // faction -> Promise<string|null>
+const iconCache = new Map(); // faction -> Promise<string|null>
 
 export function findCardImage(cardId) {
   if (!cardId) return Promise.resolve(null);
   let p = artCache.get(cardId);
   if (!p) {
-    p = probe('assets/card-art', cardId, 0);
+    p = probe('assets/card-art', cardId, 0, ART_EXTS);
     artCache.set(cardId, p);
   }
   return p;
@@ -256,22 +258,34 @@ export function findCeoImage(faction) {
   if (!faction) return Promise.resolve(null);
   let p = ceoCache.get(faction);
   if (!p) {
-    p = probe('assets/ceo-art', faction, 0);
+    p = probe('assets/ceo-art', faction, 0, ART_EXTS);
     ceoCache.set(faction, p);
   }
   return p;
 }
 
-// Probe <dir>/<name>.<ext> across the known extensions; resolve the first URL
+// assets/faction-icons/<faction>.(png|webp) — one circular symbol per
+// conglomerate (png/webp only, since transparency is the whole point).
+export function findFactionIcon(faction) {
+  if (!faction) return Promise.resolve(null);
+  let p = iconCache.get(faction);
+  if (!p) {
+    p = probe('assets/faction-icons', faction, 0, ICON_EXTS);
+    iconCache.set(faction, p);
+  }
+  return p;
+}
+
+// Probe <dir>/<name>.<ext> across the given extensions; resolve the first URL
 // that loads, or null. Results are cached by the callers above so a screen
 // re-render never re-probes the same missing files.
-function probe(dir, name, i) {
-  if (i >= ART_EXTS.length) return Promise.resolve(null);
-  const url = `${dir}/${name}.${ART_EXTS[i]}`;
+function probe(dir, name, i, exts) {
+  if (i >= exts.length) return Promise.resolve(null);
+  const url = `${dir}/${name}.${exts[i]}`;
   return new Promise((resolve) => {
     const img = new Image();
     img.onload = () => resolve(url);
-    img.onerror = () => resolve(probe(dir, name, i + 1));
+    img.onerror = () => resolve(probe(dir, name, i + 1, exts));
     img.src = url;
   });
 }
@@ -323,6 +337,43 @@ export function mountCeoPortrait(el, faction, cardId) {
     el.appendChild(img);
     // real photos get a lighter, wider treatment (see CSS .fc-portrait.has-photo)
     el.classList.add('has-photo');
+  });
+}
+
+// Short placeholder monogram shown in the faction-icon badge until a real
+// symbol is dropped into assets/faction-icons/. Kept distinct per faction id
+// (avoids "N" colliding between nexus and neutral).
+const ICON_GLYPH = { nexus: 'N', vulcan: 'V', helix: 'H', obsidian: 'O', neutral: 'IC' };
+
+function iconPlaceholderSvg(faction) {
+  const c = factionColor(faction);
+  const glyph = ICON_GLYPH[faction] || '?';
+  const fontSize = glyph.length > 1 ? 34 : 42;
+  return `<svg viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+    <circle cx="50" cy="50" r="46" fill="#0b1220" fill-opacity="0.55"/>
+    <circle cx="50" cy="50" r="45" fill="none" stroke="${c}" stroke-width="3" stroke-opacity="0.75"/>
+    <text x="50" y="50" text-anchor="middle" dominant-baseline="central"
+          font-family="-apple-system,'Segoe UI',Roboto,'Helvetica Neue',Arial,sans-serif"
+          font-weight="800" font-size="${fontSize}" fill="${c}">${glyph}</text>
+  </svg>`;
+}
+
+/**
+ * Fill a small badge element with the faction's circular symbol: a placeholder
+ * monogram immediately, swapped for a real drop-in icon if
+ * assets/faction-icons/<faction>.(png|webp) exists. Faction-icons are looked
+ * up by faction id only (one shared symbol per conglomerate, not per card).
+ */
+export function mountFactionIcon(el, faction) {
+  el.innerHTML = iconPlaceholderSvg(faction);
+  findFactionIcon(faction).then((url) => {
+    if (!url) return;
+    const img = document.createElement('img');
+    img.className = 'icon-real';
+    img.alt = '';
+    img.src = url;
+    el.innerHTML = '';
+    el.appendChild(img);
   });
 }
 

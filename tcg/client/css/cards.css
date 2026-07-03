@@ -74,6 +74,25 @@
   padding: 2px 4px; border-radius: 2px; pointer-events: none;
 }
 
+/* faction symbol badge — drop-in assets/faction-icons/<faction>.png|webp
+   (or a placeholder monogram), pinned to the art frame's bottom-left corner.
+   Positioned relative to the whole card (not the art frame) since real card
+   art replaces the frame's contents asynchronously. */
+.faction-badge {
+  position: absolute; z-index: 3;
+  left: calc(var(--cw) * 0.035); top: calc(var(--cw) * 0.585);
+  width: calc(var(--cw) * 0.2); height: calc(var(--cw) * 0.2);
+  border-radius: 50%; overflow: hidden;
+  background: rgba(5, 8, 12, 0.6);
+  border: 1.5px solid color-mix(in srgb, var(--fc) 65%, #fff);
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.55), 0 0 8px color-mix(in srgb, var(--fc) 35%, transparent);
+}
+.faction-badge svg { width: 100%; height: 100%; display: block; }
+.faction-badge img.icon-real {
+  width: 100%; height: 100%; object-fit: contain; display: block;
+  padding: 10%; box-sizing: border-box;
+}
+
 /* name plate — wraps to at most two lines (shrinks by length) so long names
    read in full rather than getting clipped to an ellipsis. */
 .card-name {

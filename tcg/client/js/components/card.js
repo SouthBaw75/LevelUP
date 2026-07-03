@@ -4,7 +4,7 @@
 // --cw CSS custom property so one component scales everywhere.
 
 import { getCard, KEYWORD_NAMES, KEYWORD_HELP } from '../state.js';
-import { mountArt, factionColor } from '../art.js';
+import { mountArt, mountFactionIcon, factionColor } from '../art.js';
 
 const RARITY_LABEL = { common: 'Common', rare: 'Rare', epic: 'Epic', legendary: 'Legendary' };
 
@@ -85,6 +85,17 @@ export function renderCard(defOrId, opts = {}) {
   art.className = 'card-art';
   mountArt(art, def.id, def.faction, def.type);
   el.appendChild(art);
+
+  // faction symbol badge (drop-in assets/faction-icons/<faction>.png|webp,
+  // else a placeholder monogram) — identifies which conglomerate the card
+  // belongs to at a glance, independent of the accent-color border. Appended
+  // to the card root (not the art frame) since mountArt replaces the art
+  // frame's entire innerHTML when a real card image loads asynchronously.
+  const badge = document.createElement('div');
+  badge.className = 'faction-badge';
+  badge.title = def.faction ? def.faction[0].toUpperCase() + def.faction.slice(1) : '';
+  mountFactionIcon(badge, def.faction || 'neutral');
+  el.appendChild(badge);
 
   // rarity gem
   const gem = document.createElement('div');
