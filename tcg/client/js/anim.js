@@ -91,16 +91,60 @@ function centerOf(el) {
 }
 
 // ---------- fx primitives ----------
-export function floatNum(el, text, cls) {
+
+/**
+ * Decaying translate jitter on the table wrapper — never scroll/layout.
+ * @param {'small'|'medium'|'heavy'} intensity  2px / 4px / 7px amplitude
+ */
+export function screenShake(intensity = 'small') {
+  const table = hooks?.tableEl?.();
+  if (!table) return;
+  const spec = intensity === 'heavy' ? { amp: 7, dur: 450 }
+    : intensity === 'medium' ? { amp: 4, dur: 380 }
+    : { amp: 2, dur: 300 };
+  table.style.setProperty('--shake-amp', spec.amp + 'px');
+  table.style.setProperty('--shake-dur', spec.dur + 'ms');
+  table.classList.remove('screen-shake');
+  void table.offsetWidth; // restart cleanly if a shake is mid-flight
+  table.classList.add('screen-shake');
+  setTimeout(() => table.classList.remove('screen-shake'), spec.dur + 60);
+}
+
+/**
+ * Hit-stop: freeze the fx layer's ongoing CSS animations for a beat (~60-90ms)
+ * on heavy impacts to sell weight, then release.
+ */
+export function hitStop(ms = 75) {
+  if (!fxLayer) return;
+  fxLayer.classList.add('hit-stop');
+  setTimeout(() => fxLayer.classList.remove('hit-stop'), ms);
+}
+
+/**
+ * Floating combat number: spawns small, overshoot-pops, settles, then drifts
+ * up along a slight random x-curve with a random tilt. opts.size adds
+ * 'small'|'med'|'crit' styling; crits get a starburst behind them.
+ */
+export function floatNum(el, text, cls, opts = {}) {
   if (!el) return;
   const { x, y } = centerOf(el);
+  if (opts.size === 'crit') {
+    const b = document.createElement('div');
+    b.className = 'crit-burst';
+    b.style.left = x + 'px';
+    b.style.top = y + 'px';
+    fxLayer.appendChild(b);
+    setTimeout(() => b.remove(), 560);
+  }
   const n = document.createElement('div');
-  n.className = 'float-num ' + cls;
+  n.className = 'float-num ' + cls + (opts.size ? ' ' + opts.size : '');
   n.textContent = text;
   n.style.left = x + 'px';
   n.style.top = y + 'px';
+  n.style.setProperty('--fx', (Math.random() * 36 - 18).toFixed(1) + 'px');
+  n.style.setProperty('--frot', (Math.random() * 12 - 6).toFixed(1) + 'deg');
   fxLayer.appendChild(n);
-  setTimeout(() => n.remove(), 950);
+  setTimeout(() => n.remove(), 1050);
 }
 
 function impactAt(el) {
@@ -114,7 +158,7 @@ function impactAt(el) {
   setTimeout(() => f.remove(), 450);
 }
 
-/** Dust puff + ground shockwave ring where a unit just materialized. */
+/** Dust puff + double ground shockwave ring where a unit just materialized. */
 function dustBurst(el) {
   if (!el) return;
   const { x, y } = centerOf(el);
@@ -124,10 +168,14 @@ function dustBurst(el) {
     p.className = 'dust-mote';
     const ang = Math.PI + Math.random() * Math.PI; // upward hemisphere
     const dist = 16 + Math.random() * 24;
+    const size = 5 + Math.random() * 5; // 5-10px variance
+    p.style.width = size + 'px';
+    p.style.height = size + 'px';
     p.style.left = x + (Math.random() * 26 - 13) + 'px';
     p.style.top = groundY + 'px';
     p.style.setProperty('--dx', (Math.cos(ang) * dist * 0.5) + 'px');
     p.style.setProperty('--dy', (Math.sin(ang) * dist - 16) + 'px');
+    p.style.setProperty('--dr', ((Math.random() * 120 - 60) | 0) + 'deg');
     fxLayer.appendChild(p);
     setTimeout(() => p.remove(), 640);
   }
@@ -137,6 +185,132 @@ function dustBurst(el) {
   ring.style.top = groundY + 'px';
   fxLayer.appendChild(ring);
   setTimeout(() => ring.remove(), 480);
+  const inner = document.createElement('div');
+  inner.className = 'summon-ring inner';
+  inner.style.left = x + 'px';
+  inner.style.top = groundY + 'px';
+  fxLayer.appendChild(inner);
+  setTimeout(() => inner.remove(), 340);
+}
+
+/** Death: unit cracks into faction-tinted shards that fly out and fall, plus
+ *  dark smoke motes drifting up. Fired just after the white-out flash. */
+function deathBurst(el) {
+  if (!el) return;
+  const r = el.getBoundingClientRect();
+  const x = r.left + r.width / 2, y = r.top + r.height / 2;
+  const fc = getComputedStyle(el).getPropertyValue('--fc').trim() || '#94a3b8';
+  for (let i = 0; i < 3; i++) {
+    const s = document.createElement('div');
+    s.className = 'death-shard';
+    s.style.left = x + 'px';
+    s.style.top = y + 'px';
+    s.style.setProperty('--fc', fc);
+    s.style.width = (r.width * (0.26 + Math.random() * 0.14)) + 'px';
+    s.style.height = (r.height * (0.22 + Math.random() * 0.14)) + 'px';
+    s.style.setProperty('--dx', ((i - 1) * 36 + (Math.random() * 16 - 8)) + 'px');
+    s.style.setProperty('--dy', (-(16 + Math.random() * 18)) + 'px');
+    s.style.setProperty('--rr', ((Math.random() * 150 - 75) | 0) + 'deg');
+    fxLayer.appendChild(s);
+    setTimeout(() => s.remove(), 620);
+  }
+  for (let i = 0; i < 4; i++) {
+    const m = document.createElement('div');
+    m.className = 'smoke-mote';
+    const size = 8 + Math.random() * 8;
+    m.style.width = size + 'px';
+    m.style.height = size + 'px';
+    m.style.left = (x + Math.random() * r.width * 0.6 - r.width * 0.3) + 'px';
+    m.style.top = (y + Math.random() * 16 - 8) + 'px';
+    m.style.setProperty('--dy', (-(26 + Math.random() * 22)) + 'px');
+    m.style.setProperty('--dx', (Math.random() * 20 - 10) + 'px');
+    m.style.animationDelay = (i * 45) + 'ms';
+    fxLayer.appendChild(m);
+    setTimeout(() => m.remove(), 900);
+  }
+}
+
+/** Heal: soft radial bloom + 2-3 rising green plus-glyphs. */
+function healBurst(el) {
+  if (!el) return;
+  const { x, y } = centerOf(el);
+  const bloom = document.createElement('div');
+  bloom.className = 'heal-bloom';
+  bloom.style.left = x + 'px';
+  bloom.style.top = y + 'px';
+  fxLayer.appendChild(bloom);
+  setTimeout(() => bloom.remove(), 560);
+  for (let i = 0; i < 3; i++) {
+    const p = document.createElement('div');
+    p.className = 'heal-plus';
+    p.textContent = '+';
+    p.style.left = (x + (i - 1) * 18 + (Math.random() * 10 - 5)) + 'px';
+    p.style.top = (y + 12 + Math.random() * 10) + 'px';
+    p.style.animationDelay = (i * 90) + 'ms';
+    fxLayer.appendChild(p);
+    setTimeout(() => p.remove(), 900);
+  }
+}
+
+/** Shield break: cyan-white flash ring + 6 hex shards spinning outward. */
+function shieldShatter(el) {
+  if (!el) return;
+  const { x, y } = centerOf(el);
+  const ring = document.createElement('div');
+  ring.className = 'shield-ring';
+  ring.style.left = x + 'px';
+  ring.style.top = y + 'px';
+  fxLayer.appendChild(ring);
+  setTimeout(() => ring.remove(), 460);
+  for (let i = 0; i < 6; i++) {
+    const s = document.createElement('div');
+    s.className = 'hex-shard';
+    const ang = (Math.PI * 2 * i) / 6 + (Math.random() * 0.5 - 0.25);
+    const dist = 30 + Math.random() * 20;
+    s.style.left = x + 'px';
+    s.style.top = y + 'px';
+    s.style.setProperty('--dx', Math.cos(ang) * dist + 'px');
+    s.style.setProperty('--dy', Math.sin(ang) * dist + 'px');
+    s.style.setProperty('--rr', ((Math.random() * 260 - 130) | 0) + 'deg');
+    fxLayer.appendChild(s);
+    setTimeout(() => s.remove(), 620);
+  }
+}
+
+/** Buff: expanding green energy ring centered on the unit. */
+function buffRing(el) {
+  if (!el) return;
+  const { x, y } = centerOf(el);
+  const ring = document.createElement('div');
+  ring.className = 'buff-ring';
+  ring.style.left = x + 'px';
+  ring.style.top = y + 'px';
+  fxLayer.appendChild(ring);
+  setTimeout(() => ring.remove(), 560);
+}
+
+/** Hero power wind-up: ring contracting into the caster's portrait. */
+function chargeRing(el) {
+  if (!el) return;
+  const { x, y } = centerOf(el);
+  const ring = document.createElement('div');
+  ring.className = 'charge-ring';
+  const fc = getComputedStyle(el).getPropertyValue('--fc').trim();
+  if (fc) ring.style.setProperty('--fc', fc);
+  ring.style.left = x + 'px';
+  ring.style.top = y + 'px';
+  fxLayer.appendChild(ring);
+  setTimeout(() => ring.remove(), 320);
+}
+
+/** Red vignette edge-flash across the whole table when a CEO takes damage. */
+function heroHurtVignette() {
+  const table = hooks?.tableEl?.();
+  if (!table) return;
+  const v = document.createElement('div');
+  v.className = 'hero-hurt-vignette';
+  table.appendChild(v);
+  setTimeout(() => v.remove(), 360);
 }
 
 /** Small glowing shell lobbed from attacker to target (artillery-style arc trajectory). */
@@ -162,7 +336,8 @@ function fireShell(fromEl, toEl, duration = 260) {
   setTimeout(() => shell.remove(), duration + 40);
 }
 
-/** Bigger artillery-style explosion: flash + flying shrapnel, for combat impacts. */
+/** Bigger artillery-style explosion: bright core flash + flying shrapnel +
+ *  lingering smoke puffs that drift upward, for combat impacts. */
 function explosionBurst(el) {
   if (!el) return;
   const { x, y } = centerOf(el);
@@ -171,18 +346,31 @@ function explosionBurst(el) {
   flash.style.left = x + 'px';
   flash.style.top = y + 'px';
   fxLayer.appendChild(flash);
-  setTimeout(() => flash.remove(), 480);
+  setTimeout(() => flash.remove(), 420);
   for (let i = 0; i < 8; i++) {
     const p = document.createElement('div');
     p.className = 'shrapnel';
     const ang = (Math.PI * 2 * i) / 8 + (Math.random() * 0.4 - 0.2);
-    const dist = 30 + Math.random() * 26;
+    const dist = 34 + Math.random() * 28;
     p.style.left = x + 'px';
     p.style.top = y + 'px';
     p.style.setProperty('--dx', Math.cos(ang) * dist + 'px');
     p.style.setProperty('--dy', Math.sin(ang) * dist + 'px');
     fxLayer.appendChild(p);
-    setTimeout(() => p.remove(), 520);
+    setTimeout(() => p.remove(), 480);
+  }
+  for (let i = 0; i < 2; i++) {
+    const s = document.createElement('div');
+    s.className = 'smoke-puff';
+    const size = 20 + Math.random() * 14;
+    s.style.width = size + 'px';
+    s.style.height = size + 'px';
+    s.style.left = (x + Math.random() * 24 - 12) + 'px';
+    s.style.top = (y + Math.random() * 10 - 5) + 'px';
+    s.style.setProperty('--dx', (Math.random() * 16 - 8) + 'px');
+    s.style.animationDelay = (60 + i * 90) + 'ms';
+    fxLayer.appendChild(s);
+    setTimeout(() => s.remove(), 900);
   }
 }
 
@@ -208,6 +396,27 @@ function powerBeam(fromEl, toEl, color = '#7dd8ff', duration = 220) {
     beam.style.transition = 'opacity 160ms ease';
     beam.style.opacity = '0';
     setTimeout(() => beam.remove(), 180);
+  }, duration);
+  // bright head particle traveling the beam, bursting on arrival
+  const head = document.createElement('div');
+  head.className = 'beam-head';
+  head.style.setProperty('--beam-color', color);
+  head.style.left = a.x + 'px';
+  head.style.top = a.y + 'px';
+  fxLayer.appendChild(head);
+  void head.offsetWidth;
+  head.style.transition = `left ${duration}ms cubic-bezier(.5,0,1,.5), top ${duration}ms cubic-bezier(.5,0,1,.5)`;
+  head.style.left = b.x + 'px';
+  head.style.top = b.y + 'px';
+  setTimeout(() => {
+    head.remove();
+    const burst = document.createElement('div');
+    burst.className = 'beam-burst';
+    burst.style.setProperty('--beam-color', color);
+    burst.style.left = b.x + 'px';
+    burst.style.top = b.y + 'px';
+    fxLayer.appendChild(burst);
+    setTimeout(() => burst.remove(), 380);
   }, duration);
 }
 
@@ -272,7 +481,12 @@ async function playEvent(ev) {
         } else {
           ghost = renderCardBack(64);
         }
-        fly(ghost, centerOf(from), centerOf(to), 430, { scaleTo: ev.player === you ? 1.05 : 0.8, fade: ev.player !== you });
+        // wrap so the flight path bows into a subtle arc (mid-keyframe lift
+        // + a small rotation that settles) instead of a straight line
+        ghost.classList.add('arc-inner');
+        const wrap = document.createElement('div');
+        wrap.appendChild(ghost);
+        fly(wrap, centerOf(from), centerOf(to), 430, { scaleTo: ev.player === you ? 1.05 : 0.8, fade: ev.player !== you });
       }
       await wait(340);
       break;
@@ -294,9 +508,10 @@ async function playEvent(ev) {
       const f = document.createElement('div');
       f.className = 'fatigue-flash';
       table.appendChild(f);
-      setTimeout(() => f.remove(), 750);
+      setTimeout(() => f.remove(), 800);
+      screenShake('small');
       const hero = hooks.resolveTarget('hero' + ev.player);
-      floatNum(hero, 'FATIGUE −' + ev.amount, 'dmg');
+      floatNum(hero, 'FATIGUE −' + ev.amount, 'dmg', { size: 'med' });
       await wait(520);
       break;
     }
@@ -311,7 +526,7 @@ async function playEvent(ev) {
       const mine = ev.player === you;
       if (ev.cardId && getCard(ev.cardId)) {
         const ghost = renderCard(ev.cardId, { width: mine ? 130 : 185, interactive: false, showFlavor: false });
-        ghost.classList.add('fly-card');
+        ghost.classList.add('fly-card', 'card-reveal'); // premium reveal: bloom shadow + light sweep + faction aura
         const cx = innerWidth / 2 - 100, cy = innerHeight / 2 - 40;
         ghost.style.left = cx + 'px';
         ghost.style.top = cy + 'px';
@@ -348,28 +563,54 @@ async function playEvent(ev) {
           const units = [...row.querySelectorAll('.unit')];
           const before = typeof ev.position === 'number' ? units[ev.position] : null;
           row.insertBefore(el, before || null);
-          // dust + shockwave once it's actually laid out, so it lands "on the field"
-          requestAnimationFrame(() => dustBurst(el));
+          // legendary assets land with a one-time gold shimmer sweep
+          if (el.classList.contains('rarity-legendary')) {
+            el.classList.add('anim-legend-sweep');
+            setTimeout(() => el.classList.remove('anim-legend-sweep'), 950);
+          }
+          // dust + shockwave at touchdown (~55% into the drop), so the burst
+          // syncs with the squash frame instead of the spawn frame
+          setTimeout(() => dustBurst(el), 210);
         }
       }
-      await wait(400);
+      await wait(430);
       break;
     }
     case 'attack': {
       audio.playSfx('sfx-attack');
       const atk = hooks.resolveTarget(ev.attackerId);
       const tgt = hooks.resolveTarget(ev.targetId);
+      const heroHit = typeof ev.targetId === 'string' && ev.targetId.startsWith('hero');
+      const up = atk
+        ? ev.attackerId.startsWith('u') && atk.closest('.board-row') === hooks.boardRow(you)
+        : false;
       if (atk) {
-        const up = ev.attackerId.startsWith('u') && atk.closest('.board-row') === hooks.boardRow(you);
-        pulseClass(atk, up ? 'anim-lunge-up' : 'anim-lunge-down', 400);
-        if (tgt) fireShell(atk, tgt, 240);
+        // (a) anticipation: pull back away from the target with a slight tilt
+        pulseClass(atk, up ? 'anim-windup-up' : 'anim-windup-down', 135);
       }
-      if (tgt) setTimeout(() => { pulseClass(tgt, 'anim-shake', 350); explosionBurst(tgt); }, 200);
-      await wait(440);
+      await wait(115);
+      if (atk) {
+        // (b) strike: hard lunge with a motion streak trailing behind
+        pulseClass(atk, up ? 'anim-lunge-up' : 'anim-lunge-down', 430);
+        if (tgt) fireShell(atk, tgt, 180);
+      }
+      if (tgt) {
+        // (c) impact + follow-through: white flash frame, knockback with
+        // spring return, explosion + shake + hit-stop to sell the weight
+        setTimeout(() => {
+          pulseClass(tgt, 'anim-white-flash', 160);
+          pulseClass(tgt, up ? 'anim-knock-up' : 'anim-knock-down', 430);
+          explosionBurst(tgt);
+          screenShake(heroHit ? 'medium' : 'small');
+          hitStop(70);
+        }, 160);
+      }
+      await wait(445);
       break;
     }
     case 'damage': {
-      if (ev.targetId && ev.targetId.startsWith('hero')) audio.playSfx('sfx-ceo-damage');
+      const heroTgt = typeof ev.targetId === 'string' && ev.targetId.startsWith('hero');
+      if (heroTgt) audio.playSfx('sfx-ceo-damage');
       const tgt = hooks.resolveTarget(ev.targetId);
       if (tgt) {
         pulseClass(tgt, 'anim-shake', 350);
@@ -382,7 +623,13 @@ async function playEvent(ev) {
         } else {
           impactAt(tgt);
         }
-        floatNum(tgt, '−' + ev.amount, 'dmg');
+        // number size scales with the hit: 1-2 small, 3-4 medium, 5+ crit
+        const size = ev.amount >= 5 ? 'crit' : ev.amount >= 3 ? 'med' : 'small';
+        floatNum(tgt, '−' + ev.amount, 'dmg', { size });
+        if (heroTgt) {
+          heroHurtVignette();
+          screenShake('medium');
+        }
         const integ = tgt.querySelector?.('.integrity');
         if (integ) pulseClass(integ, 'hurt', 450);
         // live-update visible stat chip so sequential events read correctly
@@ -392,26 +639,22 @@ async function playEvent(ev) {
           hp.classList.add('damaged');
         }
       }
-      await wait(330);
+      await wait(340);
       break;
     }
     case 'heal': {
       const tgt = hooks.resolveTarget(ev.targetId);
-      if (tgt) floatNum(tgt, '+' + ev.amount, 'heal');
-      await wait(300);
+      if (tgt) {
+        healBurst(tgt);
+        floatNum(tgt, '+' + ev.amount, 'heal', { size: ev.amount >= 4 ? 'med' : undefined });
+      }
+      await wait(320);
       break;
     }
     case 'shieldBreak': {
       const tgt = hooks.resolveTarget(ev.targetId);
       if (tgt) {
-        const { x, y } = centerOf(tgt);
-        const s = document.createElement('div');
-        s.className = 'shatter-fx';
-        s.textContent = '⬡';
-        s.style.left = x + 'px';
-        s.style.top = y + 'px';
-        fxLayer.appendChild(s);
-        setTimeout(() => s.remove(), 600);
+        shieldShatter(tgt);
         tgt.classList.remove('has-shield');
       }
       await wait(380);
@@ -421,8 +664,9 @@ async function playEvent(ev) {
       audio.playSfx('sfx-destroy');
       const el = hooks.resolveTarget(ev.unitId);
       if (el && el.classList.contains('unit')) {
-        el.classList.add('anim-death');
-        await wait(480);
+        el.classList.add('anim-death'); // white-out flash, then crack + collapse
+        setTimeout(() => deathBurst(el), 100); // shards fly right after the flash peak
+        await wait(550);
         el.remove();
       } else {
         await wait(150);
@@ -433,25 +677,40 @@ async function playEvent(ev) {
       const el = hooks.resolveTarget(ev.unitId);
       if (el) {
         pulseClass(el, 'anim-buff', 560);
+        buffRing(el);
         floatNum(el, `+${ev.attack ?? 0}/+${ev.health ?? 0}`, 'buff');
         const atk = el.querySelector?.('.atk-chip');
         const hp = el.querySelector?.('.hp-chip');
         if (atk && typeof ev.attack === 'number' && /^-?\d+$/.test(atk.textContent)) atk.textContent = String(Number(atk.textContent) + ev.attack);
         if (hp && typeof ev.health === 'number' && /^-?\d+$/.test(hp.textContent)) hp.textContent = String(Number(hp.textContent) + ev.health);
+        // stat chips overshoot-pop so the number change reads
+        if (atk) pulseClass(atk, 'chip-pop', 460);
+        if (hp) pulseClass(hp, 'chip-pop', 460);
       }
       await wait(420);
       break;
     }
     case 'keyword': {
       const el = hooks.resolveTarget(ev.unitId);
-      if (el) pulseClass(el, 'anim-buff', 400);
-      await wait(220);
+      if (el) {
+        pulseClass(el, 'anim-kw-flash', 440);
+        const badges = el.querySelector?.('.unit-kws');
+        if (badges) pulseClass(badges, 'kw-pop', 440);
+      }
+      await wait(240);
       break;
     }
     case 'heroPower': {
+      // cause precedes effect: the caster's portrait charges up (brightening
+      // pulse + ring contracting inward) BEFORE the beam/effect that follows
       const hero = hooks.resolveTarget('hero' + ev.player);
-      if (hero) pulseClass(hero, 'anim-buff', 450);
-      await wait(320);
+      if (hero) {
+        pulseClass(hero, 'anim-power-charge', 240);
+        chargeRing(hero);
+        await wait(200);
+        pulseClass(hero, 'anim-buff', 450);
+      }
+      await wait(240);
       break;
     }
     case 'returnToHand': {
@@ -479,7 +738,9 @@ async function playEvent(ev) {
       break;
     }
     case 'gameOver': {
-      // terminal handling is done by game.js from the gameOver message/view
+      // terminal overlay is built by game.js right after this batch; a heavy
+      // shake here lands as the VICTORY title slams in (defeat stays quiet)
+      if (ev.winner === you) screenShake('heavy');
       await wait(200);
       break;
     }
