@@ -1,0 +1,219 @@
+/* cards.css — the shared card component, board units, card backs, previews. */
+
+.card {
+  --cw: 150px;
+  --fc: #94a3b8;
+  position: relative;
+  width: var(--cw);
+  height: calc(var(--cw) * 1.45);
+  border-radius: calc(var(--cw) * 0.055);
+  background: linear-gradient(180deg, #151d2c, #0d1320);
+  border: 1px solid color-mix(in srgb, var(--fc) 40%, #26344b);
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.55), inset 0 0 0 1px rgba(255, 255, 255, 0.03);
+  display: flex;
+  flex-direction: column;
+  font-family: var(--sans);
+  flex: none;
+  transition: transform 0.12s ease, box-shadow 0.15s ease;
+}
+.card:not(.no-hover):hover { transform: translateY(-3px); box-shadow: 0 10px 26px rgba(0,0,0,0.6), 0 0 16px color-mix(in srgb, var(--fc) 25%, transparent); z-index: 5; }
+
+/* rarity treatments — escalating flair */
+.card.rarity-common { border-color: #33415c; }
+.card.rarity-rare { border-color: #3574c9; box-shadow: 0 4px 14px rgba(0,0,0,0.55), 0 0 10px rgba(80, 150, 255, 0.14); }
+.card.rarity-epic { border-color: #9a55d3; box-shadow: 0 4px 14px rgba(0,0,0,0.55), 0 0 13px rgba(190, 110, 255, 0.2); }
+.card.rarity-legendary {
+  border-color: var(--gold);
+  box-shadow: 0 4px 14px rgba(0,0,0,0.55), 0 0 17px rgba(232, 180, 90, 0.3);
+}
+.card.rarity-legendary::before {
+  content: ""; position: absolute; inset: -1px; border-radius: inherit; padding: 1px; pointer-events: none;
+  background: linear-gradient(140deg, #f5d38a, #8a6420 30%, #f0c168 55%, #7d5a1c 80%, #f5d38a);
+  -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+  -webkit-mask-composite: xor; mask-composite: exclude;
+}
+
+.rarity-gem {
+  position: absolute; top: calc(var(--cw) * 0.66); left: 50%; transform: translate(-50%, -50%) rotate(45deg);
+  width: calc(var(--cw) * 0.075); height: calc(var(--cw) * 0.075);
+  border-radius: 2px; z-index: 3;
+  background: #5b6c85; border: 1px solid rgba(255,255,255,0.35);
+}
+.rarity-rare .rarity-gem { background: #3b82f6; box-shadow: 0 0 7px #3b82f6; }
+.rarity-epic .rarity-gem { background: #a855f7; box-shadow: 0 0 8px #a855f7; }
+.rarity-legendary .rarity-gem { background: var(--gold); box-shadow: 0 0 9px var(--gold); transform: translate(-50%, -50%) rotate(45deg) scale(1.2); }
+
+/* cost chip (capital) */
+.cost-chip {
+  position: absolute; top: calc(var(--cw) * -0.045); left: calc(var(--cw) * -0.045); z-index: 4;
+  width: calc(var(--cw) * 0.22); height: calc(var(--cw) * 0.22);
+  display: flex; align-items: center; justify-content: center;
+  font: 800 calc(var(--cw) * 0.12)/1 var(--mono); color: #071019;
+  background: radial-gradient(circle at 32% 28%, #ffe9b8, var(--gold) 58%, #9c7226);
+  border: 1px solid #f7dfa6; border-radius: 50%;
+  box-shadow: 0 2px 6px rgba(0,0,0,0.6), 0 0 8px rgba(232,180,90,0.35);
+}
+.cost-chip.discounted { color: #0a3f14; background: radial-gradient(circle at 32% 28%, #d8ffe2, #4ade80 58%, #1f7a42); border-color: #b7f7ce; }
+
+/* art frame — drop-in real art (assets/card-art/<id>.png) or procedural SVG */
+.card-art {
+  position: relative; margin: calc(var(--cw) * 0.045); margin-bottom: 0;
+  height: calc(var(--cw) * 0.62);
+  border-radius: calc(var(--cw) * 0.03);
+  overflow: hidden;
+  border: 1px solid rgba(0,0,0,0.55);
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--fc) 22%, transparent);
+  background: #05070c;
+}
+.art-frame svg, .art-frame img.art-real { position: absolute; inset: 0; width: 100%; height: 100%; display: block; }
+.art-frame img.art-real { object-fit: cover; }
+.art-pending {
+  position: absolute; right: 4px; bottom: 3px; z-index: 2;
+  font: 600 calc(var(--cw) * 0.048)/1 var(--mono); letter-spacing: 0.12em;
+  color: rgba(255,255,255,0.34); background: rgba(5,8,12,0.55);
+  padding: 2px 4px; border-radius: 2px; pointer-events: none;
+}
+
+/* name plate */
+.card-name {
+  position: relative; z-index: 2; margin: calc(var(--cw) * 0.025) calc(var(--cw) * 0.05) 0;
+  text-align: center;
+  font: 700 calc(var(--cw) * 0.075)/1.15 var(--sans); letter-spacing: 0.01em;
+  color: #eef4fb;
+  padding: calc(var(--cw) * 0.02) calc(var(--cw) * 0.1);
+  background: linear-gradient(90deg, transparent, color-mix(in srgb, var(--fc) 16%, #101828) 22%, color-mix(in srgb, var(--fc) 16%, #101828) 78%, transparent);
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.card-name.long { font-size: calc(var(--cw) * 0.062); }
+
+.card-typeline {
+  text-align: center; font: 600 calc(var(--cw) * 0.048)/1 var(--mono);
+  letter-spacing: 0.22em; color: color-mix(in srgb, var(--fc) 75%, #aab6c8);
+  margin-top: calc(var(--cw) * 0.012);
+}
+
+.card-body {
+  flex: 1; min-height: 0; margin: calc(var(--cw) * 0.03) calc(var(--cw) * 0.055) calc(var(--cw) * 0.05);
+  display: flex; flex-direction: column; align-items: center; gap: calc(var(--cw) * 0.025);
+  overflow: hidden;
+}
+.kw-badges { display: flex; flex-wrap: wrap; gap: 3px; justify-content: center; }
+.kw-badge {
+  font: 700 calc(var(--cw) * 0.046)/1 var(--mono); letter-spacing: 0.08em;
+  color: color-mix(in srgb, var(--fc) 85%, #fff); background: color-mix(in srgb, var(--fc) 14%, #0b1220);
+  border: 1px solid color-mix(in srgb, var(--fc) 45%, transparent);
+  padding: 2.5px 5px; border-radius: 2px;
+}
+.card-text {
+  text-align: center; font: 400 calc(var(--cw) * 0.058)/1.3 var(--sans); color: #b9c6d8;
+}
+.card-text.long { font-size: calc(var(--cw) * 0.05); }
+.card-flavor {
+  margin-top: auto; text-align: center;
+  font: italic 400 calc(var(--cw) * 0.05)/1.35 var(--sans); color: var(--ink-faint);
+  border-top: 1px solid rgba(255,255,255,0.06); padding-top: calc(var(--cw) * 0.025);
+}
+
+/* stat chips */
+.stat-chip {
+  position: absolute; bottom: calc(var(--cw) * -0.035); z-index: 4;
+  width: calc(var(--cw) * 0.21); height: calc(var(--cw) * 0.21);
+  display: flex; align-items: center; justify-content: center;
+  font: 800 calc(var(--cw) * 0.115)/1 var(--mono); color: #fff;
+  border-radius: calc(var(--cw) * 0.05);
+  text-shadow: 0 1px 2px rgba(0,0,0,0.8);
+  border: 1px solid rgba(255,255,255,0.25);
+  box-shadow: 0 2px 6px rgba(0,0,0,0.6);
+}
+.atk-chip { left: calc(var(--cw) * -0.035); background: linear-gradient(160deg, #ffb35c, #c2410c); }
+.atk-chip::before { content: "◆"; position: absolute; font-size: 45%; top: 12%; opacity: 0.55; }
+.hp-chip { right: calc(var(--cw) * -0.035); background: linear-gradient(160deg, #f87189, #b91c3c); }
+.stat-chip.damaged { color: #ffd2d8; box-shadow: 0 0 9px rgba(244, 88, 106, 0.7), 0 2px 6px rgba(0,0,0,0.6); }
+.stat-chip.buffed { color: #d9ffe6; box-shadow: 0 0 9px rgba(74, 222, 128, 0.75), 0 2px 6px rgba(0,0,0,0.6); }
+.atk-chip::before { content: none; }
+
+.card-count {
+  position: absolute; top: calc(var(--cw) * -0.04); right: calc(var(--cw) * -0.04); z-index: 4;
+  font: 700 calc(var(--cw) * 0.085)/1 var(--mono); color: #06121a;
+  background: var(--cy); border-radius: 3px; padding: 4px 6px;
+  box-shadow: 0 0 10px rgba(34, 211, 238, 0.5);
+}
+
+.card-missing { width: 100px; height: 145px; display: flex; align-items: center; justify-content: center; color: var(--ink-faint); border: 1px dashed var(--edge-hi); border-radius: 8px; }
+
+/* ---------- card back ---------- */
+.card-back { --cw: 60px; width: var(--cw); height: calc(var(--cw) * 1.4); flex: none; filter: drop-shadow(0 3px 6px rgba(0,0,0,0.5)); }
+.card-back svg { width: 100%; height: 100%; display: block; }
+
+/* ---------- preview layer ---------- */
+#card-preview-layer {
+  position: fixed; z-index: 250; display: none; pointer-events: none;
+  filter: drop-shadow(0 18px 44px rgba(0, 0, 0, 0.75));
+  animation: preview-in 0.13s ease;
+}
+@keyframes preview-in { from { opacity: 0; transform: scale(0.96); } }
+
+/* ---------- board unit (compact in-play ASSET) ---------- */
+.unit {
+  --fc: #94a3b8;
+  position: relative; width: 92px; height: 116px; flex: none;
+  cursor: pointer;
+  transition: transform 0.15s ease, filter 0.2s ease;
+}
+.unit-frame {
+  position: absolute; inset: 0 0 14px 0;
+  border-radius: 10px; overflow: hidden;
+  border: 2px solid color-mix(in srgb, var(--fc) 45%, #2b3a52);
+  background: #05070c;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.6);
+  transition: border-color 0.15s, box-shadow 0.15s;
+}
+.unit.rarity-legendary .unit-frame { border-color: var(--gold); }
+.unit-art { position: absolute; inset: 0; }
+.unit-name {
+  position: absolute; left: 0; right: 0; bottom: 14px; z-index: 2;
+  font: 600 8.5px/1.1 var(--sans); text-align: center; color: #dfe8f2;
+  background: linear-gradient(0deg, rgba(5, 8, 13, 0.92), rgba(5, 8, 13, 0.55) 75%, transparent);
+  padding: 8px 4px 3px; letter-spacing: 0.02em;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.unit-kws {
+  position: absolute; top: -7px; left: 50%; transform: translateX(-50%); z-index: 3;
+  display: flex; gap: 2px;
+}
+.unit-kw {
+  font-size: 9px; line-height: 1; padding: 2.5px 3.5px; border-radius: 3px;
+  background: #0c1422; border: 1px solid color-mix(in srgb, var(--fc) 55%, #33415c);
+  color: color-mix(in srgb, var(--fc) 80%, #fff);
+  box-shadow: 0 1px 4px rgba(0,0,0,0.6);
+}
+.unit .stat-chip { width: 26px; height: 26px; font-size: 13px; border-radius: 7px; bottom: 6px; }
+.unit .atk-chip { left: -6px; }
+.unit .hp-chip { right: -6px; }
+
+/* unit state treatments */
+.unit.ready .unit-frame { box-shadow: 0 0 12px color-mix(in srgb, var(--gr) 55%, transparent), 0 4px 12px rgba(0,0,0,0.6); border-color: color-mix(in srgb, var(--gr) 60%, var(--fc)); }
+.unit.exhausted { filter: saturate(0.55) brightness(0.75); }
+.unit.has-firewall .unit-frame { border-style: double; border-width: 4px; }
+.unit.has-stealth { opacity: 0.65; }
+.unit.has-stealth .unit-frame { border-style: dashed; }
+.unit.has-shield .unit-frame::after {
+  content: ""; position: absolute; inset: -2px; border-radius: 10px; pointer-events: none;
+  border: 2px solid rgba(250, 224, 130, 0.85); box-shadow: 0 0 12px rgba(250, 224, 130, 0.5), inset 0 0 14px rgba(250,224,130,0.2);
+}
+.unit:hover { transform: translateY(-3px) scale(1.03); z-index: 6; }
+
+/* targeting states (shared by units + heroes) */
+.targetable { cursor: crosshair; }
+.targetable .unit-frame, .hero-plate.targetable {
+  animation: target-pulse 0.9s ease-in-out infinite;
+}
+@keyframes target-pulse {
+  0%, 100% { box-shadow: 0 0 6px 1px rgba(244, 88, 106, 0.55); border-color: var(--red); }
+  50% { box-shadow: 0 0 16px 4px rgba(244, 88, 106, 0.85); border-color: #ff8c9a; }
+}
+.not-targetable { filter: brightness(0.5) saturate(0.4); pointer-events: none; }
+.unit.attack-source .unit-frame { border-color: var(--cy); box-shadow: 0 0 18px rgba(34, 211, 238, 0.7); }
+
+/* hand card playability glow */
+.hand-card.playable .card { box-shadow: 0 0 14px 2px color-mix(in srgb, var(--gr) 50%, transparent), 0 4px 14px rgba(0,0,0,0.55); border-color: color-mix(in srgb, var(--gr) 60%, var(--fc)); }
