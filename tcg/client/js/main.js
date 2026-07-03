@@ -2,6 +2,7 @@
 
 import { loadCards, session, getName } from './state.js';
 import * as net from './net.js';
+import * as audio from './audio.js';
 import * as home from './screens/home.js';
 import * as lobby from './screens/lobby.js';
 import * as builder from './screens/builder.js';
@@ -25,6 +26,8 @@ export function showScreen(name, params) {
   el.classList.add('active');
   requestAnimationFrame(() => requestAnimationFrame(() => el.classList.add('shown')));
   current.enter?.(params);
+  // in-match music on the board, lobby music everywhere else
+  audio.playMusic(name === 'game' ? 'music-game' : 'music-lobby');
 }
 
 export function activeScreenName() { return currentName; }
@@ -49,6 +52,30 @@ const connBadge = document.createElement('div');
 connBadge.className = 'conn-badge';
 connBadge.textContent = 'CONNECTION LOST — RECONNECTING…';
 document.body.appendChild(connBadge);
+
+// ---------- audio: mute toggle + UI click sounds ----------
+const audioBtn = document.createElement('button');
+audioBtn.id = 'audio-toggle';
+audioBtn.className = 'audio-toggle';
+const paintAudioBtn = () => {
+  const m = audio.isMuted();
+  audioBtn.textContent = m ? '🔇' : '🔊';
+  audioBtn.title = m ? 'Sound off — click to enable' : 'Sound on — click to mute';
+  audioBtn.classList.toggle('muted', m);
+};
+audioBtn.addEventListener('click', () => { audio.toggleMute(); paintAudioBtn(); });
+paintAudioBtn();
+document.body.appendChild(audioBtn);
+
+// Click sound for menu buttons (not the game board, the audio toggle, or the
+// faction cards — those have their own faction-select sting).
+document.addEventListener('click', (ev) => {
+  const btn = ev.target.closest('button');
+  if (!btn || btn === audioBtn) return;
+  if (currentName === 'game') return;
+  if (btn.closest('.faction-card')) return;
+  audio.playSfx('ui-click');
+});
 
 // ---------- global net wiring ----------
 let lostToastShown = false;

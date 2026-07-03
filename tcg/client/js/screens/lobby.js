@@ -6,6 +6,7 @@ import {
   getSelectedDeckId, setSelectedDeckId, resolveDeck, session, getName,
 } from '../state.js';
 import * as net from '../net.js';
+import * as audio from '../audio.js';
 import { showScreen, toast } from '../main.js';
 import { mountCeoPortrait } from '../art.js';
 import { openHowToPlay, maybeAutoShow, isOpen as howToPlayOpen, close as closeHowToPlay } from '../howtoplay.js';
@@ -129,6 +130,7 @@ function render() {
     `;
     mountCeoPortrait(card.querySelector('.fc-portrait'), f);
     card.addEventListener('click', () => {
+      audio.playFactionSelect(f);
       // selecting a faction selects its starter deck (unless a custom deck of that faction is already selected)
       const cur = selectedChoice();
       if (!cur || cur.faction !== f) setSelectedDeckId('starter:' + f);
