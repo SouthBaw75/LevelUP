@@ -53,25 +53,60 @@ connBadge.className = 'conn-badge';
 connBadge.textContent = 'CONNECTION LOST — RECONNECTING…';
 document.body.appendChild(connBadge);
 
-// ---------- audio: mute toggle + UI click sounds ----------
+// ---------- audio settings: gear button + Music/SFX popover ----------
+// This button is appended once to <body>, so it floats above every screen —
+// lobby and in-game both get it without any per-screen wiring.
 const audioBtn = document.createElement('button');
-audioBtn.id = 'audio-toggle';
+audioBtn.id = 'audio-settings-btn';
 audioBtn.className = 'audio-toggle';
-const paintAudioBtn = () => {
-  const m = audio.isMuted();
-  audioBtn.textContent = m ? '🔇' : '🔊';
-  audioBtn.title = m ? 'Sound off — click to enable' : 'Sound on — click to mute';
-  audioBtn.classList.toggle('muted', m);
-};
-audioBtn.addEventListener('click', () => { audio.toggleMute(); paintAudioBtn(); });
-paintAudioBtn();
+audioBtn.textContent = '⚙';
+audioBtn.title = 'Sound settings';
 document.body.appendChild(audioBtn);
 
-// Click sound for menu buttons (not the game board, the audio toggle, or the
-// faction cards — those have their own faction-select sting).
+const audioPopover = document.createElement('div');
+audioPopover.id = 'audio-popover';
+audioPopover.className = 'audio-popover';
+audioPopover.innerHTML = `
+  <div class="audio-pop-title">SOUND SETTINGS</div>
+  <label class="audio-row"><span>Music</span>
+    <button class="switch" id="audio-music-switch" role="switch"><span class="knob"></span></button>
+  </label>
+  <label class="audio-row"><span>Sound Effects</span>
+    <button class="switch" id="audio-sfx-switch" role="switch"><span class="knob"></span></button>
+  </label>
+`;
+document.body.appendChild(audioPopover);
+
+const musicSwitch = audioPopover.querySelector('#audio-music-switch');
+const sfxSwitch = audioPopover.querySelector('#audio-sfx-switch');
+
+function paintSwitches() {
+  musicSwitch.classList.toggle('on', audio.isMusicOn());
+  musicSwitch.setAttribute('aria-checked', String(audio.isMusicOn()));
+  sfxSwitch.classList.toggle('on', audio.isSfxOn());
+  sfxSwitch.setAttribute('aria-checked', String(audio.isSfxOn()));
+  audioBtn.classList.toggle('muted', !audio.isMusicOn() && !audio.isSfxOn());
+}
+paintSwitches();
+
+musicSwitch.addEventListener('click', () => { audio.setMusicOn(!audio.isMusicOn()); paintSwitches(); });
+sfxSwitch.addEventListener('click', () => { audio.setSfxOn(!audio.isSfxOn()); paintSwitches(); if (audio.isSfxOn()) audio.playSfx('ui-click'); });
+
+audioBtn.addEventListener('click', (ev) => {
+  ev.stopPropagation();
+  audioPopover.classList.toggle('open');
+});
+document.addEventListener('click', (ev) => {
+  if (audioPopover.classList.contains('open') && !audioPopover.contains(ev.target) && ev.target !== audioBtn) {
+    audioPopover.classList.remove('open');
+  }
+});
+
+// Click sound for menu buttons (not the game board, the audio controls, or
+// the faction cards — those have their own faction-select sting).
 document.addEventListener('click', (ev) => {
   const btn = ev.target.closest('button');
-  if (!btn || btn === audioBtn) return;
+  if (!btn || btn === audioBtn || audioPopover.contains(btn)) return;
   if (currentName === 'game') return;
   if (btn.closest('.faction-card')) return;
   audio.playSfx('ui-click');
@@ -109,6 +144,10 @@ net.on('gameStart', (msg) => {
 
 // ---------- global keyboard ----------
 document.addEventListener('keydown', (ev) => {
+  if (ev.key === 'Escape' && audioPopover.classList.contains('open')) {
+    audioPopover.classList.remove('open');
+    return;
+  }
   const typing = /^(INPUT|TEXTAREA|SELECT)$/.test(document.activeElement?.tagName || '');
   if (current?.onKey && current.onKey(ev, typing)) { ev.preventDefault(); return; }
   if (typing) return;

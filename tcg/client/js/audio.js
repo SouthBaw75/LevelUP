@@ -2,19 +2,24 @@
 // effects are loaded by filename convention from assets/audio/ (see that
 // folder's README.md). Any file that doesn't exist is silently ignored, so
 // sound can be added incrementally with zero code changes.
+//
+// Music and sound effects are independently enabled/disabled (see the
+// settings popover wired up in main.js) and each choice persists separately.
 
 const AUDIO_DIR = 'assets/audio';
 const EXTS = ['mp3', 'ogg', 'm4a', 'wav']; // probed in this order
 const urlCache = new Map(); // name -> Promise<string|null>
 
-const LS_MUTE = 'ht_muted';
+const LS_MUSIC = 'ht_music_on';
+const LS_SFX = 'ht_sfx_on';
 const MUSIC_VOL = 0.4;
 const SFX_VOL = 0.7;
 
-let muted = localStorage.getItem(LS_MUTE) === '1';
+let musicOn = localStorage.getItem(LS_MUSIC) !== '0'; // default on
+let sfxOn = localStorage.getItem(LS_SFX) !== '0';      // default on
 let musicEl = null;
 let currentMusic = null; // name currently loaded into musicEl
-let wantMusic = null;    // name we want playing (for autoplay/unmute retry)
+let wantMusic = null;    // name we want playing (for autoplay/settings-change retry)
 let fadeTimer = null;
 let gestureArmed = false;
 
@@ -44,7 +49,7 @@ function armGesture() {
   const handler = () => {
     gestureArmed = false;
     window.removeEventListener('pointerdown', handler);
-    if (wantMusic && !muted) playMusic(wantMusic);
+    if (wantMusic && musicOn) playMusic(wantMusic);
   };
   window.addEventListener('pointerdown', handler, { once: true });
 }
@@ -65,11 +70,11 @@ function fadeTo(target, ms = 600) {
   }, ms / steps);
 }
 
-/** Loop a background music track by name (e.g. "music-lobby"). No-op if muted
- *  or the file is absent. Crossfades from any current track. */
+/** Loop a background music track by name (e.g. "music-lobby"). No-op if music
+ *  is disabled or the file is absent. Crossfades from any current track. */
 export async function playMusic(name) {
   wantMusic = name;
-  if (muted) return;
+  if (!musicOn) return;
   const url = await findAudio(name);
   if (!url) { currentMusic = null; return; }
   if (currentMusic === name && musicEl && !musicEl.paused) return;
@@ -92,9 +97,10 @@ export function stopMusic() {
 }
 
 /** Play a one-shot sound effect by name, optionally falling back to another
- *  name if the first file is absent. No-op if muted or neither file exists. */
+ *  name if the first file is absent. No-op if SFX are disabled or neither
+ *  file exists. */
 export async function playSfx(name, fallback) {
-  if (muted) return;
+  if (!sfxOn) return;
   let url = await findAudio(name);
   if (!url && fallback) url = await findAudio(fallback);
   if (!url) return;
@@ -109,16 +115,22 @@ export function playFactionSelect(faction) {
   playSfx('select-' + faction, 'ui-select');
 }
 
-export function isMuted() { return muted; }
+export function isMusicOn() { return musicOn; }
+export function isSfxOn() { return sfxOn; }
 
-/** Toggle global mute; persists to localStorage. Returns the new muted state. */
-export function toggleMute() {
-  muted = !muted;
-  localStorage.setItem(LS_MUTE, muted ? '1' : '0');
-  if (muted) {
+/** Set music on/off; persists to localStorage. */
+export function setMusicOn(on) {
+  musicOn = on;
+  localStorage.setItem(LS_MUSIC, on ? '1' : '0');
+  if (!on) {
     if (musicEl) fadeTo(0);
   } else if (wantMusic) {
     playMusic(wantMusic);
   }
-  return muted;
+}
+
+/** Set sound effects on/off; persists to localStorage. */
+export function setSfxOn(on) {
+  sfxOn = on;
+  localStorage.setItem(LS_SFX, on ? '1' : '0');
 }
