@@ -83,6 +83,16 @@ The server exposes them to the client as JSON via `GET /api/cards`.
 }
 ```
 
+### Card artwork placeholders
+
+Card art is convention-based so real artwork can be dropped in later without code changes:
+the client looks for `client/assets/card-art/<cardId>.png` (also try `.jpg`/`.webp`) for every
+card. If present, it fills the card's art frame (recommended source ratio ~4:3 landscape,
+≥ 512×384). If absent, the client renders a **procedural placeholder** in the art frame
+(faction-colored, deterministic per card id, visibly a placeholder — e.g. subtle
+"ART PENDING" watermark treatment). `client/assets/card-art/README.md` documents the
+convention. The card data schema needs no art field.
+
 - `type: "CEO"` cards (one per faction, e.g. `nx_ceo`) define the hero: name, 30 health, `powerId`.
 - `type: "POWER"` cards define the CEO power: cost 2, `text`, effects.
 - Tokens (summoned units) are non-collectible ASSET cards in the same map.
