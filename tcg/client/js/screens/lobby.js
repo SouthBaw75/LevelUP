@@ -15,9 +15,62 @@ let root = null;
 let modal = null;           // current modal veil element
 let modalMode = null;       // 'searching' | 'privateHost' | 'privateJoin'
 let firstEntry = true;
+let ambient = null;         // persistent animated backdrop (survives re-renders)
+
+// Ambient backdrop: drifting data motes (2 parallax layers), a city skyline
+// with twinkling windows + blinking antenna beacons, a faction-tinted aurora
+// glow on the horizon, and a periodic light sweep. All transform/opacity
+// animations. Lives OUTSIDE the re-rendered content wrapper so faction-click
+// re-renders never restart the animations.
+const SKYLINE_SVG = `
+<svg viewBox="0 0 1200 180" preserveAspectRatio="xMidYMax slice" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+  <g fill="#0b111c">
+    <rect x="0" y="90" width="70" height="90"/><rect x="60" y="60" width="46" height="120"/>
+    <rect x="120" y="105" width="80" height="75"/><rect x="210" y="40" width="54" height="140"/>
+    <rect x="278" y="88" width="66" height="92"/><rect x="352" y="66" width="40" height="114"/>
+    <rect x="400" y="112" width="90" height="68"/><rect x="498" y="30" width="60" height="150"/>
+    <rect x="566" y="84" width="48" height="96"/><rect x="622" y="58" width="72" height="122"/>
+    <rect x="700" y="100" width="56" height="80"/><rect x="764" y="24" width="50" height="156"/>
+    <rect x="822" y="78" width="76" height="102"/><rect x="906" y="50" width="44" height="130"/>
+    <rect x="958" y="96" width="88" height="84"/><rect x="1054" y="64" width="58" height="116"/>
+    <rect x="1120" y="92" width="80" height="88"/>
+  </g>
+  <g stroke="#0e1624" stroke-width="3">
+    <line x1="789" y1="24" x2="789" y2="6"/><line x1="528" y1="30" x2="528" y2="12"/>
+  </g>
+  <circle class="beacon" cx="789" cy="6" r="3"/>
+  <circle class="beacon" cx="528" cy="12" r="3" style="animation-delay:1.3s"/>
+  <g>
+    <rect class="win" x="222" y="58" width="6" height="8" rx="1"/>
+    <rect class="win" x="244" y="74" width="6" height="8" rx="1" style="animation-delay:1.2s"/>
+    <rect class="win" x="510" y="50" width="6" height="8" rx="1" style="animation-delay:.6s"/>
+    <rect class="win" x="534" y="72" width="6" height="8" rx="1" style="animation-delay:2.1s"/>
+    <rect class="win" x="522" y="96" width="6" height="8" rx="1" style="animation-delay:3.1s"/>
+    <rect class="win" x="776" y="44" width="6" height="8" rx="1" style="animation-delay:1.7s"/>
+    <rect class="win" x="796" y="66" width="6" height="8" rx="1" style="animation-delay:.3s"/>
+    <rect class="win" x="778" y="92" width="6" height="8" rx="1" style="animation-delay:2.6s"/>
+    <rect class="win" x="640" y="76" width="6" height="8" rx="1" style="animation-delay:1.0s"/>
+    <rect class="win" x="668" y="98" width="6" height="8" rx="1" style="animation-delay:2.9s"/>
+    <rect class="win" x="1070" y="84" width="6" height="8" rx="1" style="animation-delay:.9s"/>
+    <rect class="win" x="1090" y="110" width="6" height="8" rx="1" style="animation-delay:2.2s"/>
+    <rect class="win" x="72" y="78" width="6" height="8" rx="1" style="animation-delay:1.5s"/>
+    <rect class="win" x="918" y="66" width="6" height="8" rx="1" style="animation-delay:3.4s"/>
+  </g>
+</svg>`;
 
 export function mount(el) {
-  root = el;
+  el.innerHTML = `
+    <div class="lobby-ambient" aria-hidden="true">
+      <div class="amb-motes m1"></div>
+      <div class="amb-motes m2"></div>
+      <div class="amb-aurora"></div>
+      <div class="amb-skyline">${SKYLINE_SVG}</div>
+      <div class="amb-sweep"></div>
+    </div>
+    <div class="lobby-content"></div>
+  `;
+  ambient = el.querySelector('.lobby-ambient');
+  root = el.querySelector('.lobby-content');
 }
 
 export function enter() {
@@ -81,6 +134,8 @@ function requireValidDeck() {
 function render() {
   const sel = selectedChoice();
   const selFaction = sel ? sel.faction : 'nexus';
+  // tint the ambient horizon glow toward the selected conglomerate
+  if (ambient) ambient.style.setProperty('--amb', factionMeta(selFaction).color);
 
   root.innerHTML = `
     <div class="lobby-top">
