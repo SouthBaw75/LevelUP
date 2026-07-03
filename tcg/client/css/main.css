@@ -198,6 +198,24 @@ button {
 .faction-card .fc-portrait { position: absolute; top: 0; right: 0; width: 46%; height: 100%; opacity: 0.85; mask-image: linear-gradient(90deg, transparent, #000 45%); -webkit-mask-image: linear-gradient(90deg, transparent, #000 45%); }
 .faction-card .fc-portrait svg { width: 100%; height: 100%; }
 .faction-card .fc-portrait img.ceo-real { width: 100%; height: 100%; object-fit: cover; object-position: top center; display: block; }
+/* Real CEO photos: full opacity and only a soft thin left edge so the face
+   isn't swallowed by the heavy blend used for the procedural placeholder art. */
+.faction-card .fc-portrait.has-photo {
+  width: 52%; opacity: 1;
+  mask-image: linear-gradient(90deg, transparent, #000 16%);
+  -webkit-mask-image: linear-gradient(90deg, transparent, #000 16%);
+}
+/* Scrim + text lift so the name/tagline stay readable over a photo. */
+.faction-card:has(.fc-portrait.has-photo)::after {
+  content: ""; position: absolute; inset: 0; pointer-events: none; z-index: 1;
+  background: linear-gradient(72deg, var(--panel) 26%, color-mix(in srgb, var(--panel) 55%, transparent) 46%, transparent 64%);
+}
+.faction-card:has(.fc-portrait.has-photo) .fc-industry,
+.faction-card:has(.fc-portrait.has-photo) .fc-name,
+.faction-card:has(.fc-portrait.has-photo) .fc-tagline {
+  position: relative; z-index: 2; text-shadow: 0 1px 4px rgba(0, 0, 0, 0.7);
+}
+.faction-card:has(.fc-portrait.has-photo) .fc-check { z-index: 2; }
 .faction-card .fc-industry { font: 600 10px/1 var(--mono); letter-spacing: 0.2em; color: var(--fc); text-transform: uppercase; }
 .faction-card .fc-name { font: 700 19px/1.1 var(--sans); letter-spacing: 0.04em; }
 .faction-card .fc-tagline { font: italic 400 12px/1.35 var(--sans); color: var(--ink-dim); max-width: 65%; }

@@ -311,6 +311,7 @@ export function ceoPortraitSvg(cardId, faction) {
  * Mirrors mountArt but keyed by faction (one CEO per conglomerate).
  */
 export function mountCeoPortrait(el, faction, cardId) {
+  el.classList.remove('has-photo');
   el.innerHTML = ceoPortraitSvg(cardId || faction + '_ceo', faction);
   findCeoImage(faction).then((url) => {
     if (!url) return;
@@ -320,6 +321,8 @@ export function mountCeoPortrait(el, faction, cardId) {
     img.src = url;
     el.innerHTML = '';
     el.appendChild(img);
+    // real photos get a lighter, wider treatment (see CSS .fc-portrait.has-photo)
+    el.classList.add('has-photo');
   });
 }
 
