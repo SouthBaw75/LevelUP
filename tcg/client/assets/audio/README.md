@@ -31,6 +31,28 @@ in the bottom-right corner, in the lobby or in-game (each choice is remembered).
   file is missing it falls back to `ui-select`. So you can either give each
   conglomerate its own sting, or just drop in a single `ui-select` for all four.
 
+## Randomized variants (multiple takes of one sound)
+
+Any SFX in the table above can have **multiple versions** that get picked at
+random each time it plays — useful for `sfx-destroy` so units don't always
+make the exact same crash/shatter sound. Add numbered files alongside
+(or instead of) the plain one:
+
+```
+sfx-destroy.mp3      <- optional "take 0"
+sfx-destroy-1.mp3
+sfx-destroy-2.mp3
+sfx-destroy-3.mp3
+...
+sfx-destroy-8.mp3     <- up to 8 numbered variants are checked
+```
+
+Every file that exists (the plain name plus any numbered ones, in any
+combination) goes into the pool and one is chosen at random on each play. This
+works for **every** name in the table, not just `sfx-destroy` — e.g. you could
+add `sfx-attack-1.mp3` / `sfx-attack-2.mp3` for varied attack impacts, or
+`ui-click-1.mp3` / `ui-click-2.mp3` for menu clicks.
+
 ## Accepted formats
 
 Any of these extensions work (probed in this order): **`.mp3`, `.ogg`, `.m4a`, `.wav`**.

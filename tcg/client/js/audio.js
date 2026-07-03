@@ -8,7 +8,9 @@
 
 const AUDIO_DIR = 'assets/audio';
 const EXTS = ['mp3', 'ogg', 'm4a', 'wav']; // probed in this order
-const urlCache = new Map(); // name -> Promise<string|null>
+const MAX_VARIANTS = 8; // sfx-destroy-1 .. sfx-destroy-8
+const urlCache = new Map();     // name -> Promise<string|null>
+const variantCache = new Map(); // name -> Promise<string[]> (all found variant URLs)
 
 const LS_MUSIC = 'ht_music_on';
 const LS_SFX = 'ht_sfx_on';
@@ -38,6 +40,19 @@ function findAudio(name) {
     return null;
   })();
   urlCache.set(name, p);
+  return p;
+}
+
+// A sound effect can have multiple randomized takes: assets/audio/<name>.*
+// (the plain file) plus assets/audio/<name>-1.*, <name>-2.*, ... <name>-8.*.
+// Every variant that exists is collected once (cached), then playSfx picks a
+// random one on each play. A single plain file works exactly as before.
+function findVariants(name) {
+  if (variantCache.has(name)) return variantCache.get(name);
+  const candidates = [name];
+  for (let i = 1; i <= MAX_VARIANTS; i++) candidates.push(`${name}-${i}`);
+  const p = Promise.all(candidates.map(findAudio)).then((urls) => urls.filter(Boolean));
+  variantCache.set(name, p);
   return p;
 }
 
@@ -97,13 +112,15 @@ export function stopMusic() {
 }
 
 /** Play a one-shot sound effect by name, optionally falling back to another
- *  name if the first file is absent. No-op if SFX are disabled or neither
- *  file exists. */
+ *  name if the first has no files at all. No-op if SFX are disabled or no
+ *  file exists. If multiple numbered variants exist for the name (e.g.
+ *  sfx-destroy-1, sfx-destroy-2, ...), one is picked at random each call. */
 export async function playSfx(name, fallback) {
   if (!sfxOn) return;
-  let url = await findAudio(name);
-  if (!url && fallback) url = await findAudio(fallback);
-  if (!url) return;
+  let urls = await findVariants(name);
+  if (!urls.length && fallback) urls = await findVariants(fallback);
+  if (!urls.length) return;
+  const url = urls[Math.floor(Math.random() * urls.length)];
   const a = new Audio(url);
   a.volume = SFX_VOL;
   a.play().catch(() => {});
