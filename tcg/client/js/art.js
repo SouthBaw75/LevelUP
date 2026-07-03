@@ -239,24 +239,39 @@ export function artSvg(cardId, faction, type) {
 // builder's big grid doesn't re-probe the same missing files.
 const ART_EXTS = ['png', 'jpg', 'webp'];
 const artCache = new Map(); // cardId -> Promise<string|null> (resolved url or null)
+const ceoCache = new Map(); // faction -> Promise<string|null>
 
 export function findCardImage(cardId) {
   if (!cardId) return Promise.resolve(null);
   let p = artCache.get(cardId);
   if (!p) {
-    p = probe(cardId, 0);
+    p = probe('assets/card-art', cardId, 0);
     artCache.set(cardId, p);
   }
   return p;
 }
 
-function probe(cardId, i) {
+// assets/ceo-art/<faction>.(png|jpg|webp) — one portrait per conglomerate.
+export function findCeoImage(faction) {
+  if (!faction) return Promise.resolve(null);
+  let p = ceoCache.get(faction);
+  if (!p) {
+    p = probe('assets/ceo-art', faction, 0);
+    ceoCache.set(faction, p);
+  }
+  return p;
+}
+
+// Probe <dir>/<name>.<ext> across the known extensions; resolve the first URL
+// that loads, or null. Results are cached by the callers above so a screen
+// re-render never re-probes the same missing files.
+function probe(dir, name, i) {
   if (i >= ART_EXTS.length) return Promise.resolve(null);
-  const url = `assets/card-art/${cardId}.${ART_EXTS[i]}`;
+  const url = `${dir}/${name}.${ART_EXTS[i]}`;
   return new Promise((resolve) => {
     const img = new Image();
     img.onload = () => resolve(url);
-    img.onerror = () => resolve(probe(cardId, i + 1));
+    img.onerror = () => resolve(probe(dir, name, i + 1));
     img.src = url;
   });
 }
@@ -288,6 +303,24 @@ export function mountArt(frameEl, cardId, faction, type, { pending = true } = {}
 /** CEO portrait SVG (used on faction select + game hero plates). */
 export function ceoPortraitSvg(cardId, faction) {
   return artSvg(cardId || faction + '_ceo', faction, 'CEO');
+}
+
+/**
+ * Fill a portrait element with the procedural CEO SVG immediately, then swap in
+ * a real drop-in portrait if assets/ceo-art/<faction>.(png|jpg|webp) exists.
+ * Mirrors mountArt but keyed by faction (one CEO per conglomerate).
+ */
+export function mountCeoPortrait(el, faction, cardId) {
+  el.innerHTML = ceoPortraitSvg(cardId || faction + '_ceo', faction);
+  findCeoImage(faction).then((url) => {
+    if (!url) return;
+    const img = document.createElement('img');
+    img.className = 'ceo-real';
+    img.alt = '';
+    img.src = url;
+    el.innerHTML = '';
+    el.appendChild(img);
+  });
 }
 
 export function factionColor(faction) {

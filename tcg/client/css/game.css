@@ -29,6 +29,7 @@
   position: relative;
 }
 .hero-portrait svg { width: 100%; height: 100%; display: block; }
+.hero-portrait img.ceo-real { width: 100%; height: 100%; object-fit: cover; object-position: top center; display: block; }
 .hero-id { display: flex; flex-direction: column; gap: 3px; min-width: 0; }
 .hero-name { font: 700 14px/1.1 var(--sans); white-space: nowrap; max-width: 190px; overflow: hidden; text-overflow: ellipsis; }
 .hero-corp { font: 600 9px/1 var(--mono); letter-spacing: 0.16em; color: var(--fc); text-transform: uppercase; }

@@ -7,7 +7,7 @@ import {
 } from '../state.js';
 import * as net from '../net.js';
 import { showScreen, toast } from '../main.js';
-import { ceoPortraitSvg } from '../art.js';
+import { mountCeoPortrait } from '../art.js';
 import { openHowToPlay, maybeAutoShow, isOpen as howToPlayOpen, close as closeHowToPlay } from '../howtoplay.js';
 
 let root = null;
@@ -121,12 +121,13 @@ function render() {
     card.className = 'faction-card' + (f === selFaction ? ' selected' : '');
     card.style.setProperty('--fc', m.color);
     card.innerHTML = `
-      <div class="fc-portrait">${ceoPortraitSvg(f + '_ceo_lobby', f)}</div>
+      <div class="fc-portrait"></div>
       <span class="fc-check">ACTIVE</span>
       <span class="fc-industry">${escapeHtml(m.industry)}</span>
       <span class="fc-name">${escapeHtml(m.name)}</span>
       <span class="fc-tagline">“${escapeHtml(m.tagline)}”</span>
     `;
+    mountCeoPortrait(card.querySelector('.fc-portrait'), f);
     card.addEventListener('click', () => {
       // selecting a faction selects its starter deck (unless a custom deck of that faction is already selected)
       const cur = selectedChoice();

@@ -5,7 +5,7 @@ import { getCard, factionMeta, session, EMOTES, KEYWORD_NAMES } from '../state.j
 import * as net from '../net.js';
 import { showScreen, toast } from '../main.js';
 import { renderCard, renderUnit, renderCardBack, attachPreview, hidePreview } from '../components/card.js';
-import { ceoPortraitSvg, artSvg } from '../art.js';
+import { mountCeoPortrait, artSvg } from '../art.js';
 import { initAnim, stopAnim, queueBatch, isAnimating, fxRoot, showBanner } from '../anim.js';
 
 let root = null;
@@ -271,7 +271,7 @@ function renderHero(side, p, isActive) {
   const ceoId = p.ceo?.cardId || p.faction + '_ceo';
   if (port.dataset.ceo !== ceoId) {
     port.dataset.ceo = ceoId;
-    port.innerHTML = ceoPortraitSvg(ceoId, p.faction);
+    mountCeoPortrait(port, p.faction, ceoId);
     attachPreview(port, getCard(ceoId) || {
       id: ceoId, name: p.ceo?.name || fm.name, faction: p.faction, type: 'CEO',
       text: fm.identity, flavor: fm.tagline, rarity: 'legendary', health: p.maxIntegrity,
