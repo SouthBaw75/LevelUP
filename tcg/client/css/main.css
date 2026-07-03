@@ -169,7 +169,10 @@ button {
 
 /* ============================================================= LOBBY */
 #screen-lobby.active { display: flex; }
-#screen-lobby { flex-direction: column; padding: 0; position: relative; overflow: hidden; }
+/* NOTE: no position override here — .screen's position:absolute; inset:0 is
+   what makes the screen fill the viewport (and it already anchors the
+   absolutely-positioned .lobby-ambient backdrop). */
+#screen-lobby { flex-direction: column; padding: 0; overflow: hidden; }
 .lobby-content {
   position: relative; z-index: 1; flex: 1; min-height: 0;
   display: flex; flex-direction: column; gap: 18px; padding: 26px 40px 30px;
