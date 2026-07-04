@@ -14,6 +14,11 @@ battle for industry dominance. Tone: sleek corporate cyberpunk, dry satirical fl
 
 - 2 players. Each player is a **CEO** of a conglomerate with **30 INTEGRITY** (health).
   Reduce the enemy CEO to 0 integrity → you win (a "hostile takeover").
+- **Healing is uncapped**: effects that restore integrity/durability (SIPHON, heal
+  ops, CEO powers) always add their full amount, even past the base value — a CEO
+  at 30/30 healed for 2 goes to 32; a full-health asset can be healed above its
+  printed durability. `maxIntegrity`/`maxHealth` are the *base* stats used for
+  display and damaged-styling, not a ceiling.
 - Resource: **CAPITAL**. Player's max capital starts at 1 on their first turn, grows +1 each
   of their turns (cap **10**), and refills to max at the start of their turn.
 - Deck: exactly **30 cards**, max **2 copies** of any card, from **one faction + NEUTRAL** cards.

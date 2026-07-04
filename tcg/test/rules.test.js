@@ -331,12 +331,22 @@ test('SIPHON heals your CEO for damage dealt (both attack and defense)', () => {
   assert.ok(find(r.events, 'heal'));
 });
 
-test('SIPHON never overheals past 30', () => {
+test('healing is uncapped: SIPHON overheals past base integrity', () => {
   const s = newGame();
   s.players[0].integrity = 29;
-  const leech = addUnit(s, 0, 'hx_012');
+  const leech = addUnit(s, 0, 'hx_012'); // 4/5 siphon
   applyAction(s, 0, { type: 'attack', attackerId: leech.id, targetId: 'hero1' });
-  assert.equal(s.players[0].integrity, 30);
+  assert.equal(s.players[0].integrity, 33, '29 + 4 siphon = 33, no 30 cap');
+});
+
+test('healing is uncapped: units heal past base durability, heal event carries full amount', () => {
+  const s = newGame('helix', 'vulcan');
+  giveCapital(s, 0, 2);
+  const u = addUnit(s, 0, 'ntr_013'); // 4/5, at full health
+  const r = applyAction(s, 0, { type: 'heroPower', target: u.id }); // Gene Therapy: restore 2
+  assert.equal(r.ok, true);
+  assert.equal(u.health, 7, 'full-health 5/5 healed for 2 -> 7');
+  assert.equal(find(r.events, 'heal').amount, 2, 'event reports the full amount, not a clamped 0');
 });
 
 // ---------------------------------------------------------------------------

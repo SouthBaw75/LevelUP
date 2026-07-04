@@ -243,20 +243,19 @@ function breakStealth(unit) {
   if (unit) removeKw(unit, 'stealth');
 }
 
+// Healing is UNCAPPED: integrity and unit durability may exceed their base
+// values (a CEO at 30/30 healed for 2 goes to 32). maxIntegrity/maxHealth
+// remain the BASE stats used for display/damaged-styling, not a heal ceiling.
 function healTarget(state, ev, targetId, amount) {
   if (state.over || amount <= 0) return;
-  let healed = 0;
   if (isHeroId(targetId)) {
-    const p = state.players[heroIndex(targetId)];
-    healed = Math.min(amount, p.maxIntegrity - p.integrity);
-    p.integrity += healed;
+    state.players[heroIndex(targetId)].integrity += amount;
   } else {
     const found = findUnit(state, targetId);
     if (!found) return;
-    healed = Math.min(amount, found.unit.maxHealth - found.unit.health);
-    found.unit.health += healed;
+    found.unit.health += amount;
   }
-  if (healed > 0) ev.push({ e: 'heal', targetId, amount: healed });
+  ev.push({ e: 'heal', targetId, amount });
 }
 
 function checkHeroes(state, ev) {
