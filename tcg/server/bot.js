@@ -68,6 +68,13 @@ export function evaluate(state, me) {
   score += myBoard * 1.0 - oppBoard * 1.05;
   // Hand advantage.
   score += (you.hand ? you.hand.length : 0) * 0.9 - (opp.handCount || 0) * 0.9;
+  // Filed contracts are ongoing engines: worth more than a card in hand but
+  // less than the tempo of a same-cost body, so the bot files them when it
+  // has spare capital and values voiding the opponent's (term-limited ones
+  // decay toward expiry).
+  const contractValue = (c) => (c.turnsLeft != null ? Math.min(c.turnsLeft, 3) * 0.9 : 2.6);
+  for (const c of you.contracts || []) score += contractValue(c);
+  for (const c of opp.contracts || []) score -= contractValue(c) * 1.05;
   // Pressure: reward pushing a wounded enemy CEO toward lethal range...
   if (opp.integrity <= 10) score += (10 - opp.integrity) * 0.4;
   // ...and value survival more when we are the one bleeding.
