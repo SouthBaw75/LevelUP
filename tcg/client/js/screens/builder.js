@@ -2,7 +2,7 @@
 // mana curve, 30-card list, save/rename/delete, randomize remainder.
 
 import {
-  factionMeta, collectibleCards, getCard, loadCustomDecks, upsertCustomDeck,
+  factionMeta, getDb, getCard, loadCustomDecks, upsertCustomDeck,
   deleteCustomDeck, deckValidity, setSelectedDeckId, getSelectedDeckId, starterDecks,
 } from '../state.js';
 import { showScreen, toast } from '../main.js';
@@ -139,7 +139,7 @@ function renderFilters() {
     filters.cost, (v) => { filters.cost = v; renderGrid(); },
   ));
   wrap.appendChild(pillGroup(
-    [['all types', null], ['Assets', 'ASSET'], ['Operations', 'OPERATION']],
+    [['all types', null], ['Assets', 'ASSET'], ['Operations', 'OPERATION'], ['Contracts', 'CONTRACT']],
     filters.type, (v) => { filters.type = v; renderGrid(); },
   ));
   wrap.appendChild(pillGroup(
@@ -165,8 +165,14 @@ function pillGroup(options, current, onPick) {
   return g;
 }
 
+// Collectible types that belong in a deck (CEO/POWER/tokens stay out).
+const DECKABLE_TYPES = new Set(['ASSET', 'OPERATION', 'CONTRACT']);
+
 function poolCards() {
-  return collectibleCards()
+  const db = getDb();
+  const all = db && db.cards ? Object.values(db.cards) : [];
+  return all
+    .filter((c) => c.collectible !== false && DECKABLE_TYPES.has(c.type))
     .filter((c) => c.faction === work.faction || c.faction === 'neutral')
     .sort((a, b) => (a.cost - b.cost) || a.name.localeCompare(b.name));
 }

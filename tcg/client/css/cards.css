@@ -156,6 +156,26 @@
 .stat-chip.buffed { color: #d9ffe6; box-shadow: 0 0 9px rgba(74, 222, 128, 0.75), 0 2px 6px rgba(0,0,0,0.6); }
 .atk-chip::before { content: none; }
 
+/* ---------- CONTRACT card face ---------- */
+/* fixed-term badge — bottom-center, in the slot stat chips would occupy */
+.term-badge {
+  position: absolute; bottom: calc(var(--cw) * -0.045); left: 50%; transform: translateX(-50%); z-index: 4;
+  font: 800 calc(var(--cw) * 0.062)/1 var(--mono); letter-spacing: 0.09em; color: #071019;
+  padding: calc(var(--cw) * 0.028) calc(var(--cw) * 0.055);
+  background: radial-gradient(circle at 32% 28%, #ffe9b8, var(--gold) 62%, #9c7226);
+  border: 1px solid #f7dfa6; border-radius: calc(var(--cw) * 0.04);
+  box-shadow: 0 2px 6px rgba(0,0,0,0.6), 0 0 8px rgba(232,180,90,0.35);
+  white-space: nowrap;
+}
+/* legal-doc texture: faint ruled lines behind the rules text */
+.card.type-contract .card-body {
+  background-image: repeating-linear-gradient(0deg,
+    transparent 0 calc(var(--cw) * 0.075),
+    rgba(236, 227, 198, 0.045) calc(var(--cw) * 0.075) calc(var(--cw) * 0.082));
+  border-radius: calc(var(--cw) * 0.02);
+}
+.card.type-contract .card-typeline { color: color-mix(in srgb, var(--fc) 60%, #d8ceac); }
+
 .card-count {
   position: absolute; top: calc(var(--cw) * -0.04); right: calc(var(--cw) * -0.04); z-index: 4;
   font: 700 calc(var(--cw) * 0.085)/1 var(--mono); color: #06121a;

@@ -117,6 +117,7 @@ export function renderCard(defOrId, opts = {}) {
   const typeLine = document.createElement('div');
   typeLine.className = 'card-typeline';
   typeLine.textContent = def.type === 'ASSET' ? 'ASSET' : def.type === 'OPERATION' ? 'OPERATION'
+    : def.type === 'CONTRACT' ? 'CONTRACT'
     : def.type === 'CEO' ? 'CHIEF EXECUTIVE' : 'CEO POWER';
   el.appendChild(typeLine);
 
@@ -194,6 +195,16 @@ export function renderCard(defOrId, opts = {}) {
     el.appendChild(hp);
   }
 
+  // CONTRACT: fixed-term badge (bottom-center, where an asset's stat chips
+  // would sit — contracts have no stats, so the slot is free)
+  if (def.type === 'CONTRACT' && def.term != null) {
+    const t = document.createElement('div');
+    t.className = 'term-badge';
+    t.textContent = 'TERM: ' + def.term;
+    t.title = `Expires after ${def.term} of your turns`;
+    el.appendChild(t);
+  }
+
   if (opts.count !== undefined) {
     const c = document.createElement('div');
     c.className = 'card-count';
@@ -201,6 +212,52 @@ export function renderCard(defOrId, opts = {}) {
     el.appendChild(c);
   }
 
+  return el;
+}
+
+// ---------- filed contract tile (contract zone) ----------
+
+// Small legal-document glyph used on filed-contract tiles (inherits currentColor).
+const CONTRACT_GLYPH_SVG = `<svg viewBox="0 0 14 18" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+  <path d="M1.5 1.5 h7 l4 4 v11 h-11 z" fill="rgba(240,232,205,0.10)" stroke="currentColor" stroke-width="1.1" stroke-linejoin="round"/>
+  <path d="M8.5 1.5 v4 h4" fill="none" stroke="currentColor" stroke-width="1.1" stroke-linejoin="round"/>
+  <path d="M3.6 8.2 h6.8 M3.6 10.7 h6.8 M3.6 13.2 h4.4" stroke="currentColor" stroke-width="0.9" stroke-opacity="0.8"/>
+</svg>`;
+
+/**
+ * Compact document-styled tile for a FILED contract in a player's contract
+ * zone. Not a board unit: cannot attack / be attacked; only null-&-void
+ * effects target it (data-target-id carries the "c<N>" instance id).
+ * @param {object} contract view entry {id, cardId, turnsLeft}
+ * @param {object|null} def  card def (looked up from the db when omitted)
+ */
+export function renderContractTile(contract, def = null) {
+  def = def || getCard(contract.cardId) || {};
+  const el = document.createElement('div');
+  el.className = `contract-tile faction-${def.faction || 'neutral'}`;
+  el.dataset.targetId = contract.id;
+  el.dataset.cardId = contract.cardId;
+  el.style.setProperty('--fc', factionColor(def.faction));
+
+  const glyph = document.createElement('div');
+  glyph.className = 'ct-glyph';
+  glyph.innerHTML = CONTRACT_GLYPH_SVG;
+  el.appendChild(glyph);
+
+  const name = document.createElement('div');
+  name.className = 'ct-name';
+  name.textContent = def.name || contract.cardId;
+  name.title = def.name || '';
+  el.appendChild(name);
+
+  // remaining-term pip ("3" counting down) for fixed-term contracts only
+  if (contract.turnsLeft != null) {
+    const pip = document.createElement('div');
+    pip.className = 'ct-term';
+    pip.textContent = contract.turnsLeft;
+    pip.title = `Term: ${contract.turnsLeft} of the owner's turns remaining`;
+    el.appendChild(pip);
+  }
   return el;
 }
 

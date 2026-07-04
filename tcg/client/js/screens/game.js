@@ -4,7 +4,7 @@
 import { getCard, factionMeta, session, EMOTES, KEYWORD_NAMES } from '../state.js';
 import * as net from '../net.js';
 import { showScreen, toast } from '../main.js';
-import { renderCard, renderUnit, renderCardBack, attachPreview, hidePreview } from '../components/card.js';
+import { renderCard, renderUnit, renderCardBack, renderContractTile, attachPreview, hidePreview } from '../components/card.js';
 import { mountCeoPortrait, artSvg } from '../art.js';
 import { initAnim, stopAnim, queueBatch, isAnimating, fxRoot, showBanner } from '../anim.js';
 
@@ -101,6 +101,8 @@ function buildSkeleton() {
       </div>
       <div class="board-zone">
         <div class="board-floor" aria-hidden="true"></div>
+        <div class="contract-zone opp" id="g-contracts-opp"></div>
+        <div class="contract-zone me" id="g-contracts-me"></div>
         <div class="board-row opp-row" id="g-row-opp"></div>
         <div class="board-divider"></div>
         <div class="board-row my-row" id="g-row-me"></div>
@@ -169,7 +171,7 @@ function buildSkeleton() {
   root.addEventListener('mousedown', (ev) => {
     if (ev.button === 2) { cancelMode(); return; }
     if (!mode) return;
-    if (!ev.target.closest('.unit, .hand-card, .hero-plate, .drop-slot, .power-btn')) cancelMode();
+    if (!ev.target.closest('.unit, .hand-card, .hero-plate, .drop-slot, .power-btn, .contract-tile')) cancelMode();
   });
   root.addEventListener('mousemove', onMouseMove);
 }
@@ -184,9 +186,12 @@ const hooks = {
     if (!id) return null;
     if (id === 'hero' + youIdx) return els['g-hero-me'];
     if (id.startsWith('hero')) return els['g-hero-opp'];
+    // "c<N>" — filed contract tiles (either zone)
+    if (/^c\d+$/.test(id)) return root.querySelector(`.contract-tile[data-target-id="${id}"]`);
     return root.querySelector(`[data-unit-id="${id}"]`);
   },
   boardRow(player) { return player === youIdx ? els['g-row-me'] : els['g-row-opp']; },
+  contractZone(player) { return player === youIdx ? els['g-contracts-me'] : els['g-contracts-opp']; },
   deckAnchor(player) { return player === youIdx ? els['g-deck-me'] : els['g-deck-opp']; },
   handAnchor(player) { return player === youIdx ? els['g-hand'] : els['g-opp-hand']; },
   tableEl() { return els['g-table']; },
@@ -234,6 +239,10 @@ function renderView() {
   // boards
   renderBoard(els['g-row-opp'], opp.board || [], true);
   renderBoard(els['g-row-me'], me.board || [], false);
+
+  // filed contracts (public on both sides; empty zone renders nothing)
+  renderContracts(els['g-contracts-opp'], opp.contracts || []);
+  renderContracts(els['g-contracts-me'], me.contracts || []);
 
   // hand
   renderHand(me.hand || [], myTurn);
@@ -307,6 +316,21 @@ function renderBoard(row, board, enemy) {
     }
     el.addEventListener('click', (ev) => { ev.stopPropagation(); onUnitClick(u, enemy, el); });
     row.appendChild(el);
+  }
+}
+
+function renderContracts(container, contracts) {
+  container.innerHTML = '';
+  for (const c of contracts) {
+    const def = getCard(c.cardId);
+    const tile = renderContractTile(c, def);
+    if (def) attachPreview(tile, def);
+    // tiles are only ever clicked as targets (null-&-void effects)
+    tile.addEventListener('click', (ev) => {
+      ev.stopPropagation();
+      if (mode && mode.kind === 'target') onTargetClick(c.id);
+    });
+    container.appendChild(tile);
   }
 }
 
@@ -510,6 +534,7 @@ function highlightTargets(targeting) {
     case 'friendlyUnit': targets = myUnits; break;
     case 'enemyHero': targets = [els['g-hero-opp']]; break;
     case 'anyHero': targets = [els['g-hero-me'], els['g-hero-opp']]; break;
+    case 'enemyContract': targets = [...els['g-contracts-opp'].querySelectorAll('.contract-tile')]; break;
     default: targets = [];
   }
   for (const t of targets) t.classList.add('targetable');
@@ -663,6 +688,15 @@ function logEvent(ev) {
       break;
     case 'silence':
       logLine(`<b>${escapeHtml(nameOfTarget(ev.unitId))}</b> was gagged by legal.`);
+      break;
+    case 'contractFiled': {
+      const term = ev.contract && ev.contract.turnsLeft != null ? ` (term: ${ev.contract.turnsLeft})` : '';
+      logLine(`${who(ev.player)} filed ${card(ev.contract?.cardId)}${term}.`);
+      break;
+    }
+    case 'contractVoided':
+      if (ev.reason === 'expired') logLine(`${card(ev.cardId)} expired — term complete.`);
+      else logLine(`${card(ev.cardId)} was declared <span class="dmg">null &amp; void</span>.`);
       break;
     case 'gameOver':
       logLine(`— MARKET CLOSED —`, 'turn-line');

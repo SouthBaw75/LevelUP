@@ -64,6 +64,32 @@ const SECTIONS = [
       firewall unit alive and your CEO is untouchable by combat.</p>`,
   },
   {
+    id: 'contracts', title: 'Contracts',
+    body: `
+      <p><b>CONTRACTS</b> are persistent agreements — cards that stay in play
+      and keep working every turn. Playing one costs capital like any other
+      card, but instead of deploying to the board it is <b>filed</b> to your
+      contract zone (the document stack along the left edge of the
+      battlefield). You can have at most <b>3</b> contracts filed at once —
+      a 4th is unplayable until a slot frees up.</p>
+      <p>Filed contracts don't take board slots, can't attack, <b>can't be
+      attacked</b>, and can't be hit by damage, heals or buffs. Their effects
+      trigger automatically at the start or end of your turn (a few
+      "both parties" contracts trigger on <i>each</i> player's turn — read
+      the fine print).</p>
+      <p>A contract leaves play in exactly two ways:</p>
+      <ul>
+        <li><b>Null &amp; void</b> — effects like <i>Void Clause</i> or
+        <i>Contract Attorney</i> explicitly cancel an enemy contract. That's
+        the counterplay: if a contract is bleeding you dry, shred it.</li>
+        <li><b>Expiry</b> — fixed-term contracts (<b>TERM: N</b> on the card)
+        expire on their own after N of the owner's turns. The gold pip on the
+        filed tile counts down what's left.</li>
+      </ul>
+      <p>Hover any filed contract — yours or the enemy's — to read its full
+      card. Contracts are public information; there are no secret clauses.</p>`,
+  },
+  {
     id: 'keywords', title: 'Keyword glossary', kind: 'keywords',
   },
   {

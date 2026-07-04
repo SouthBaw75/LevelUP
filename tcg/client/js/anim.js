@@ -7,13 +7,14 @@
 // to animate. New batches arriving mid-playback simply queue behind.
 
 import { getCard } from './state.js';
-import { renderCard, renderUnit, renderCardBack } from './components/card.js';
+import { renderCard, renderUnit, renderCardBack, renderContractTile } from './components/card.js';
 import * as audio from './audio.js';
 
 let hooks = null;
 // hooks = {
 //   resolveTarget(id) -> Element|null        ("uN" | "hero0" | "hero1")
 //   boardRow(playerIndex) -> Element         (row container for that player's units)
+//   contractZone(playerIndex) -> Element     (filed-contract stack for that player)
 //   deckAnchor(playerIndex) -> Element       (deck pill, draw origin)
 //   handAnchor(playerIndex) -> Element       (hand zone, draw destination)
 //   tableEl() -> Element                     (for banners / fatigue overlays)
@@ -476,6 +477,39 @@ function powerBeam(fromEl, toEl, color = '#7dd8ff', duration = 220) {
   }, duration);
 }
 
+/** Folded-corner legal-document ghost that flies to the contract zone. */
+function contractDocGhost() {
+  const g = document.createElement('div');
+  g.className = 'contract-doc-ghost';
+  g.innerHTML = `<svg viewBox="0 0 40 52" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+    <path d="M3 2 h24 l10 10 v38 h-34 z" fill="#e8e0c6" stroke="#8a8266" stroke-width="1.4" stroke-linejoin="round"/>
+    <path d="M27 2 v10 h10" fill="#cfc6a6" stroke="#8a8266" stroke-width="1.4" stroke-linejoin="round"/>
+    <path d="M8 20 h24 M8 25 h24 M8 30 h24 M8 35 h16" stroke="#6b6450" stroke-width="1.6" stroke-opacity="0.75"/>
+    <circle cx="30" cy="42" r="4.5" fill="none" stroke="#a3372f" stroke-width="1.6"/>
+    <path d="M27 45.5 l-2 4 M33 45.5 l2 4" stroke="#a3372f" stroke-width="1.4"/>
+  </svg>`;
+  return g;
+}
+
+/** Nullified contract: the tile is cut into falling paper strips. */
+function shredBurst(el) {
+  if (!el) return;
+  const r = el.getBoundingClientRect();
+  for (let i = 0; i < 5; i++) {
+    const s = document.createElement('div');
+    s.className = 'paper-strip';
+    s.style.left = (r.left + (i + 0.5) * (r.width / 5)) + 'px';
+    s.style.top = (r.top + r.height / 2 + (Math.random() * 8 - 4)) + 'px';
+    s.style.height = (r.height * (0.6 + Math.random() * 0.3)) + 'px';
+    s.style.setProperty('--dx', (Math.random() * 24 - 12).toFixed(1) + 'px');
+    s.style.setProperty('--dy', (26 + Math.random() * 26).toFixed(1) + 'px');
+    s.style.setProperty('--rr', ((Math.random() * 90 - 45) | 0) + 'deg');
+    s.style.animationDelay = (i * 22) + 'ms';
+    fxLayer.appendChild(s);
+    setTimeout(() => s.remove(), 700);
+  }
+}
+
 function pulseClass(el, cls, ms) {
   if (!el) return;
   el.classList.add(cls);
@@ -896,6 +930,80 @@ async function playEvent(ev) {
       const el = hooks.resolveTarget(ev.unitId);
       if (el) pulseClass(el, 'anim-shake', 350);
       await wait(260);
+      break;
+    }
+    case 'contractFiled': {
+      // Follows cardPlayed in the same batch (which already played sfx-play):
+      // a document ghost detaches from the reveal position, flies to the
+      // owner's zone slot, lands with a squash + gold "EXECUTED" stamp ring,
+      // and the tile pops in. Authoritative re-render reconciles at batch end.
+      audio.playSfx('sfx-contract-filed'); // optional drop-in; silent if absent
+      const zone = hooks.contractZone?.(ev.player);
+      const c = ev.contract || {};
+      let tile = null;
+      if (zone && c.id && !zone.querySelector(`[data-target-id="${c.id}"]`)) {
+        tile = renderContractTile(c);
+        tile.classList.add('contract-pre'); // laid out (so we can aim) but invisible
+        zone.appendChild(tile);
+      }
+      const dest = tile ? centerOf(tile) : (zone ? centerOf(zone) : null);
+      if (dest) {
+        // origin = the cardPlayed reveal position (same coords as its ghost)
+        const from = { x: innerWidth / 2 - 100, y: innerHeight / 2 - 40 };
+        fly(contractDocGhost(), from, dest, 290, { scaleTo: 0.5 });
+        fxTimeout(() => {
+          if (tile) {
+            tile.classList.remove('contract-pre');
+            tile.classList.add('contract-pop'); // squash-in + brightness stamp beat
+            setTimeout(() => tile.classList.remove('contract-pop'), 500);
+          }
+          const ring = document.createElement('div');
+          ring.className = 'stamp-ring';
+          ring.style.left = dest.x + 'px';
+          ring.style.top = dest.y + 'px';
+          fxLayer.appendChild(ring);
+          setTimeout(() => ring.remove(), 520);
+        }, 280);
+      } else if (tile) {
+        tile.classList.remove('contract-pre');
+      }
+      await wait(500);
+      break;
+    }
+    case 'contractVoided': {
+      const tile = hooks.resolveTarget(ev.contractId);
+      const expired = ev.reason === 'expired';
+      audio.playSfx(expired ? 'sfx-contract-expire' : 'sfx-contract-void',
+        expired ? undefined : 'sfx-destroy');
+      if (tile) {
+        const { x, y } = centerOf(tile);
+        const stamp = document.createElement('div');
+        stamp.className = 'void-stamp ' + (expired ? 'expired' : 'nullified');
+        stamp.textContent = expired ? 'EXPIRED' : 'NULL & VOID';
+        stamp.style.left = x + 'px';
+        stamp.style.top = y + 'px';
+        fxLayer.appendChild(stamp);
+        setTimeout(() => stamp.remove(), expired ? 950 : 850);
+        if (expired) {
+          // quiet: gray stamp fades in, the tile grays out and dissolves
+          tile.classList.add('contract-expire');
+          await wait(600);
+        } else {
+          // the red stamp slams in first; the shred lands on the impact beat
+          fxTimeout(() => {
+            if (!tile.isConnected) return;
+            screenShake('small');
+            hitStop(60);
+            tile.classList.add('contract-shred');
+            shredBurst(tile);
+          }, 190);
+          await wait(620);
+        }
+        if (g0 !== gen) break; // reset mid-void: leave the DOM to the new game
+        tile.remove(); // stack collapses; authoritative re-render reconciles
+      } else {
+        await wait(200);
+      }
       break;
     }
     case 'gameOver': {

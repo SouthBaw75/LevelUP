@@ -790,3 +790,155 @@
   .game-rail { width: 178px; }
   .unit { width: 82px; height: 106px; }
 }
+
+/* ================= CONTRACT ZONES (filed contracts, §3b) ================= */
+/* Two compact "FILED" stacks pinned to the battlefield's left edge — clear of
+   the centered 7-unit board rows. The opponent's stack grows down from the
+   top-left; yours grows UP from an anchor 128px above the board-zone bottom:
+   the fx layer parks the played-card ghost centered at (table.left + 120,
+   table.bottom − 245), and with the my-strip (~86px) + hand zone (158px)
+   below the board-zone that ghost overlaps the bottom ~110px of this corner —
+   the 128px offset keeps the stack clear of it. */
+.contract-zone {
+  position: absolute; left: 10px; z-index: 15;
+  width: 88px;
+  display: flex; flex-direction: column; gap: 6px;
+  pointer-events: none; /* empty zone = no chrome, no click shadowing */
+}
+.contract-zone.opp { top: 6px; }
+.contract-zone.me { bottom: 128px; flex-direction: column-reverse; }
+.contract-zone .contract-tile { pointer-events: auto; }
+
+/* document-styled tile: parchment tint in the dark palette, faction accent
+   edge, doc glyph, abbreviated name, term counter pip */
+.contract-tile {
+  --fc: #94a3b8;
+  position: relative; width: 88px; min-height: 44px; flex: none;
+  display: flex; align-items: center; gap: 5px;
+  padding: 5px 7px 5px 7px;
+  border-radius: 4px;
+  background:
+    repeating-linear-gradient(0deg, transparent 0 7px, rgba(236, 227, 198, 0.035) 7px 8px),
+    linear-gradient(165deg, rgba(236, 227, 198, 0.14), rgba(214, 200, 160, 0.05) 55%, rgba(0, 0, 0, 0.28)),
+    #141826;
+  border: 1px solid color-mix(in srgb, var(--fc) 40%, #3d4438);
+  border-left: 3px solid var(--fc);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.55), inset 0 0 0 1px rgba(255, 244, 214, 0.04);
+  transition: transform 0.15s ease, filter 0.15s ease, box-shadow 0.15s ease;
+}
+.contract-tile:hover { transform: translateY(-1px); filter: brightness(1.18); z-index: 6; }
+.ct-glyph { width: 14px; height: 18px; flex: none; color: color-mix(in srgb, var(--fc) 70%, #e8e2cf); }
+.ct-glyph svg { width: 100%; height: 100%; display: block; }
+.ct-name {
+  font: 600 7.5px/1.25 var(--mono); letter-spacing: 0.05em; text-transform: uppercase;
+  color: #e6e0cc; min-width: 0;
+  display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 3; overflow: hidden;
+}
+/* remaining-term pip — counts down; gold like the capital economy it belongs to */
+.ct-term {
+  position: absolute; top: -6px; right: -6px; z-index: 2;
+  width: 15px; height: 15px; border-radius: 50%;
+  display: flex; align-items: center; justify-content: center;
+  font: 800 9px/1 var(--mono); color: #071019;
+  background: radial-gradient(circle at 35% 30%, #ffe9b8, var(--gold) 62%, #9c7226);
+  border: 1px solid #f7dfa6;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.6), 0 0 6px rgba(232, 180, 90, 0.4);
+}
+/* null-&-void targeting reuses the shared red target pulse */
+.contract-tile.targetable {
+  cursor: crosshair;
+  animation: target-pulse 0.9s ease-in-out infinite;
+}
+.contract-tile.not-targetable { filter: brightness(0.5) saturate(0.4); }
+
+/* ---------- contractFiled: doc ghost flight → squash-in + gold stamp ---------- */
+.contract-doc-ghost { width: 46px; height: 60px; filter: drop-shadow(0 4px 10px rgba(0, 0, 0, 0.6)); }
+.contract-doc-ghost svg { width: 100%; height: 100%; display: block; }
+/* tile is laid out (so the ghost can aim at its slot) but not yet visible */
+.contract-tile.contract-pre { opacity: 0; }
+/* landing: anticipation squash → overshoot → settle, with a bright stamp beat */
+.contract-tile.contract-pop { animation: contract-stamp-in 0.42s cubic-bezier(0.34, 1.56, 0.64, 1) both; }
+@keyframes contract-stamp-in {
+  0% { opacity: 0; transform: scale(1.28, 0.6); filter: brightness(2.2); }
+  38% { opacity: 1; transform: scale(0.92, 1.12); filter: brightness(1.5); }
+  68% { transform: scale(1.05, 0.95); filter: brightness(1.1); }
+  100% { transform: scale(1); filter: none; }
+}
+/* gold "EXECUTED" ring pulsing out from the landed tile */
+.stamp-ring {
+  position: absolute; z-index: 156; width: 74px; height: 52px; pointer-events: none;
+  transform: translate(-50%, -50%);
+  border: 2px solid rgba(245, 211, 138, 0.95); border-radius: 6px;
+  box-shadow: 0 0 14px rgba(232, 180, 90, 0.8), inset 0 0 10px rgba(245, 211, 138, 0.45);
+  animation: stamp-ring-out 0.48s ease-out forwards;
+}
+@keyframes stamp-ring-out {
+  from { transform: translate(-50%, -50%) scale(0.55); opacity: 1; }
+  to { transform: translate(-50%, -50%) scale(1.55); opacity: 0; }
+}
+
+/* ---------- contractVoided ---------- */
+/* rubber-stamp overlay: slams in for 'nullified', fades in for 'expired' */
+.void-stamp {
+  position: absolute; z-index: 170; pointer-events: none;
+  transform: translate(-50%, -50%);
+  font: 900 13px/1 var(--mono); letter-spacing: 0.12em; white-space: nowrap;
+  padding: 4px 7px; border: 2.5px solid currentColor; border-radius: 3px;
+  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.8);
+}
+.void-stamp.nullified {
+  color: #ff5b71;
+  box-shadow: 0 0 14px rgba(244, 88, 106, 0.5), inset 0 0 10px rgba(244, 88, 106, 0.25);
+  background: rgba(30, 6, 10, 0.55);
+  animation: stamp-slam 0.8s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+}
+@keyframes stamp-slam {
+  0% { opacity: 0; transform: translate(-50%, -50%) scale(2.6) rotate(4deg); }
+  22% { opacity: 1; transform: translate(-50%, -50%) scale(0.88) rotate(-9deg); }
+  34% { transform: translate(-50%, -50%) scale(1.07) rotate(-8deg); }
+  46%, 78% { opacity: 1; transform: translate(-50%, -50%) scale(1) rotate(-8deg); }
+  100% { opacity: 0; transform: translate(-50%, -50%) scale(1) rotate(-8deg); }
+}
+.void-stamp.expired {
+  color: #9aa3ad;
+  background: rgba(12, 14, 18, 0.6);
+  animation: stamp-fade 0.9s ease forwards;
+}
+@keyframes stamp-fade {
+  0% { opacity: 0; transform: translate(-50%, -50%) scale(1.15) rotate(-6deg); }
+  30%, 70% { opacity: 0.92; transform: translate(-50%, -50%) scale(1) rotate(-6deg); }
+  100% { opacity: 0; transform: translate(-50%, -50%) scale(1) rotate(-6deg); }
+}
+/* nullified: the tile is cut into strips (mask) and collapses downward */
+.contract-tile.contract-shred {
+  -webkit-mask-image: repeating-linear-gradient(90deg, #000 0 7px, transparent 7px 9px);
+  mask-image: repeating-linear-gradient(90deg, #000 0 7px, transparent 7px 9px);
+  animation: contract-shred 0.45s cubic-bezier(0.45, 0, 0.9, 0.6) forwards;
+  pointer-events: none;
+}
+@keyframes contract-shred {
+  to { transform: translateY(26px) scaleY(0.45); opacity: 0; }
+}
+/* loose paper strips falling out of the shredder */
+.paper-strip {
+  position: absolute; z-index: 157; width: 5px; pointer-events: none;
+  transform: translate(-50%, -50%);
+  background: linear-gradient(180deg, #e8e0c6, #b8ae8e);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.5);
+  animation: strip-fall 0.62s cubic-bezier(0.35, 0, 0.8, 0.6) forwards;
+}
+@keyframes strip-fall {
+  0% { opacity: 1; transform: translate(-50%, -50%) translate(0, 0) rotate(0deg); }
+  100% { opacity: 0; transform: translate(-50%, -50%) translate(var(--dx, 0px), var(--dy, 40px)) rotate(var(--rr, 20deg)); }
+}
+/* expired: quieter — gray out and dissolve in place */
+.contract-tile.contract-expire { animation: contract-expire 0.6s ease forwards; pointer-events: none; }
+@keyframes contract-expire {
+  40% { filter: grayscale(1) brightness(0.7); opacity: 0.8; transform: none; }
+  100% { filter: grayscale(1) brightness(0.5); opacity: 0; transform: translateY(6px); }
+}
+
+@media (max-width: 1250px) {
+  .contract-zone, .contract-tile { width: 78px; }
+  .ct-name { font-size: 7px; }
+}
