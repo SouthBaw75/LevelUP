@@ -82,6 +82,21 @@
 
 /* ---------- battlefield ---------- */
 .board-zone { flex: 1; min-height: 0; display: flex; flex-direction: column; position: relative; }
+
+/* Perspective floor: a static receding grid plane, tilted so vertical lines
+   converge toward the opponent's side — depth without motion. First child of
+   .board-zone so the positioned board rows always paint above it; edges
+   dissolve via a radial mask so it never draws a hard border. */
+.board-floor {
+  position: absolute; left: -12%; right: -12%; top: -8%; bottom: -8%;
+  pointer-events: none;
+  background:
+    repeating-linear-gradient(90deg, rgba(120, 160, 220, 0.06) 0 1px, transparent 1px 96px),
+    repeating-linear-gradient(0deg, rgba(120, 160, 220, 0.055) 0 1px, transparent 1px 72px);
+  transform: perspective(900px) rotateX(40deg);
+  mask-image: radial-gradient(62% 54% at 50% 50%, #000 32%, transparent 78%);
+  -webkit-mask-image: radial-gradient(62% 54% at 50% 50%, #000 32%, transparent 78%);
+}
 .board-zone::before {
   content: ""; position: absolute; inset: 4% 10%; pointer-events: none;
   background: radial-gradient(58% 46% at 50% 50%, rgba(90, 130, 190, 0.05), transparent 70%);

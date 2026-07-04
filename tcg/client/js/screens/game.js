@@ -100,6 +100,7 @@ function buildSkeleton() {
         <div class="opp-hand" id="g-opp-hand"></div>
       </div>
       <div class="board-zone">
+        <div class="board-floor" aria-hidden="true"></div>
         <div class="board-row opp-row" id="g-row-opp"></div>
         <div class="board-divider"></div>
         <div class="board-row my-row" id="g-row-me"></div>
