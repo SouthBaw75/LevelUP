@@ -36,6 +36,7 @@ battle for industry dominance. Tone: sleek corporate cyberpunk, dry satirical fl
     or the enemy CEO — but must attack a FIREWALL asset if any exists (STEALTH ignores nothing;
     firewall rule applies to attackers regardless).
   - **OPERATION** — a spell. One-time effect, then discarded.
+  - **CONTRACT** — a persistent card filed to the owner's contract zone (see §3b).
 - Each faction's CEO has a **CEO POWER**: cost 2, usable once per turn (defined in card data).
 - Combat: attacker and defender deal damage to each other simultaneously (asset vs asset).
   Attacking the enemy CEO: only the attacker deals damage.
@@ -64,6 +65,59 @@ battle for industry dominance. Tone: sleek corporate cyberpunk, dry satirical fl
 | Triggered abilities (not stand-alone keywords, defined per-card in effect data):          |
 | `onboarding`     | ONBOARDING          | Effect when played from hand (Battlecry)                        |
 | `parachute`      | GOLDEN PARACHUTE    | Effect when destroyed (Deathrattle)                             |
+
+## 3b. CONTRACTS (v1)
+
+Persistent cards representing corporate agreements. Rules:
+
+- Played from hand like any card (cost in capital), **filed** to the owner's contract
+  zone. **Max 3 filed contracts** per player — a 4th is unplayable until a slot frees.
+- Contracts do NOT occupy board slots, cannot attack, cannot be attacked, and cannot be
+  targeted by damage/heal/buff effects. The ONLY ways a contract leaves play:
+  1. **Null & void** — an effect explicitly voiding it (targeting `enemyContract`).
+  2. **Expiry** — fixed-term contracts (`term: N`) expire after N of the owner's turns.
+- Contract instance ids: `"c<N>"` (shared counter with nothing else; distinct from `u<N>`).
+- Trigger timing: a contract's `startOfTurn` effects fire on its OWNER's turn after the
+  draw step, in filing order; `endOfTurn` effects fire at the end of the owner's turn
+  before the opponent's `turnStart`. **Both-parties contracts** fire on BOTH players'
+  turns (the "that player" in their text refers to whoever's turn it is). Term countdown:
+  decrement at the start of the owner's turn AFTER its trigger fires; at 0 → voided
+  (reason `expired`).
+- Static modifiers (implemented at engine chokepoints, evaluated live):
+  - `opCostReduction`: reduces the owner's OPERATION costs (min 0).
+  - `opDamageBonus`: owner's non-combat damage (operations + CEO power) deals +N.
+  Multiple copies stack.
+- New events (§5 list extended): `contractFiled {player, contract:{id, cardId, turnsLeft}}`
+  and `contractVoided {contractId, cardId, reason: "nullified"|"expired"}`.
+- View (§5) gains `contracts: [{id, cardId, turnsLeft}]` on BOTH `you` and `opp`
+  (contracts are public). Targeting enum gains `"enemyContract"`. `playCard`'s `target`
+  may be a `"c<N>"` id for null-&-void effects. Board limit 7 is unaffected.
+- Deck rules unchanged: contracts are collectible, count in the 30, max 2 copies.
+
+### v1 contract set (12 faction + 2 neutral answers)
+
+| id | Name | Cost | Effect |
+|---|---|---|---|
+| `nx_c01` | Terms of Service | 3 | Your OPERATIONS cost (1) less. |
+| `nx_c02` | Data Harvesting Agreement | 4 | **Term 3.** At the start of your turn, draw a card. |
+| `nx_c03` | Push Notification Consent | 2 | Whenever you play an OPERATION, deal 1 damage to the enemy CEO. |
+| `vx_c01` | Munitions Contract | 4 | Your operations and CEO power deal +1 damage. |
+| `vx_c02` | Overtime Mandate | 3 | At the end of your turn, deal 1 damage to the enemy CEO. |
+| `vx_c03` | Escalation Clause | 5 | **Both parties.** At the start of each player's turn, that player's CEO takes 1 damage. |
+| `hx_c01` | Corporate Wellness Program | 3 | At the end of your turn, restore 2 integrity to your CEO. |
+| `hx_c02` | Regeneration Rider | 4 | At the start of your turn, restore 1 durability to each friendly asset. |
+| `hx_c03` | Life Insurance Policy | 2 | Whenever a friendly asset is destroyed, restore 2 integrity to your CEO. |
+| `ob_c01` | Payday Lending Agreement | 2 | At the start of your turn, gain 1 Capital this turn only. **Fine print:** your CEO takes 1 damage each turn. |
+| `ob_c02` | Bridge Loan | 4 | **Term 2.** At the start of your turn, gain +1 permanent max Capital. |
+| `ob_c03` | Liquidation Rights | 3 | Whenever a friendly asset is destroyed, gain 1 Capital this turn only. |
+| `ntr_c01` | Contract Attorney | 3 | ASSET 2/3. ONBOARDING: declare an enemy contract null & void. |
+| `ntr_c02` | Void Clause | 1 | OPERATION. Declare an enemy contract null & void. |
+
+Flavor bar: every contract gets dry legal-satire flavor text ("fine print" energy).
+Rarity spread: commons/rares; `vx_c03` and `ob_c02` epic. Starter decks: each starter
+deck swaps in 1 of its faction's contracts (2 copies → no; ONE copy, cutting one
+existing card) plus each deck gains one `ntr_c02` Void Clause (cutting one card),
+keeping exactly 30 and passing validateDeck.
 
 ## 4. Card data schema (what client & server see)
 
@@ -138,7 +192,7 @@ import { createGame, applyAction, legalActions, getView, redactEvents, cloneStat
 
 - Unit instance ids: `"u<N>"` unique per game. CEO target ids: `"hero0"`, `"hero1"` (by player index).
 - `target` is required by cards whose effect needs a target (`targeting` field in view hand cards
-  tells the client: `null | "any" | "anyUnit" | "enemyUnit" | "friendlyUnit" | "enemyHero" | "anyHero"`).
+  tells the client: `null | "any" | "anyUnit" | "enemyUnit" | "friendlyUnit" | "enemyHero" | "anyHero" | "enemyContract"`).
 
 ### View shape (getView result — this exact shape goes over the wire)
 
@@ -173,6 +227,7 @@ Every event: `{ "e": "<type>", ...fields }`. Types (fixed list):
 - `shieldBreak {targetId}` · `death {unitId, cardId}` · `buff {unitId, attack, health}` · `keyword {unitId, keyword}`
 - `heroPower {player}` · `returnToHand {unitId}` · `silence {unitId}` *(if used)* · `transform {unitId, cardId}`
 - `gameOver {winner, reason}`  // reason: "takeover" | "concede" | "timeout" | "desertion"
+- `contractFiled {player, contract:{id, cardId, turnsLeft}}` · `contractVoided {contractId, cardId, reason}` (§3b)
 
 After applying redacted events, the client re-renders from the authoritative `view` that
 accompanies every state broadcast — events are for animation only, never for state derivation.
