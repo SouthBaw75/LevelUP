@@ -303,7 +303,12 @@ export function mountArt(frameEl, cardId, faction, type, { pending = true } = {}
     tag.textContent = 'ART PENDING';
     frameEl.appendChild(tag);
   }
-  findCardImage(cardId).then((url) => {
+  // CEO cards fall back to the faction's ceo-art portrait when there's no
+  // dedicated card-art file for that specific CEO id — so a portrait added
+  // for the hero plate/lobby also shows up on the CEO's own card everywhere
+  // (hover preview, deck builder), without needing a duplicate file.
+  const lookup = type === 'CEO' ? findCardImage(cardId).then((u) => u || findCeoImage(faction)) : findCardImage(cardId);
+  lookup.then((url) => {
     if (!url) return;
     const img = document.createElement('img');
     img.className = 'art-real';
