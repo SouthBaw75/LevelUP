@@ -86,7 +86,7 @@ export function factionMeta(id) {
 
 export function collectibleCards() {
   if (!db || !db.cards) return [];
-  return Object.values(db.cards).filter((c) => c.collectible !== false && (c.type === 'ASSET' || c.type === 'OPERATION'));
+  return Object.values(db.cards).filter((c) => c.collectible !== false && (c.type === 'ASSET' || c.type === 'OPERATION' || c.type === 'CONTRACT'));
 }
 
 // ---- Identity persistence ----
