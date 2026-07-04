@@ -29,6 +29,17 @@ export function addUnit(state, player, cardId, overrides = {}) {
   return unit;
 }
 
+// File a contract straight into a player's contract zone (bypasses playCard).
+export function fileContract(state, player, cardId) {
+  const c = {
+    id: 'c' + state.nextContract++,
+    cardId,
+    turnsLeft: Number.isInteger(CARDS[cardId].term) ? CARDS[cardId].term : null,
+  };
+  state.players[player].contracts.push(c);
+  return c;
+}
+
 export function putInHand(state, player, cardId) {
   state.players[player].hand.push(cardId);
   return state.players[player].hand.length - 1; // hand index

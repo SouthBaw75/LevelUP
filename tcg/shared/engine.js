@@ -25,6 +25,27 @@
 // - Taking control of an enemy asset (Hostile Takeover) is emitted as
 //   `death` + `summon` under the new owner (new unit id, summoning-sick).
 //   If the new owner's board is full, the asset is destroyed instead.
+//
+// CONTRACT (§3b) decisions where the contract is silent:
+// - Start-of-turn contract phase order: the ACTIVE player's own contracts in
+//   filing order (each contract's term decrements right after its own trigger),
+//   THEN the opponent's both-parties contracts in filing order. Both-parties
+//   ops run with ctx.player = the ACTIVE player ("that player" in card text).
+// - End-of-turn order: board (asset) endOfTurn triggers first, then the active
+//   player's contract endOfTurn triggers, then the opponent's turnStart.
+// - `onFriendlyAssetDestroyed` fires for every friendly asset death processed
+//   by the death sweep (combat, effect damage, destroy ops) — the stealUnit
+//   special's control-change `death` is not a destruction and does not fire it.
+//   These triggers fire BEFORE the dead wave's parachutes resolve.
+// - `opDamageBonus` boosts damage from any no-unit, non-contract source (i.e.
+//   OPERATION and CEO POWER damage ops), including self-damage ops. Combat,
+//   onboarding/parachute (unit-sourced), contract-trigger and fatigue damage
+//   are never boosted.
+// - Hand entries in the view report the LIVE effective cost (after
+//   opCostReduction) so client affordability display matches `playable`.
+// - `onOperationPlayed` fires after the operation's own effects fully resolve
+//   (deaths swept), for EVERY operation the owner plays — including Government
+//   Subsidy and Void Clause. CEO powers are not operations and never fire it.
 
 import { CARDS, STARTER_DECKS } from './cards.js';
 export { CARDS, STARTER_DECKS };
@@ -34,7 +55,10 @@ const MAX_HAND = 10;
 const MAX_BOARD = 7;
 const MAX_CAPITAL = 10;
 const POWER_COST = 2;
-const TARGETINGS = [null, 'any', 'anyUnit', 'enemyUnit', 'friendlyUnit', 'enemyHero', 'anyHero'];
+const MAX_CONTRACTS = 3;
+const PLAYABLE_TYPES = ['ASSET', 'OPERATION', 'CONTRACT'];
+const TARGETINGS = [null, 'any', 'anyUnit', 'enemyUnit', 'friendlyUnit', 'enemyHero', 'anyHero',
+  'enemyContract'];
 
 // ---------------------------------------------------------------------------
 // Seeded RNG (mulberry32 stepping state.rng)
@@ -89,6 +113,7 @@ export function createGame({ decks, names, seed }) {
     over: false,
     winner: null,
     nextUnit: 1,
+    nextContract: 1, // contract instance ids "c<N>" (own counter, distinct from "u<N>")
     players: [],
   };
   for (let i = 0; i < 2; i++) {
@@ -107,6 +132,7 @@ export function createGame({ decks, names, seed }) {
       deck: shuffle(state, deck.cards.slice()),
       hand: [],
       board: [],
+      contracts: [], // filed contracts, in filing order: { id, cardId, turnsLeft }
       fatigue: 0,
       powerUsed: false,
     });
@@ -203,7 +229,102 @@ function validTargets(state, player, targeting) {
     case 'friendlyUnit': return friendlyUnits;
     case 'enemyHero': return ['hero' + enemy];
     case 'anyHero': return ['hero' + player, 'hero' + enemy];
+    case 'enemyContract': return state.players[enemy].contracts.map((c) => c.id);
     default: return [];
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Contracts (§3b)
+// ---------------------------------------------------------------------------
+// ctx for ops run by a contract trigger. `contractSource` keeps this damage
+// out of the opDamageBonus path (that bonus is for operations/CEO powers only).
+function contractCtx(player, contract) {
+  return {
+    player, sourceUnit: null, target: null,
+    sourceCardId: contract.cardId, contractSource: true,
+  };
+}
+
+// Sum a static modifier (opCostReduction / opDamageBonus) over the player's
+// filed contracts — evaluated live, multiple copies stack.
+function contractStatic(state, player, key) {
+  let total = 0;
+  for (const c of state.players[player].contracts) {
+    const st = CARDS[c.cardId].effects.static;
+    if (st && st[key]) total += st[key];
+  }
+  return total;
+}
+
+// THE one cost helper: view display, playable calc, applyAction validation and
+// capital deduction all go through here. opCostReduction (nx_c01) applies to
+// the owner's OPERATIONs only, floored at 0.
+function effectiveCost(state, player, card) {
+  if (card.type === 'OPERATION')
+    return Math.max(0, card.cost - contractStatic(state, player, 'opCostReduction'));
+  return card.cost;
+}
+
+// Remove a filed contract from play (either owner) and emit contractVoided.
+function voidContract(state, ev, contractId, reason) {
+  for (let owner = 0; owner < 2; owner++) {
+    const list = state.players[owner].contracts;
+    const i = list.findIndex((c) => c.id === contractId);
+    if (i >= 0) {
+      const [c] = list.splice(i, 1);
+      ev.push({ e: 'contractVoided', contractId: c.id, cardId: c.cardId, reason });
+      return true;
+    }
+  }
+  return false;
+}
+
+// Run one trigger ('endOfTurn' | 'onOperationPlayed') across a player's filed
+// contracts in filing order, sweeping deaths after each (damage may be lethal).
+function fireContractTrigger(state, ev, player, trigger) {
+  const list = state.players[player].contracts;
+  for (const c of list.slice()) {
+    if (state.over) return;
+    if (!list.includes(c)) continue; // voided mid-phase
+    const ops = CARDS[c.cardId].effects[trigger];
+    if (ops) {
+      runOps(state, ev, ops, contractCtx(player, c));
+      sweepDeaths(state, ev);
+    }
+  }
+}
+
+// Start-of-turn contract phase (after the draw step):
+// 1. the active player's own contracts, in filing order — trigger, then term
+//    decrement (spec: decrement AFTER its trigger; 0 -> voided as 'expired');
+// 2. the opponent's both-parties contracts (vx_c03) also fire on this turn,
+//    with ctx.player = the active player ("that player" = whoever's turn it is).
+function runContractStartOfTurn(state, player, ev) {
+  const own = state.players[player].contracts;
+  for (const c of own.slice()) {
+    if (state.over) return;
+    if (!own.includes(c)) continue; // voided mid-phase
+    const card = CARDS[c.cardId];
+    if (card.effects.startOfTurn) {
+      runOps(state, ev, card.effects.startOfTurn, contractCtx(player, c));
+      sweepDeaths(state, ev);
+      if (state.over) return;
+    }
+    if (c.turnsLeft !== null) {
+      c.turnsLeft -= 1;
+      if (c.turnsLeft <= 0) voidContract(state, ev, c.id, 'expired');
+    }
+  }
+  const theirs = state.players[1 - player].contracts;
+  for (const c of theirs.slice()) {
+    if (state.over) return;
+    if (!theirs.includes(c)) continue;
+    const card = CARDS[c.cardId];
+    if (card.effects.bothParties && card.effects.startOfTurn) {
+      runOps(state, ev, card.effects.startOfTurn, contractCtx(player, c));
+      sweepDeaths(state, ev);
+    }
   }
 }
 
@@ -213,6 +334,10 @@ function validTargets(state, player, targeting) {
 // source: { unit?, player, id? } — unit for keyword handling, id for the event
 function dealDamage(state, ev, targetId, amount, source = {}) {
   if (state.over || amount <= 0) return 0;
+  // vx_c01 opDamageBonus: no-unit sources that are operations / CEO powers
+  // (source.isSpell) deal +N. Combat, contract-trigger and fatigue damage
+  // never carry isSpell, so they are unaffected.
+  if (source.isSpell) amount += contractStatic(state, source.player, 'opDamageBonus');
   const evBase = { e: 'damage', targetId, amount };
   if (source.id) evBase.source = source.id;
   if (isHeroId(targetId)) {
@@ -296,6 +421,19 @@ function sweepDeaths(state, ev) {
     // deaths were collected per-board in reverse; report/resolve left-to-right
     dead.sort((a, b) => (a.owner - b.owner) || (a.index - b.index));
     for (const d of dead) ev.push({ e: 'death', unitId: d.unit.id, cardId: d.unit.cardId });
+    // Contract reactions to friendly asset deaths (hx_c03: heal; ob_c03: temp
+    // capital) fire per death, before the wave's parachutes. Recursion guard:
+    // these effects are heal/addCapital only and cannot create further deaths;
+    // even a pathological chain is bounded by this loop's `guard`.
+    for (const d of dead) {
+      const list = state.players[d.owner].contracts;
+      for (const c of list.slice()) {
+        if (state.over) break;
+        if (!list.includes(c)) continue;
+        const ops = CARDS[c.cardId].effects.onFriendlyAssetDestroyed;
+        if (ops) runOps(state, ev, ops, contractCtx(d.owner, c));
+      }
+    }
     for (const d of dead) {
       const card = CARDS[d.unit.cardId];
       if (!d.unit.silenced && card.effects.parachute) {
@@ -481,6 +619,13 @@ export const OPS = {
     const fn = SPECIALS[op.key];
     if (fn) fn(state, ev, op, ctx);
   },
+  // null & void: remove the targeted contract from play (targeting
+  // 'enemyContract' — target validation already restricts to enemy contracts)
+  nullify(state, ev, op, ctx) {
+    for (const id of resolveTargets(state, ctx, op.to)) {
+      voidContract(state, ev, id, 'nullified');
+    }
+  },
 };
 
 export const SPECIALS = {
@@ -518,9 +663,10 @@ export const SPECIALS = {
 };
 
 function sourceOf(ctx) {
-  return ctx.sourceUnit
-    ? { unit: ctx.sourceUnit, player: ctx.player, id: ctx.sourceUnit.id }
-    : { player: ctx.player, id: ctx.sourceCardId };
+  if (ctx.sourceUnit) return { unit: ctx.sourceUnit, player: ctx.player, id: ctx.sourceUnit.id };
+  // no-unit source: an OPERATION or CEO POWER — unless it came from a
+  // contract trigger, which is not "operation damage" for opDamageBonus.
+  return { player: ctx.player, id: ctx.sourceCardId, isSpell: !ctx.contractSource };
 }
 
 function resolveTargets(state, ctx, to) {
@@ -560,6 +706,9 @@ function startTurn(state, player, ev) {
   ev.push({ e: 'capital', player, capital: p.capital, maxCapital: p.maxCapital });
   drawCards(state, player, 1, ev);
   sweepDeaths(state, ev); // fatigue may have been lethal
+  // §3b: contract startOfTurn triggers fire after the draw step, then term
+  // countdown; the opponent's both-parties contracts fire on this turn too.
+  if (!state.over) runContractStartOfTurn(state, player, ev);
 }
 
 function endTurn(state, ev) {
@@ -575,6 +724,10 @@ function endTurn(state, ev) {
       sweepDeaths(state, ev);
     }
   }
+  if (state.over) return;
+  // §3b: contract endOfTurn triggers (vx_c02, hx_c01) fire at the end of the
+  // owner's turn, after board triggers, before the opponent's turnStart.
+  fireContractTrigger(state, ev, player, 'endOfTurn');
   if (state.over) return;
   startTurn(state, 1 - player, ev);
 }
@@ -637,11 +790,14 @@ function applyActionInner(state, playerIndex, action) {
         return { ok: false, error: 'invalid hand index' };
       const cardId = p.hand[idx];
       const card = CARDS[cardId];
-      if (card.type !== 'ASSET' && card.type !== 'OPERATION')
+      if (!PLAYABLE_TYPES.includes(card.type))
         return { ok: false, error: 'card cannot be played' };
-      if (card.cost > p.capital) return { ok: false, error: 'not enough capital' };
+      const cost = effectiveCost(state, playerIndex, card);
+      if (cost > p.capital) return { ok: false, error: 'not enough capital' };
       if (card.type === 'ASSET' && p.board.length >= MAX_BOARD)
         return { ok: false, error: 'board is full' };
+      if (card.type === 'CONTRACT' && p.contracts.length >= MAX_CONTRACTS)
+        return { ok: false, error: 'contract zone is full' };
 
       const target = action.target ?? null;
       const targeting = card.effects.targeting || null;
@@ -650,7 +806,7 @@ function applyActionInner(state, playerIndex, action) {
       });
       if (!tc.ok) return tc;
 
-      p.capital -= card.cost;
+      p.capital -= cost;
       p.hand.splice(idx, 1);
       ev.push({ e: 'cardPlayed', player: playerIndex, cardId, handIndex: idx });
 
@@ -663,10 +819,24 @@ function applyActionInner(state, playerIndex, action) {
             player: playerIndex, sourceUnit: unit, target: tc.target, sourceCardId: cardId,
           });
         }
+      } else if (card.type === 'CONTRACT') {
+        const contract = {
+          id: 'c' + state.nextContract++,
+          cardId,
+          turnsLeft: Number.isInteger(card.term) ? card.term : null,
+        };
+        p.contracts.push(contract);
+        ev.push({
+          e: 'contractFiled', player: playerIndex,
+          contract: { id: contract.id, cardId, turnsLeft: contract.turnsLeft },
+        });
       } else {
         runOps(state, ev, card.effects.play || [], {
           player: playerIndex, sourceUnit: null, target: tc.target, sourceCardId: cardId,
         });
+        sweepDeaths(state, ev);
+        // nx_c03: fires after the operation's own effects have fully resolved
+        fireContractTrigger(state, ev, playerIndex, 'onOperationPlayed');
       }
       sweepDeaths(state, ev);
       return { ok: true, events: ev };
@@ -734,9 +904,10 @@ export function legalActions(state, playerIndex) {
 
   p.hand.forEach((cardId, handIndex) => {
     const card = CARDS[cardId];
-    if (card.type !== 'ASSET' && card.type !== 'OPERATION') return;
-    if (card.cost > p.capital) return;
+    if (!PLAYABLE_TYPES.includes(card.type)) return;
+    if (effectiveCost(state, playerIndex, card) > p.capital) return;
     if (card.type === 'ASSET' && p.board.length >= MAX_BOARD) return;
+    if (card.type === 'CONTRACT' && p.contracts.length >= MAX_CONTRACTS) return;
     const targeting = card.effects.targeting || null;
     if (!targeting) {
       actions.push({ type: 'playCard', handIndex, target: null, position: null });
@@ -778,18 +949,21 @@ function handEntry(state, playerIndex, cardId, isActive) {
   const card = CARDS[cardId];
   const p = state.players[playerIndex];
   const targeting = card.effects.targeting || null;
+  // live effective cost (opCostReduction) so display matches playable calc
+  const cost = effectiveCost(state, playerIndex, card);
   let playable = false;
-  if (isActive && !state.over && (card.type === 'ASSET' || card.type === 'OPERATION')
-      && card.cost <= p.capital) {
+  if (isActive && !state.over && PLAYABLE_TYPES.includes(card.type) && cost <= p.capital) {
     if (card.type === 'ASSET') {
       playable = p.board.length < MAX_BOARD;
+    } else if (card.type === 'CONTRACT') {
+      playable = p.contracts.length < MAX_CONTRACTS; // max 3 filed
     } else {
       playable = !targeting || validTargets(state, playerIndex, targeting).length > 0;
     }
   }
   return {
     cardId,
-    cost: card.cost,
+    cost,
     playable,
     targeting,
     validPositions: card.type === 'ASSET',
@@ -830,6 +1004,8 @@ function playerView(state, i, { self }) {
       targeting: powerCard.effects.targeting || null,
     },
     board: p.board.map((u) => unitView(state, u, self && isActive)),
+    // §3b: contracts are public — full detail on both `you` and `opp`
+    contracts: p.contracts.map((c) => ({ id: c.id, cardId: c.cardId, turnsLeft: c.turnsLeft })),
     deckCount: p.deck.length,
     fatigue: p.fatigue,
   };
@@ -850,6 +1026,7 @@ export function getView(state, playerIndex) {
 }
 
 export function redactEvents(events, playerIndex) {
+  // contractFiled / contractVoided are public (§3b) and pass through unredacted
   return events.map((e) =>
     e.e === 'draw' && e.player !== playerIndex ? { ...e, cardId: null } : { ...e }
   );

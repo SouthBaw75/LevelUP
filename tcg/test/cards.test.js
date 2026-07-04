@@ -10,8 +10,10 @@ const FACTIONS = ['nexus', 'vulcan', 'helix', 'obsidian', 'neutral'];
 const PREFIX = { nexus: 'nx', vulcan: 'vx', helix: 'hx', obsidian: 'ob', neutral: 'ntr' };
 const KEYWORDS = ['firewall', 'fasttrack', 'stealth', 'shielded', 'overtime', 'toxic', 'siphon'];
 const RARITIES = ['common', 'rare', 'epic', 'legendary'];
-const TYPES = ['ASSET', 'OPERATION', 'CEO', 'POWER'];
-const TRIGGERS = ['onboarding', 'play', 'parachute', 'endOfTurn'];
+const TYPES = ['ASSET', 'OPERATION', 'CEO', 'POWER', 'CONTRACT'];
+const TRIGGERS = ['onboarding', 'play', 'parachute', 'endOfTurn',
+  'startOfTurn', 'onOperationPlayed', 'onFriendlyAssetDestroyed'];
+const STATIC_KEYS = ['opCostReduction', 'opDamageBonus'];
 
 const all = Object.values(CARDS);
 const collectible = all.filter((c) => c.collectible);
@@ -50,6 +52,15 @@ test('every card conforms to the schema', () => {
       assert.equal(card.collectible, false);
       assert.ok(Array.isArray(card.effects.play), card.id + ' power ops');
     }
+    if (card.type === 'CONTRACT') {
+      assert.equal(card.attack, undefined, card.id + ' contracts have no attack');
+      assert.equal(card.health, undefined, card.id + ' contracts have no health');
+      assert.deepEqual(card.keywords, [], card.id + ' contracts have no keywords');
+    }
+    if (card.term !== undefined) {
+      assert.equal(card.type, 'CONTRACT', card.id + ' term is contract-only');
+      assert.ok(Number.isInteger(card.term) && card.term >= 1, card.id + ' term');
+    }
     if (card.effects.targeting !== undefined) {
       assert.ok(TARGETING_VALUES.includes(card.effects.targeting), card.id + ' targeting');
     }
@@ -60,6 +71,19 @@ test('every referenced DSL op / special / token / keyword is implemented', () =>
   for (const card of all) {
     for (const [key, val] of Object.entries(card.effects)) {
       if (key === 'targeting') continue;
+      if (key === 'static') {
+        assert.equal(card.type, 'CONTRACT', `${card.id} static is contract-only`);
+        for (const [sk, sv] of Object.entries(val)) {
+          assert.ok(STATIC_KEYS.includes(sk), `${card.id} unknown static ${sk}`);
+          assert.ok(Number.isInteger(sv) && sv > 0, `${card.id} static ${sk} value`);
+        }
+        continue;
+      }
+      if (key === 'bothParties') {
+        assert.equal(card.type, 'CONTRACT', `${card.id} bothParties is contract-only`);
+        assert.equal(val, true, `${card.id} bothParties`);
+        continue;
+      }
       assert.ok(TRIGGERS.includes(key), `${card.id} unknown trigger ${key}`);
       assert.ok(Array.isArray(val), `${card.id} trigger ${key} must be an ops array`);
       for (const op of val) {
@@ -89,15 +113,22 @@ test('every referenced DSL op / special / token / keyword is implemented', () =>
   }
 });
 
-test('collectible counts match the contract (~120: 22 per faction + 30+ neutral)', () => {
+test('collectible counts match the contract (25 per faction + 34 neutral = 134)', () => {
   const byFaction = {};
   for (const c of collectible) byFaction[c.faction] = (byFaction[c.faction] || 0) + 1;
-  assert.equal(byFaction.nexus, 22);
-  assert.equal(byFaction.vulcan, 22);
-  assert.equal(byFaction.helix, 22);
-  assert.equal(byFaction.obsidian, 22);
-  assert.ok(byFaction.neutral >= 30, 'at least 30 neutral');
-  assert.equal(collectible.length, 120);
+  assert.equal(byFaction.nexus, 25);
+  assert.equal(byFaction.vulcan, 25);
+  assert.equal(byFaction.helix, 25);
+  assert.equal(byFaction.obsidian, 25);
+  assert.equal(byFaction.neutral, 34);
+  assert.equal(collectible.length, 134);
+  // 3 CONTRACT cards per faction, none neutral (the neutral answers are
+  // ntr_c01 ASSET / ntr_c02 OPERATION)
+  const contracts = collectible.filter((c) => c.type === 'CONTRACT');
+  assert.equal(contracts.length, 12);
+  for (const f of ['nexus', 'vulcan', 'helix', 'obsidian']) {
+    assert.equal(contracts.filter((c) => c.faction === f).length, 3, f + ' contracts');
+  }
 });
 
 test('cost and rarity spreads', () => {
@@ -141,5 +172,65 @@ test('STARTER_DECKS: four tuned decks that validate', () => {
     assert.equal(deck.faction, key);
     assert.ok(typeof deck.name === 'string' && deck.name.length > 0);
     assert.deepEqual(validateDeck(deck), { ok: true }, key + ' deck validates');
+  }
+});
+
+test('§3b contract set matches the spec table exactly', () => {
+  const table = [
+    // id, name, cost, term
+    ['nx_c01', 'Terms of Service', 3, undefined],
+    ['nx_c02', 'Data Harvesting Agreement', 4, 3],
+    ['nx_c03', 'Push Notification Consent', 2, undefined],
+    ['vx_c01', 'Munitions Contract', 4, undefined],
+    ['vx_c02', 'Overtime Mandate', 3, undefined],
+    ['vx_c03', 'Escalation Clause', 5, undefined],
+    ['hx_c01', 'Corporate Wellness Program', 3, undefined],
+    ['hx_c02', 'Regeneration Rider', 4, undefined],
+    ['hx_c03', 'Life Insurance Policy', 2, undefined],
+    ['ob_c01', 'Payday Lending Agreement', 2, undefined],
+    ['ob_c02', 'Bridge Loan', 4, 2],
+    ['ob_c03', 'Liquidation Rights', 3, undefined],
+  ];
+  for (const [id, name, cost, term] of table) {
+    const c = CARDS[id];
+    assert.ok(c, id + ' exists');
+    assert.equal(c.name, name, id + ' name');
+    assert.equal(c.cost, cost, id + ' cost');
+    assert.equal(c.type, 'CONTRACT', id + ' type');
+    assert.equal(c.term, term, id + ' term');
+    assert.equal(c.collectible, true, id + ' collectible');
+    assert.ok(c.flavor.length > 0, id + ' flavor');
+  }
+  // rarity spread: commons/rares; vx_c03 & ob_c02 epic
+  assert.equal(CARDS.vx_c03.rarity, 'epic');
+  assert.equal(CARDS.ob_c02.rarity, 'epic');
+  for (const [id] of table) {
+    if (id !== 'vx_c03' && id !== 'ob_c02') {
+      assert.ok(['common', 'rare'].includes(CARDS[id].rarity), id + ' common/rare');
+    }
+  }
+  // neutral answers: attorney is an ASSET, void clause an OPERATION
+  const atty = CARDS.ntr_c01;
+  assert.equal(atty.type, 'ASSET');
+  assert.equal(atty.cost, 3);
+  assert.equal(atty.attack, 2);
+  assert.equal(atty.health, 3);
+  assert.equal(atty.effects.targeting, 'enemyContract');
+  assert.deepEqual(atty.effects.onboarding, [{ op: 'nullify', to: 'target' }]);
+  const voidClause = CARDS.ntr_c02;
+  assert.equal(voidClause.type, 'OPERATION');
+  assert.equal(voidClause.cost, 1);
+  assert.equal(voidClause.effects.targeting, 'enemyContract');
+  assert.deepEqual(voidClause.effects.play, [{ op: 'nullify', to: 'target' }]);
+});
+
+test('starter decks each swapped in ONE faction contract + ONE Void Clause (still 30)', () => {
+  for (const [key, deck] of Object.entries(STARTER_DECKS)) {
+    assert.equal(deck.cards.length, 30, key + ' is 30 cards');
+    assert.equal(deck.cards.filter((id) => id === 'ntr_c02').length, 1,
+      key + ' has exactly one Void Clause');
+    const contracts = deck.cards.filter((id) => CARDS[id].type === 'CONTRACT');
+    assert.equal(contracts.length, 1, key + ' has exactly one CONTRACT card');
+    assert.equal(CARDS[contracts[0]].faction, key, key + ' contract is on-faction');
   }
 });

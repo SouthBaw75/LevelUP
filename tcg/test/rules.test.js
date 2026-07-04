@@ -6,7 +6,9 @@ import {
   createGame, applyAction, legalActions, getView, redactEvents, cloneState,
   CARDS, STARTER_DECKS,
 } from '../shared/engine.js';
-import { newGame, addUnit, putInHand, giveCapital, find, findAll } from './helpers.js';
+import {
+  newGame, addUnit, putInHand, giveCapital, fileContract, find, findAll,
+} from './helpers.js';
 
 const end = (s) => applyAction(s, s.activePlayer, { type: 'endTurn' });
 
@@ -796,4 +798,444 @@ test('legalActions always includes endTurn on your turn', () => {
   const s = newGame();
   const acts = legalActions(s, 0);
   assert.ok(acts.some((a) => a.type === 'endTurn'));
+});
+
+// ---------------------------------------------------------------------------
+// CONTRACTS (§3b): filing, zone limit, expiry, null & void
+// ---------------------------------------------------------------------------
+test('filing a contract: cost, zone, cardPlayed->contractFiled, public in views', () => {
+  const s = newGame();
+  giveCapital(s, 0, 5);
+  const idx = putInHand(s, 0, 'nx_c03');
+  const r = applyAction(s, 0, { type: 'playCard', handIndex: idx, target: null, position: null });
+  assert.equal(r.ok, true);
+  assert.equal(s.players[0].capital, 3, 'cost 2 deducted');
+  const types = r.events.map((e) => e.e);
+  assert.ok(types.indexOf('cardPlayed') !== -1 &&
+    types.indexOf('cardPlayed') < types.indexOf('contractFiled'),
+  'cardPlayed emitted before contractFiled');
+  const filed = find(r.events, 'contractFiled');
+  assert.equal(filed.player, 0);
+  assert.match(filed.contract.id, /^c\d+$/);
+  assert.equal(filed.contract.cardId, 'nx_c03');
+  assert.equal(filed.contract.turnsLeft, null, 'no term -> null');
+  assert.equal(s.players[0].contracts.length, 1);
+  assert.equal(s.players[0].board.length, 0, 'contracts do not occupy board slots');
+  // contracts are public on both views
+  const expected = [{ id: filed.contract.id, cardId: 'nx_c03', turnsLeft: null }];
+  assert.deepEqual(getView(s, 0).you.contracts, expected);
+  assert.deepEqual(getView(s, 1).opp.contracts, expected);
+});
+
+test('filing a term contract reports turnsLeft in the event and view', () => {
+  const s = newGame();
+  giveCapital(s, 0, 5);
+  const idx = putInHand(s, 0, 'nx_c02');
+  const r = applyAction(s, 0, { type: 'playCard', handIndex: idx, target: null, position: null });
+  assert.equal(r.ok, true);
+  assert.equal(find(r.events, 'contractFiled').contract.turnsLeft, 3);
+  assert.equal(getView(s, 1).opp.contracts[0].turnsLeft, 3);
+});
+
+test('max 3 filed contracts: 4th is unplayable and rejected', () => {
+  const s = newGame();
+  giveCapital(s, 0, 10);
+  for (const id of ['nx_c03', 'nx_c03', 'nx_c01']) fileContract(s, 0, id);
+  const idx = putInHand(s, 0, 'nx_c02');
+  assert.equal(getView(s, 0).you.hand[idx].playable, false, 'view says unplayable');
+  assert.ok(!legalActions(s, 0).some((a) => a.type === 'playCard' && a.handIndex === idx),
+    'not enumerated');
+  const r = applyAction(s, 0, { type: 'playCard', handIndex: idx, target: null, position: null });
+  assert.equal(r.ok, false);
+  assert.equal(s.players[0].contracts.length, 3);
+  // a slot frees -> playable again
+  s.players[0].contracts.pop();
+  assert.equal(getView(s, 0).you.hand[idx].playable, true);
+  assert.equal(applyAction(s, 0,
+    { type: 'playCard', handIndex: idx, target: null, position: null }).ok, true);
+});
+
+test('term expiry: nx_c02 fires on exactly 3 owner turns, then contractVoided expired', () => {
+  const s = newGame();
+  giveCapital(s, 0, 5);
+  const idx = putInHand(s, 0, 'nx_c02');
+  applyAction(s, 0, { type: 'playCard', handIndex: idx, target: null, position: null });
+  const cid = s.players[0].contracts[0].id;
+  for (let round = 1; round <= 3; round++) {
+    end(s); // -> p1's turn (contract silent: owner-only trigger)
+    const r = end(s); // -> p0's turn: draw step, then contract draw, then decrement
+    const p0draws = findAll(r.events, 'draw').filter((d) => d.player === 0);
+    assert.equal(p0draws.length, 2, `round ${round}: turn draw + contract draw`);
+    if (round < 3) {
+      assert.equal(s.players[0].contracts[0].turnsLeft, 3 - round,
+        'decrement AFTER the trigger');
+      assert.ok(!find(r.events, 'contractVoided'));
+    } else {
+      assert.deepEqual(find(r.events, 'contractVoided'),
+        { e: 'contractVoided', contractId: cid, cardId: 'nx_c02', reason: 'expired' });
+      assert.equal(s.players[0].contracts.length, 0);
+    }
+  }
+  // no further trigger after expiry (drain the hand so the turn draw isn't a mill)
+  s.players[0].hand.length = 0;
+  end(s);
+  const r = end(s);
+  assert.equal(findAll(r.events, 'draw').filter((d) => d.player === 0).length, 1);
+});
+
+test('Void Clause: voids an enemy contract; unplayable with no enemy contracts', () => {
+  const s = newGame();
+  giveCapital(s, 0, 10);
+  const idx = putInHand(s, 0, 'ntr_c02');
+  // no enemy contracts -> unplayable (targeted OPERATION, no fizzle)
+  assert.equal(getView(s, 0).you.hand[idx].playable, false);
+  assert.ok(!legalActions(s, 0).some((a) => a.type === 'playCard' && a.handIndex === idx));
+  assert.equal(applyAction(s, 0,
+    { type: 'playCard', handIndex: idx, target: null, position: null }).ok, false);
+  // enemy files one -> playable, target enumerated, void works
+  const c = fileContract(s, 1, 'vx_c02');
+  assert.equal(getView(s, 0).you.hand[idx].playable, true);
+  assert.equal(getView(s, 0).you.hand[idx].targeting, 'enemyContract');
+  const legal = legalActions(s, 0).filter((a) => a.type === 'playCard' && a.handIndex === idx);
+  assert.deepEqual(legal.map((a) => a.target), [c.id], 'each enemy contract enumerated');
+  const r = applyAction(s, 0, { type: 'playCard', handIndex: idx, target: c.id, position: null });
+  assert.equal(r.ok, true);
+  assert.deepEqual(find(r.events, 'contractVoided'),
+    { e: 'contractVoided', contractId: c.id, cardId: 'vx_c02', reason: 'nullified' });
+  assert.equal(s.players[1].contracts.length, 0);
+});
+
+test('Contract Attorney: onboarding nullify; fizzles when no enemy contracts', () => {
+  const s = newGame();
+  giveCapital(s, 0, 10);
+  // fizzle: no enemy contracts, still deploys
+  const idx = putInHand(s, 0, 'ntr_c01');
+  const r = applyAction(s, 0, { type: 'playCard', handIndex: idx, target: null, position: null });
+  assert.equal(r.ok, true, 'ASSET with no valid targets fizzles');
+  assert.equal(s.players[0].board[0].cardId, 'ntr_c01');
+  assert.ok(!find(r.events, 'contractVoided'));
+  // with an enemy contract the target is mandatory
+  const c = fileContract(s, 1, 'hx_c01');
+  const idx2 = putInHand(s, 0, 'ntr_c01');
+  assert.equal(applyAction(s, 0,
+    { type: 'playCard', handIndex: idx2, target: null, position: null }).ok, false);
+  const r2 = applyAction(s, 0, { type: 'playCard', handIndex: idx2, target: c.id, position: null });
+  assert.equal(r2.ok, true);
+  assert.deepEqual(find(r2.events, 'contractVoided'),
+    { e: 'contractVoided', contractId: c.id, cardId: 'hx_c01', reason: 'nullified' });
+  assert.equal(s.players[1].contracts.length, 0);
+});
+
+test('contract garbage inputs: c-ids in wrong slots, own/unknown contracts rejected', () => {
+  const s = newGame();
+  giveCapital(s, 0, 10);
+  const mine = fileContract(s, 0, 'nx_c03');
+  const theirs = fileContract(s, 1, 'vx_c02');
+  const u = addUnit(s, 0, 'ntr_006');
+  // c-id as an attack target
+  assert.equal(applyAction(s, 0,
+    { type: 'attack', attackerId: u.id, targetId: theirs.id }).ok, false);
+  // c-id as a damage-op target (contracts cannot be targeted by damage)
+  const iPing = putInHand(s, 0, 'nx_013');
+  assert.equal(applyAction(s, 0,
+    { type: 'playCard', handIndex: iPing, target: theirs.id, position: null }).ok, false);
+  // c-id as a heroPower target (nexus power takes no target)
+  assert.equal(applyAction(s, 0, { type: 'heroPower', target: theirs.id }).ok, false);
+  // playing a contract WITH a target
+  const iC = putInHand(s, 0, 'nx_c01');
+  assert.equal(applyAction(s, 0,
+    { type: 'playCard', handIndex: iC, target: 'hero1', position: null }).ok, false);
+  // voiding your OWN contract, or an unknown c-id
+  const iV = putInHand(s, 0, 'ntr_c02');
+  assert.equal(applyAction(s, 0,
+    { type: 'playCard', handIndex: iV, target: mine.id, position: null }).ok, false);
+  assert.equal(applyAction(s, 0,
+    { type: 'playCard', handIndex: iV, target: 'c999', position: null }).ok, false);
+  assert.equal(s.players[0].contracts.length, 1, 'state not corrupted');
+  assert.equal(s.players[1].contracts.length, 1);
+  assert.equal(s.over, false);
+});
+
+// ---------------------------------------------------------------------------
+// CONTRACTS (§3b): static modifiers
+// ---------------------------------------------------------------------------
+test('nx_c01: operations cost 1 less (floor 0), stacks to -2; non-operations unaffected', () => {
+  const s = newGame();
+  giveCapital(s, 0, 10);
+  fileContract(s, 0, 'nx_c01');
+  const iPing = putInHand(s, 0, 'nx_013'); // op, cost 0
+  const iTele = putInHand(s, 0, 'nx_019'); // op, cost 1
+  const iSprint = putInHand(s, 0, 'nx_015'); // op, cost 3
+  const iAsset = putInHand(s, 0, 'nx_004'); // ASSET, cost 2
+  const iContract = putInHand(s, 0, 'nx_c03'); // CONTRACT, cost 2
+  let v = getView(s, 0);
+  assert.equal(v.you.hand[iPing].cost, 0, 'floor at 0');
+  assert.equal(v.you.hand[iTele].cost, 0);
+  assert.equal(v.you.hand[iSprint].cost, 2);
+  assert.equal(v.you.hand[iAsset].cost, 2, 'asset cost unchanged');
+  assert.equal(v.you.hand[iContract].cost, 2, 'contract cost unchanged');
+  fileContract(s, 0, 'nx_c01'); // two copies stack: -2
+  v = getView(s, 0);
+  assert.equal(v.you.hand[iSprint].cost, 1);
+  // validation + deduction use the same effective cost
+  s.players[0].capital = 1;
+  assert.equal(getView(s, 0).you.hand[iSprint].playable, true);
+  assert.ok(legalActions(s, 0).some((a) => a.type === 'playCard' && a.handIndex === iSprint));
+  const r = applyAction(s, 0,
+    { type: 'playCard', handIndex: iSprint, target: null, position: null });
+  assert.equal(r.ok, true);
+  assert.equal(s.players[0].capital, 0, 'deducted the reduced cost');
+});
+
+test("nx_c01 reduces only the owner's operations", () => {
+  const s = newGame();
+  fileContract(s, 0, 'nx_c01');
+  end(s); // p1's turn
+  const idx = putInHand(s, 1, 'nx_015'); // cost 3 op in p1's hand
+  assert.equal(getView(s, 1).you.hand[idx].cost, 3, 'opponent gets no discount');
+});
+
+test('vx_c01: +1 damage on operations and CEO power, NOT combat; stacks', () => {
+  const s = newGame('vulcan', 'helix');
+  giveCapital(s, 0, 10);
+  fileContract(s, 0, 'vx_c01');
+  // operation: Shrapnel Burst 2 -> 3
+  const enemy = addUnit(s, 1, 'ntr_013'); // 4/5
+  const i1 = putInHand(s, 0, 'vx_003');
+  const r1 = applyAction(s, 0, { type: 'playCard', handIndex: i1, target: enemy.id, position: null });
+  assert.equal(find(r1.events, 'damage').amount, 3, 'event shows boosted amount');
+  assert.equal(enemy.health, 2);
+  // CEO power: Precision Strike 1 -> 2
+  applyAction(s, 0, { type: 'heroPower', target: 'hero1' });
+  assert.equal(s.players[1].integrity, 28);
+  // combat damage NOT boosted
+  const mine = addUnit(s, 0, 'ntr_006'); // 3/2
+  applyAction(s, 0, { type: 'attack', attackerId: mine.id, targetId: 'hero1' });
+  assert.equal(s.players[1].integrity, 25, '3 combat damage, no bonus');
+  // unit-sourced onboarding damage NOT boosted (vx_004: 1 to enemy CEO)
+  const i2 = putInHand(s, 0, 'vx_004');
+  applyAction(s, 0, { type: 'playCard', handIndex: i2, target: null, position: null });
+  assert.equal(s.players[1].integrity, 24, 'onboarding damage unaffected');
+  // stacking: second copy -> Shrapnel Burst deals 4
+  fileContract(s, 0, 'vx_c01');
+  const i3 = putInHand(s, 0, 'vx_003');
+  applyAction(s, 0, { type: 'playCard', handIndex: i3, target: enemy.id, position: null });
+  assert.equal(s.players[1].board.length, 0, '2+2 kills the 2-health asset');
+});
+
+test('vx_c01 does not boost contract-trigger damage (vx_c02 still deals 1)', () => {
+  const s = newGame('vulcan', 'helix');
+  fileContract(s, 0, 'vx_c01');
+  fileContract(s, 0, 'vx_c02');
+  end(s);
+  assert.equal(s.players[1].integrity, 29, 'end-of-turn contract damage not boosted');
+});
+
+// ---------------------------------------------------------------------------
+// CONTRACTS (§3b): triggered contracts
+// ---------------------------------------------------------------------------
+test('nx_c03 fires per operation, after the op resolves; hero power does not trigger it', () => {
+  const s = newGame();
+  giveCapital(s, 0, 10);
+  fileContract(s, 0, 'nx_c03');
+  // op #1: Telemetry (draw) -> trigger 1 damage, after the draw
+  const i1 = putInHand(s, 0, 'nx_019');
+  const r1 = applyAction(s, 0, { type: 'playCard', handIndex: i1, target: null, position: null });
+  assert.equal(s.players[1].integrity, 29);
+  const types = r1.events.map((e) => e.e);
+  assert.ok(types.indexOf('draw') < types.indexOf('damage'),
+    'operation effects resolve before the trigger');
+  // op #2: Ping the enemy CEO -> 1 (op) + 1 (trigger)
+  const i2 = putInHand(s, 0, 'nx_013');
+  applyAction(s, 0, { type: 'playCard', handIndex: i2, target: 'hero1', position: null });
+  assert.equal(s.players[1].integrity, 27);
+  // hero power is not an operation
+  applyAction(s, 0, { type: 'heroPower', target: null });
+  assert.equal(s.players[1].integrity, 27);
+  // stacks: two copies -> 2 per operation
+  fileContract(s, 0, 'nx_c03');
+  const i3 = putInHand(s, 0, 'nx_019');
+  applyAction(s, 0, { type: 'playCard', handIndex: i3, target: null, position: null });
+  assert.equal(s.players[1].integrity, 25);
+});
+
+test('end-of-turn contracts (vx_c02, hx_c01) fire at owner turn end, before opponent turnStart', () => {
+  const s = newGame();
+  fileContract(s, 0, 'vx_c02');
+  fileContract(s, 0, 'hx_c01');
+  s.players[0].integrity = 20;
+  const r = end(s);
+  assert.equal(s.players[1].integrity, 29, 'vx_c02 hit the enemy CEO');
+  assert.equal(s.players[0].integrity, 22, 'hx_c01 healed the owner');
+  const types = r.events.map((e) => e.e);
+  assert.ok(types.indexOf('damage') < types.indexOf('turnStart'), 'before opponent turnStart');
+  assert.ok(types.indexOf('heal') < types.indexOf('turnStart'));
+  // not on the opponent's turn end
+  end(s);
+  assert.equal(s.players[1].integrity, 29);
+  assert.equal(s.players[0].integrity, 22);
+});
+
+test('hx_c01 overheals the CEO past base integrity (healing uncapped)', () => {
+  const s = newGame();
+  fileContract(s, 0, 'hx_c01');
+  end(s);
+  assert.equal(s.players[0].integrity, 32);
+  assert.equal(s.players[0].maxIntegrity, 30);
+});
+
+test('vx_c03 both parties: the ACTIVE player takes 1 at the start of each turn', () => {
+  const s = newGame();
+  fileContract(s, 0, 'vx_c03');
+  end(s); // p1's turn starts -> p1 takes 1 (owner's contract, opponent's turn)
+  assert.equal(s.players[1].integrity, 29);
+  assert.equal(s.players[0].integrity, 30);
+  end(s); // p0's turn starts -> p0 takes 1 (own turn)
+  assert.equal(s.players[0].integrity, 29);
+  assert.equal(s.players[1].integrity, 29);
+});
+
+test('ob_c01 Payday: +1 temp capital and 1 self-damage at own turn start only', () => {
+  const s = newGame();
+  fileContract(s, 0, 'ob_c01');
+  end(s); // p1's turn: nothing (not both-parties)
+  assert.equal(s.players[0].integrity, 30);
+  assert.equal(s.players[1].integrity, 30);
+  end(s); // p0 turn 2: maxCapital 2, +1 temp -> 3; CEO takes 1
+  assert.equal(s.players[0].maxCapital, 2);
+  assert.equal(s.players[0].capital, 3);
+  assert.equal(s.players[0].integrity, 29);
+  end(s); end(s); // p0 turn 3: temp capital did not persist into max
+  assert.equal(s.players[0].maxCapital, 3);
+  assert.equal(s.players[0].capital, 4);
+  assert.equal(s.players[0].integrity, 28);
+});
+
+test('lethal payday: ob_c01 self-damage can lose the game', () => {
+  const s = newGame();
+  fileContract(s, 0, 'ob_c01');
+  s.players[0].integrity = 1;
+  end(s); // p1's turn
+  const r = end(s); // p0's turn start: payday kills p0
+  assert.equal(s.over, true);
+  assert.equal(s.winner, 1);
+  assert.deepEqual(find(r.events, 'gameOver'), { e: 'gameOver', winner: 1, reason: 'takeover' });
+});
+
+test('ob_c02 Bridge Loan: +1 permanent max capital on each of its 2 turns, then expires', () => {
+  const s = newGame();
+  fileContract(s, 0, 'ob_c02'); // turn 1, maxCapital 1
+  end(s);
+  const r1 = end(s); // p0 turn 2: ramp -> 2, loan -> 3
+  assert.equal(s.players[0].maxCapital, 3);
+  assert.equal(s.players[0].capital, 3);
+  assert.equal(s.players[0].contracts[0].turnsLeft, 1);
+  assert.ok(!find(r1.events, 'contractVoided'));
+  end(s);
+  const r2 = end(s); // p0 turn 3: ramp -> 4, loan -> 5, term hits 0 -> expired
+  assert.equal(s.players[0].maxCapital, 5, 'exactly +2 over the 2 turns');
+  const voided = find(r2.events, 'contractVoided');
+  assert.equal(voided.cardId, 'ob_c02');
+  assert.equal(voided.reason, 'expired');
+  assert.equal(s.players[0].contracts.length, 0);
+  end(s);
+  end(s); // p0 turn 4: ramp only
+  assert.equal(s.players[0].maxCapital, 6, 'no further loan payouts');
+});
+
+test('ob_c02 respects the 10 max-capital cap', () => {
+  const s = newGame();
+  s.players[0].maxCapital = 10;
+  fileContract(s, 0, 'ob_c02');
+  end(s); end(s); // p0's turn: ramp capped, loan capped
+  assert.equal(s.players[0].maxCapital, 10);
+});
+
+test('hx_c02 heals each friendly asset at own turn start (uncapped overheal)', () => {
+  const s = newGame();
+  fileContract(s, 0, 'hx_c02');
+  const a = addUnit(s, 0, 'ntr_013', { health: 2 }); // 4/5 damaged
+  const b = addUnit(s, 0, 'ntr_001'); // 1/1 at full health
+  const enemy = addUnit(s, 1, 'ntr_005'); // 2/3
+  end(s); // p1's turn: no trigger for p0's contract
+  assert.equal(a.health, 2);
+  const r = end(s); // p0's turn: both friendlies healed 1
+  assert.equal(a.health, 3);
+  assert.equal(b.health, 2, 'overheal past printed durability');
+  assert.equal(enemy.health, 3, 'enemy assets untouched');
+  assert.equal(findAll(r.events, 'heal').length, 2);
+});
+
+test('hx_c03 / ob_c03 fire on combat deaths and sweep deaths, per owner', () => {
+  const s = newGame();
+  giveCapital(s, 0, 10);
+  fileContract(s, 1, 'hx_c03');
+  fileContract(s, 1, 'ob_c03');
+  fileContract(s, 0, 'hx_c03');
+  s.players[0].integrity = 20;
+  s.players[1].integrity = 20;
+  const cap1 = s.players[1].capital;
+  // combat death: p0's 3/2 kills p1's 1/1 (attacker survives)
+  const mine = addUnit(s, 0, 'ntr_006');
+  const theirs = addUnit(s, 1, 'ntr_001');
+  const r = applyAction(s, 0, { type: 'attack', attackerId: mine.id, targetId: theirs.id });
+  assert.equal(s.players[1].integrity, 22, 'hx_c03 healed on combat death');
+  assert.equal(s.players[1].capital, cap1 + 1, 'ob_c03 temp capital on combat death');
+  assert.ok(find(r.events, 'heal'));
+  // sweep deaths via AoE operation: 2 more p1 units + p0's damaged unit all die
+  addUnit(s, 1, 'ntr_001');
+  addUnit(s, 1, 'ntr_001');
+  mine.health = 1;
+  const idx = putInHand(s, 0, 'ntr_027'); // Budget Cuts: 1 damage to ALL assets
+  applyAction(s, 0, { type: 'playCard', handIndex: idx, target: null, position: null });
+  assert.equal(s.players[1].integrity, 26, '+2 per friendly sweep death (x2)');
+  assert.equal(s.players[1].capital, cap1 + 3);
+  assert.equal(s.players[0].integrity, 22, "p0's own hx_c03 fired for p0's death only");
+});
+
+test("ob_c03 capital is 'this turn only' (swallowed by the next refill)", () => {
+  const s = newGame();
+  fileContract(s, 0, 'ob_c03');
+  const victim = addUnit(s, 0, 'ntr_001');
+  const killer = addUnit(s, 1, 'ntr_006', { enteredTurn: 0 });
+  s.players[0].capital = 1;
+  s.players[0].maxCapital = 1;
+  end(s); // p1's turn
+  applyAction(s, 1, { type: 'attack', attackerId: killer.id, targetId: victim.id });
+  assert.equal(s.players[0].capital, 2, 'owner gained 1 temp capital mid-enemy-turn');
+  end(s); // p0's turn: refill to max (2 after ramp)
+  assert.equal(s.players[0].capital, s.players[0].maxCapital, 'temp capital gone');
+});
+
+// ---------------------------------------------------------------------------
+// CONTRACTS (§3b): views, redaction, cloning
+// ---------------------------------------------------------------------------
+test('contract events pass redaction unchanged for both players', () => {
+  const s = newGame();
+  giveCapital(s, 0, 5);
+  const idx = putInHand(s, 0, 'nx_c03');
+  const r = applyAction(s, 0, { type: 'playCard', handIndex: idx, target: null, position: null });
+  const filed = find(r.events, 'contractFiled');
+  assert.deepEqual(redactEvents(r.events, 0).find((e) => e.e === 'contractFiled'), filed);
+  assert.deepEqual(redactEvents(r.events, 1).find((e) => e.e === 'contractFiled'), filed);
+  // voiding, seen by the voided player, is also unredacted
+  const iV = putInHand(s, 1, 'ntr_c02');
+  end(s);
+  giveCapital(s, 1, 5);
+  const r2 = applyAction(s, 1,
+    { type: 'playCard', handIndex: iV, target: filed.contract.id, position: null });
+  const voided = find(r2.events, 'contractVoided');
+  assert.deepEqual(redactEvents(r2.events, 0).find((e) => e.e === 'contractVoided'), voided);
+});
+
+test('cloneState deep-copies contract state', () => {
+  const s = newGame();
+  fileContract(s, 0, 'nx_c02');
+  const c = cloneState(s);
+  c.players[0].contracts[0].turnsLeft = 1;
+  c.players[0].contracts.push({ id: 'c99', cardId: 'nx_c03', turnsLeft: null });
+  c.nextContract = 50;
+  assert.equal(s.players[0].contracts.length, 1);
+  assert.equal(s.players[0].contracts[0].turnsLeft, 3);
+  assert.notEqual(s.nextContract, 50);
 });

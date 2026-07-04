@@ -3,12 +3,22 @@
 //
 // Effect DSL (engine-internal, opaque to server/client):
 //   effects: {
-//     targeting: null | "any" | "anyUnit" | "enemyUnit" | "friendlyUnit" | "enemyHero" | "anyHero",
+//     targeting: null | "any" | "anyUnit" | "enemyUnit" | "friendlyUnit" | "enemyHero" | "anyHero"
+//                | "enemyContract",
 //     onboarding: [ops],   // ASSET: battlecry, runs when played from hand
 //     play:       [ops],   // OPERATION / POWER: the card's effect
 //     parachute:  [ops],   // ASSET: golden parachute (deathrattle)
-//     endOfTurn:  [ops],   // ASSET: runs at the end of its controller's turn
+//     endOfTurn:  [ops],   // ASSET/CONTRACT: end of its controller's turn
+//     // CONTRACT-only (§3b):
+//     startOfTurn: [ops],  // owner's turn, after the draw step, filing order
+//     bothParties: true,   // startOfTurn fires on BOTH players' turns; ctx.player
+//                          //   is the ACTIVE player ("that player" in card text)
+//     onOperationPlayed: [ops],        // after the owner plays an OPERATION
+//     onFriendlyAssetDestroyed: [ops], // when a friendly asset dies (any cause)
+//     static: { opCostReduction?: N, opDamageBonus?: N },  // live modifiers, stack
 //   }
+//   CONTRACT cards may also carry a top-level `term: N` (expires after N of the
+//   owner's turns); no attack/health.
 // Ops (see engine.js OPS/SPECIALS for implementations):
 //   {op:"damage", amount, to}                    to: "target"|"self"|"friendlyHero"|"enemyHero"
 //   {op:"aoeDamage", amount, side, includeHeroes} side: "enemy"|"friendly"|"all"
@@ -23,6 +33,7 @@
 //   {op:"discardRandom", count, player?}         player: "opponent"(default)|"self"
 //   {op:"transform", cardId, to:"target"}
 //   {op:"silence", to:"target"}
+//   {op:"nullify", to:"target"}                  null & void a contract (targeting "enemyContract")
 //   {op:"special", key, ...}                     keyed handler (legendaries): "stealUnit"|"summonCopy"|"liquidate"
 
 export const CARDS = {};
@@ -508,33 +519,122 @@ O('ntr_032', 'All-Hands Meeting', 'neutral', 4, {
   effects: { targeting: null, play: [{ op: 'summon', cardId: 'ntr_001', count: 3 }] } });
 
 // ---------------------------------------------------------------------------
+// CONTRACTS (§3b) — persistent corporate agreements, plus the two neutral
+// answers (Contract Attorney is an ASSET, Void Clause an OPERATION).
+// ---------------------------------------------------------------------------
+const K = (id, name, faction, cost, extra = {}) =>
+  C({ id, name, faction, type: 'CONTRACT', cost, ...extra });
+
+K('nx_c01', 'Terms of Service', 'nexus', 3, { rarity: 'rare',
+  text: 'Your OPERATIONS cost (1) less.',
+  flavor: 'By reading this sentence, you have agreed to it.',
+  effects: { static: { opCostReduction: 1 } } });
+K('nx_c02', 'Data Harvesting Agreement', 'nexus', 4, { rarity: 'rare', term: 3,
+  text: 'TERM 3. At the start of your turn, draw a card.',
+  flavor: 'Your data is perfectly safe with us and our 340 trusted partners.',
+  effects: { startOfTurn: [{ op: 'draw', count: 1 }] } });
+K('nx_c03', 'Push Notification Consent', 'nexus', 2, {
+  text: 'Whenever you play an OPERATION, deal 1 damage to the enemy CEO.',
+  flavor: 'You may opt out at any time, in person, at headquarters, during the eclipse.',
+  effects: { onOperationPlayed: [{ op: 'damage', amount: 1, to: 'enemyHero' }] } });
+
+K('vx_c01', 'Munitions Contract', 'vulcan', 4, { rarity: 'rare',
+  text: 'Your operations and CEO power deal +1 damage.',
+  flavor: 'Warranty void where prohibited. Prohibition void where profitable.',
+  effects: { static: { opDamageBonus: 1 } } });
+K('vx_c02', 'Overtime Mandate', 'vulcan', 3, {
+  text: 'At the end of your turn, deal 1 damage to the enemy CEO.',
+  flavor: 'Clause 9(a): the workday ends when the quota says it ends.',
+  effects: { endOfTurn: [{ op: 'damage', amount: 1, to: 'enemyHero' }] } });
+K('vx_c03', 'Escalation Clause', 'vulcan', 5, { rarity: 'epic',
+  text: 'BOTH PARTIES. At the start of each player’s turn, that player’s CEO takes 1 damage.',
+  flavor: 'Both parties agree to escalate in good faith.',
+  effects: { bothParties: true, startOfTurn: [{ op: 'damage', amount: 1, to: 'friendlyHero' }] } });
+
+K('hx_c01', 'Corporate Wellness Program', 'helix', 3, {
+  text: 'At the end of your turn, restore 2 Integrity to your CEO.',
+  flavor: 'Participation is voluntary and enrollment is automatic.',
+  effects: { endOfTurn: [{ op: 'heal', amount: 2, to: 'friendlyHero' }] } });
+K('hx_c02', 'Regeneration Rider', 'helix', 4, { rarity: 'rare',
+  text: 'At the start of your turn, restore 1 Durability to each friendly asset.',
+  flavor: 'Coverage renews nightly. Exclusions apply to pre-existing employees.',
+  effects: { startOfTurn: [{ op: 'heal', amount: 1, to: 'allFriendlyUnits' }] } });
+K('hx_c03', 'Life Insurance Policy', 'helix', 2, {
+  text: 'Whenever a friendly asset is destroyed, restore 2 Integrity to your CEO.',
+  flavor: 'Sole beneficiary: the company. It is always the company.',
+  effects: { onFriendlyAssetDestroyed: [{ op: 'heal', amount: 2, to: 'friendlyHero' }] } });
+
+K('ob_c01', 'Payday Lending Agreement', 'obsidian', 2, {
+  text: 'At the start of your turn, gain 1 Capital this turn only. Fine print: your CEO takes 1 damage each turn.',
+  flavor: 'APR disclosed in Appendix F, font size 0.5, printed in white.',
+  effects: { startOfTurn: [
+    { op: 'addCapital', amount: 1 },
+    { op: 'damage', amount: 1, to: 'friendlyHero' },
+  ] } });
+K('ob_c02', 'Bridge Loan', 'obsidian', 4, { rarity: 'epic', term: 2,
+  text: 'TERM 2. At the start of your turn, gain +1 permanent maximum Capital.',
+  flavor: 'Short-term financing for long-term regret.',
+  effects: { startOfTurn: [{ op: 'addCapital', amount: 1, permanent: true }] } });
+K('ob_c03', 'Liquidation Rights', 'obsidian', 3, { rarity: 'rare',
+  text: 'Whenever a friendly asset is destroyed, gain 1 Capital this turn only.',
+  flavor: 'Anything not nailed down is collateral. The nails are a separate schedule.',
+  effects: { onFriendlyAssetDestroyed: [{ op: 'addCapital', amount: 1 }] } });
+
+A('ntr_c01', 'Contract Attorney', 'neutral', 3, 2, 3, { rarity: 'rare',
+  text: 'ONBOARDING: Declare an enemy contract null & void.',
+  flavor: 'Bills by the hour, wins by the loophole.',
+  effects: { targeting: 'enemyContract', onboarding: [{ op: 'nullify', to: 'target' }] } });
+O('ntr_c02', 'Void Clause', 'neutral', 1, {
+  text: 'Declare an enemy contract null & void.',
+  flavor: 'This clause supersedes all prior clauses, including itself.',
+  effects: { targeting: 'enemyContract', play: [{ op: 'nullify', to: 'target' }] } });
+
+// ---------------------------------------------------------------------------
 // STARTER DECKS — 30 cards, max 2 copies, faction + neutral
 // ---------------------------------------------------------------------------
 const pairs = (ids) => ids.flatMap((id) => [id, id]);
 
+// §3b: each starter deck swaps in ONE copy of one of its faction's contracts
+// plus ONE ntr_c02 Void Clause, cutting one copy each of two existing cards
+// (still exactly 30, still passes validateDeck).
+const withContracts = (baseIds, cuts, contractId) => {
+  const cards = pairs(baseIds);
+  for (const id of cuts) cards.splice(cards.indexOf(id), 1);
+  cards.push(contractId, 'ntr_c02');
+  return cards;
+};
+
 export const STARTER_DECKS = {
   nexus: {
+    // swaps: -1 nx_010, -1 ntr_013 / +1 nx_c01 (Terms of Service), +1 ntr_c02
     name: 'Nexus Dynamics — Move Fast, Sue Things',
     faction: 'nexus',
-    cards: pairs(['nx_001', 'nx_002', 'nx_003', 'nx_004', 'nx_005', 'nx_007', 'nx_008',
-      'nx_009', 'nx_015', 'nx_016', 'nx_017', 'nx_020', 'nx_010', 'ntr_007', 'ntr_013']),
+    cards: withContracts(['nx_001', 'nx_002', 'nx_003', 'nx_004', 'nx_005', 'nx_007', 'nx_008',
+      'nx_009', 'nx_015', 'nx_016', 'nx_017', 'nx_020', 'nx_010', 'ntr_007', 'ntr_013'],
+    ['nx_010', 'ntr_013'], 'nx_c01'),
   },
   vulcan: {
+    // swaps: -1 ntr_003, -1 ntr_006 / +1 vx_c02 (Overtime Mandate), +1 ntr_c02
     name: 'Vulcan Heavy Industries — Q3 Shock & Awe',
     faction: 'vulcan',
-    cards: pairs(['vx_001', 'vx_002', 'vx_003', 'vx_004', 'vx_005', 'vx_006', 'vx_007',
-      'vx_008', 'vx_009', 'vx_011', 'vx_013', 'vx_014', 'vx_018', 'ntr_003', 'ntr_006']),
+    cards: withContracts(['vx_001', 'vx_002', 'vx_003', 'vx_004', 'vx_005', 'vx_006', 'vx_007',
+      'vx_008', 'vx_009', 'vx_011', 'vx_013', 'vx_014', 'vx_018', 'ntr_003', 'ntr_006'],
+    ['ntr_003', 'ntr_006'], 'vx_c02'),
   },
   helix: {
+    // swaps: -1 ntr_005, -1 ntr_013 / +1 hx_c01 (Corporate Wellness Program), +1 ntr_c02
     name: 'Helix Biosystems — Compound Growth',
     faction: 'helix',
-    cards: pairs(['hx_001', 'hx_002', 'hx_003', 'hx_004', 'hx_005', 'hx_006', 'hx_007',
-      'hx_009', 'hx_011', 'hx_012', 'hx_013', 'hx_014', 'hx_020', 'ntr_005', 'ntr_013']),
+    cards: withContracts(['hx_001', 'hx_002', 'hx_003', 'hx_004', 'hx_005', 'hx_006', 'hx_007',
+      'hx_009', 'hx_011', 'hx_012', 'hx_013', 'hx_014', 'hx_020', 'ntr_005', 'ntr_013'],
+    ['ntr_005', 'ntr_013'], 'hx_c01'),
   },
   obsidian: {
+    // swaps: -1 ntr_013, -1 ntr_016 / +1 ob_c03 (Liquidation Rights), +1 ntr_c02
     name: 'Obsidian Capital — Leveraged Everything',
     faction: 'obsidian',
-    cards: pairs(['ob_001', 'ob_003', 'ob_005', 'ob_006', 'ob_007', 'ob_008', 'ob_009',
-      'ob_010', 'ob_012', 'ob_013', 'ob_018', 'ob_019', 'ob_022', 'ntr_013', 'ntr_016']),
+    cards: withContracts(['ob_001', 'ob_003', 'ob_005', 'ob_006', 'ob_007', 'ob_008', 'ob_009',
+      'ob_010', 'ob_012', 'ob_013', 'ob_018', 'ob_019', 'ob_022', 'ntr_013', 'ntr_016'],
+    ['ntr_013', 'ntr_016'], 'ob_c03'),
   },
 };

@@ -5,7 +5,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import {
   createGame, applyAction, legalActions, getView, redactEvents, cloneState,
-  STARTER_DECKS,
+  validateDeck, STARTER_DECKS,
 } from '../shared/engine.js';
 
 const FACTIONS = ['nexus', 'vulcan', 'helix', 'obsidian'];
@@ -13,6 +13,7 @@ const EVENT_TYPES = new Set([
   'turnStart', 'capital', 'draw', 'mill', 'fatigue', 'cardPlayed', 'summon',
   'attack', 'damage', 'heal', 'shieldBreak', 'death', 'buff', 'keyword',
   'heroPower', 'returnToHand', 'silence', 'transform', 'gameOver',
+  'contractFiled', 'contractVoided',
 ]);
 
 // independent PRNG for action choice (not the engine's)
@@ -44,11 +45,21 @@ function checkViewBasics(view, playerIndex) {
     assert.ok(u.health >= 1, 'no dead unit remains on a board');
   }
   for (const u of view.opp.board) assert.equal(u.canAttack, false);
+  // contracts are public on both sides, max 3, exact shape
+  for (const side of [view.you, view.opp]) {
+    assert.ok(Array.isArray(side.contracts), 'contracts array present');
+    assert.ok(side.contracts.length <= 3, 'max 3 filed contracts');
+    for (const c of side.contracts) {
+      assert.deepEqual(Object.keys(c).sort(), ['cardId', 'id', 'turnsLeft']);
+      assert.match(c.id, /^c\d+$/);
+      assert.ok(c.turnsLeft === null || (Number.isInteger(c.turnsLeft) && c.turnsLeft >= 1));
+    }
+  }
 }
 
-function playGame(seed, f0, f1) {
+function playGame(seed, f0, f1, decks) {
   const state = createGame({
-    decks: [STARTER_DECKS[f0], STARTER_DECKS[f1]],
+    decks: decks || [STARTER_DECKS[f0], STARTER_DECKS[f1]],
     names: ['Fuzz0', 'Fuzz1'],
     seed,
   });
@@ -97,6 +108,37 @@ test('fuzz: 224 complete random games across all faction pairings', () => {
   }
   assert.equal(games, 224);
   assert.ok(total > 224 * 10, 'games actually played out');
+});
+
+// Contract-stuffed decks: 2x every faction contract + 2x each neutral answer,
+// filled back to 30 from the faction's starter list. Contracts add both extra
+// damage (vx_c02/vx_c03/ob_c01/nx_c03) and extra healing (hx_c01/hx_c02/hx_c03),
+// but healing is flat per turn while fatigue escalates without bound, so the
+// existing 10000-step cap still comfortably terminates every game — no cap
+// raise was needed.
+function contractDeck(faction) {
+  const prefix = { nexus: 'nx', vulcan: 'vx', helix: 'hx', obsidian: 'ob' }[faction];
+  const cards = [];
+  const add = (id) => {
+    if (cards.length < 30 && cards.filter((x) => x === id).length < 2) cards.push(id);
+  };
+  for (const n of [1, 2, 3]) { const id = `${prefix}_c0${n}`; add(id); add(id); }
+  for (const id of ['ntr_c01', 'ntr_c01', 'ntr_c02', 'ntr_c02']) add(id);
+  for (const id of STARTER_DECKS[faction].cards) add(id);
+  return { faction, cards };
+}
+
+test('fuzz: contract-heavy games still terminate and views stay valid', () => {
+  for (const f of FACTIONS) {
+    assert.deepEqual(validateDeck(contractDeck(f)), { ok: true }, f + ' contract deck validates');
+  }
+  let total = 0;
+  for (let seed = 1000; seed < 1032; seed++) {
+    const f0 = FACTIONS[seed % 4];
+    const f1 = FACTIONS[(seed >> 2) % 4];
+    total += playGame(seed, f0, f1, [contractDeck(f0), contractDeck(f1)]);
+  }
+  assert.ok(total > 32 * 10, 'games actually played out');
 });
 
 test('fuzz: determinism — same seed and action script replays identically', () => {
