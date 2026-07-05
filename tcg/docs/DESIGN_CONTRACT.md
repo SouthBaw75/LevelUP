@@ -65,6 +65,7 @@ battle for industry dominance. Tone: sleek corporate cyberpunk, dry satirical fl
 | `overtime`       | OVERTIME            | Can attack twice per turn (Windfury)                            |
 | `toxic`          | TOXIC ASSET         | Destroys any asset it damages (Poisonous)                       |
 | `siphon`         | SIPHON              | Damage dealt by this also restores your CEO's integrity (Lifesteal) |
+| `bullish`        | BULLISH             | Attacking an asset: Attack beyond the blocker's Integrity carries to the enemy CEO (Trample). Assigns lethal to the blocker + overflow to the CEO (the two sum to Attack, so siphon counts once). Tramples through FIREWALL. |
 | `layoff`         | LAYOFF              | Once, any time on your turn: sacrifice this asset for free; your CEO gains Integrity equal to its current Integrity (see §3c) |
 | `severance`      | SEVERANCE           | When destroyed by an ENEMY, its owner draws a card (compensation payout; see §3d) |
 | Triggered abilities (not stand-alone keywords, defined per-card in effect data):          |

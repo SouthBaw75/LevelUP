@@ -997,8 +997,17 @@ function applyActionInner(state, playerIndex, action) {
         const def = findUnit(state, action.targetId);
         const defender = def.unit;
         const defAttack = effectiveAttack(state, defender, def.owner);
-        dealDamage(state, ev, defender.id, atkPower,
+        // BULLISH (trample): assign lethal to the blocker, and any attack beyond
+        // its current Integrity spills to the enemy CEO. The two hits sum to the
+        // attacker's Attack, so siphon/etc. count the damage exactly once.
+        const blockerHp = Math.max(0, defender.health);
+        const overflow = hasKw(attacker, 'bullish') ? Math.max(0, atkPower - blockerHp) : 0;
+        dealDamage(state, ev, defender.id, overflow > 0 ? blockerHp : atkPower,
           { unit: attacker, player: playerIndex, id: attacker.id });
+        if (overflow > 0) {
+          dealDamage(state, ev, 'hero' + (1 - playerIndex), overflow,
+            { unit: attacker, player: playerIndex, id: attacker.id });
+        }
         if (defAttack > 0) {
           dealDamage(state, ev, attacker.id, defAttack,
             { unit: defender, player: 1 - playerIndex, id: defender.id });

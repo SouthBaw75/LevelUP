@@ -1843,3 +1843,78 @@ test('FIREWALL UPGRADE: an enemy asset is never a legal target', () => {
     .map((a) => a.target);
   assert.ok(!targets.includes(enemy.id), 'cannot upgrade an enemy asset');
 });
+
+// ---------------------------------------------------------------------------
+// BULLISH (trample): attack beyond a blocker's Integrity spills to the enemy CEO.
+// ---------------------------------------------------------------------------
+test('BULLISH: excess attack over the blocker tramples to the enemy CEO', () => {
+  const s = newGame();
+  const bull = addUnit(s, 0, 'vx_017', { attack: 8, enteredTurn: 0 }); // 8-attack bullish
+  const blocker = addUnit(s, 1, 'ntr_002', { health: 3, maxHealth: 3 });
+  const before = s.players[1].integrity;
+  const r = applyAction(s, 0, { type: 'attack', attackerId: bull.id, targetId: blocker.id });
+  assert.equal(r.ok, true);
+  assert.equal(s.players[1].board.length, 0, 'blocker destroyed');
+  assert.equal(s.players[1].integrity, before - 5, 'overflow (8 − 3) hit the CEO');
+});
+
+test('BULLISH: no overflow when attack does not exceed the blocker', () => {
+  const s = newGame();
+  const bull = addUnit(s, 0, 'vx_017', { attack: 4, enteredTurn: 0 });
+  const blocker = addUnit(s, 1, 'ntr_013', { health: 5, maxHealth: 5 });
+  const before = s.players[1].integrity;
+  const r = applyAction(s, 0, { type: 'attack', attackerId: bull.id, targetId: blocker.id });
+  assert.equal(r.ok, true);
+  assert.equal(s.players[1].integrity, before, 'blocker soaked it all — no trample');
+});
+
+test('BULLISH: a non-bullish attacker never tramples', () => {
+  const s = newGame();
+  const norm = addUnit(s, 0, 'ntr_019', { attack: 9, enteredTurn: 0 }); // 9 attack, no bullish
+  const blocker = addUnit(s, 1, 'ntr_002', { health: 2, maxHealth: 2 });
+  const before = s.players[1].integrity;
+  const r = applyAction(s, 0, { type: 'attack', attackerId: norm.id, targetId: blocker.id });
+  assert.equal(r.ok, true);
+  assert.equal(s.players[1].integrity, before, 'no keyword, no overflow');
+});
+
+test('BULLISH: tramples THROUGH a firewall blocker into the CEO', () => {
+  const s = newGame();
+  const bull = addUnit(s, 0, 'vx_017', { attack: 8, enteredTurn: 0 });
+  const wall = addUnit(s, 1, 'ntr_007', { health: 2, maxHealth: 2 }); // Security Guard, FIREWALL 2 hp
+  const before = s.players[1].integrity;
+  const r = applyAction(s, 0, { type: 'attack', attackerId: bull.id, targetId: wall.id });
+  assert.equal(r.ok, true);
+  assert.equal(s.players[1].integrity, before - 6, 'overflow (8 − 2) went through the taunt');
+});
+
+test('BULLISH: attacking the CEO directly deals full damage (no overflow concept)', () => {
+  const s = newGame();
+  const bull = addUnit(s, 0, 'vx_017', { attack: 8, enteredTurn: 0 });
+  const before = s.players[1].integrity;
+  const r = applyAction(s, 0, { type: 'attack', attackerId: bull.id, targetId: 'hero1' });
+  assert.equal(r.ok, true);
+  assert.equal(s.players[1].integrity, before - 8);
+});
+
+test('BULLISH: lethal overflow ends the game', () => {
+  const s = newGame();
+  s.players[1].integrity = 4;
+  const bull = addUnit(s, 0, 'vx_017', { attack: 9, enteredTurn: 0 });
+  addUnit(s, 1, 'ntr_002', { health: 2, maxHealth: 2 });
+  const r = applyAction(s, 0, { type: 'attack', attackerId: bull.id, targetId: s.players[1].board[0].id });
+  assert.equal(r.ok, true);
+  assert.equal(s.over, true);
+  assert.equal(s.winner, 0, 'trample overflow (7) was lethal');
+});
+
+test('BULLISH + SIPHON (Gigafauna): overflow to the CEO also siphons', () => {
+  const s = newGame();
+  s.players[0].integrity = 10; // room to heal
+  const giga = addUnit(s, 0, 'hx_022', { attack: 9, enteredTurn: 0 }); // siphon + bullish
+  addUnit(s, 1, 'ntr_002', { health: 2, maxHealth: 2 });
+  const r = applyAction(s, 0, { type: 'attack', attackerId: giga.id, targetId: s.players[1].board[0].id });
+  assert.equal(r.ok, true);
+  // 9 total damage dealt (2 to blocker + 7 trample) → siphon heals owner for all of it
+  assert.equal(s.players[0].integrity, 10 + 9, 'siphon healed for all damage incl. the trample');
+});

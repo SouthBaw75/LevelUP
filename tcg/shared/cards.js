@@ -191,8 +191,8 @@ A('nx_011', 'Quantum Cluster', 'nexus', 7, 6, 6, { rarity: 'epic',
   text: 'ONBOARDING: Draw 2 cards.',
   flavor: 'Simultaneously over and under budget until observed.',
   effects: { onboarding: [{ op: 'draw', count: 2 }] } });
-A('nx_012', 'The Algorithm', 'nexus', 8, 6, 6, { rarity: 'legendary',
-  text: 'At the end of your turn, draw a card.',
+A('nx_012', 'The Algorithm', 'nexus', 8, 6, 6, { keywords: ['bullish'], rarity: 'legendary',
+  text: 'BULLISH. At the end of your turn, draw a card.',
   flavor: 'It optimized for engagement. Now it engages in hostile takeovers.',
   effects: { endOfTurn: [{ op: 'draw', count: 1 }] } });
 O('nx_013', 'Ping', 'nexus', 0, {
@@ -285,11 +285,11 @@ A('vx_014', 'Plasma Trooper', 'vulcan', 6, 6, 5, { rarity: 'rare',
 A('vx_015', 'Bunker Complex', 'vulcan', 7, 7, 7, { keywords: ['firewall'], rarity: 'rare',
   text: 'FIREWALL.',
   flavor: 'The break room is rated for direct hits.' });
-A('vx_016', 'Twin-Barrel Colossus', 'vulcan', 8, 8, 8, { keywords: ['overtime'], rarity: 'epic',
-  text: 'OVERTIME.',
+A('vx_016', 'Twin-Barrel Colossus', 'vulcan', 8, 8, 8, { keywords: ['overtime', 'bullish'], rarity: 'epic',
+  text: 'OVERTIME. BULLISH.',
   flavor: 'Why fire once when the invoice covers twice?' });
-A('vx_017', 'The Juggernaut', 'vulcan', 9, 8, 8, { keywords: ['fasttrack'], rarity: 'legendary',
-  text: 'FAST-TRACK.',
+A('vx_017', 'The Juggernaut', 'vulcan', 9, 8, 8, { keywords: ['fasttrack', 'bullish'], rarity: 'legendary',
+  text: 'FAST-TRACK. BULLISH.',
   flavor: 'Line item: one (1) unstoppable object. Warranty void.' });
 O('vx_018', 'Overclock', 'vulcan', 1, {
   text: 'Give a friendly asset +2 Attack.',
@@ -383,8 +383,8 @@ O('hx_021', 'Forced Mutation', 'helix', 6, { rarity: 'rare',
   text: 'Transform an enemy asset into a 1/1 Lab Rat.',
   flavor: 'Demoted to preclinical.',
   effects: { targeting: 'enemyUnit', play: [{ op: 'transform', cardId: 'hx_t_labrat', to: 'target' }] } });
-A('hx_022', 'Gigafauna', 'helix', 9, 9, 9, { keywords: ['siphon'], rarity: 'epic',
-  text: 'SIPHON.',
+A('hx_022', 'Gigafauna', 'helix', 9, 9, 9, { keywords: ['siphon', 'bullish'], rarity: 'epic',
+  text: 'SIPHON. BULLISH.',
   flavor: 'The petting zoo IPO went differently than planned.' });
 
 // ---------------------------------------------------------------------------
@@ -460,7 +460,8 @@ O('ob_020', 'Pension Raid', 'obsidian', 4, { rarity: 'rare',
   text: 'Deal 3 damage to any target. Restore 3 Integrity to your CEO.',
   flavor: 'The retirement plan retired.',
   effects: { targeting: 'any', play: [{ op: 'damage', amount: 3, to: 'target' }, { op: 'heal', amount: 3, to: 'friendlyHero' }] } });
-A('ob_021', 'Bullion Golem', 'obsidian', 8, 8, 8, { rarity: 'epic',
+A('ob_021', 'Bullion Golem', 'obsidian', 8, 8, 8, { keywords: ['bullish'], rarity: 'epic',
+  text: 'BULLISH.',
   flavor: 'A hedge against inflation, sentiment, and small-arms fire.' });
 A('ob_022', 'Repo Crew', 'obsidian', 2, 3, 2, {
   flavor: 'They accept cash, cars, and kidneys, in that order.' });

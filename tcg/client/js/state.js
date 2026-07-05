@@ -41,6 +41,7 @@ export const KEYWORD_NAMES = {
   siphon: 'SIPHON',
   layoff: 'LAYOFF',
   severance: 'SEVERANCE',
+  bullish: 'BULLISH',
   onboarding: 'ONBOARDING',
   parachute: 'GOLDEN PARACHUTE',
 };
@@ -55,6 +56,7 @@ export const KEYWORD_HELP = {
   siphon: 'Damage dealt also restores your CEO’s integrity.',
   layoff: 'Sacrifice during your turn (free): your CEO gains Integrity equal to this asset’s Integrity.',
   severance: 'When destroyed by an enemy, draw a card.',
+  bullish: 'Attack beyond a blocker’s Integrity carries over to the enemy CEO.',
   onboarding: 'Effect when played from hand.',
   parachute: 'Effect when destroyed.',
 };
