@@ -38,6 +38,42 @@
 
 export const CARDS = {};
 
+// Tribal tags (counter auras / future tribal cards match on these). Every ASSET
+// carries one or more; the taxonomy is one signature tribe per faction plus two
+// cross-faction connectors:
+//   robotic   — machines, mechs, drones, golems, weapon platforms, appliances
+//   software  — Nexus digital agents / AI / code / network constructs
+//   facility  — fixed structures / installations / hardware clusters / barricades
+//   organism  — Helix engineered bio-creatures (non-human)
+//   financial — abstract money / corporate constructs (shells, funds, holdings)
+//   personnel — human staff, execs, lawyers, guards, soldiers, reps (the DEFAULT)
+// Only the five non-personnel tribes are listed here; any ASSET not present
+// defaults to ['personnel'] in C(). Non-asset cards (CEO/POWER/OPERATION/
+// CONTRACT) are untagged. When adding a new machine/creature/etc., add it here.
+export const TAGS = ['robotic', 'software', 'facility', 'organism', 'financial', 'personnel'];
+const ASSET_TAGS = {
+  // robotic
+  vx_t_scrapbot: ['robotic'], vx_002: ['robotic'], vx_011: ['robotic'],
+  vx_016: ['robotic'], vx_017: ['robotic'], vx_022: ['robotic'],
+  nx_001: ['robotic'], ntr_019: ['robotic'], ntr_031: ['robotic'],
+  ob_021: ['robotic', 'financial'], // bullion golem: a machine AND a money-construct
+  // software
+  nx_t_legacy: ['software'], nx_002: ['software'], nx_003: ['software'],
+  nx_006: ['software'], nx_007: ['software'], nx_012: ['software'], nx_021: ['software'],
+  // facility
+  nx_010: ['facility'], nx_011: ['facility'], nx_020: ['facility'],
+  vx_009: ['facility'], vx_013: ['facility'], vx_015: ['facility'],
+  hx_007: ['facility'], hx_009: ['facility'], ntr_012: ['facility'],
+  // organism
+  hx_t_hydra: ['organism'], hx_t_spore: ['organism'], hx_t_labrat: ['organism'],
+  hx_001: ['organism'], hx_004: ['organism'], hx_008: ['organism'], hx_012: ['organism'],
+  hx_014: ['organism'], hx_016: ['organism'], hx_017: ['organism'], hx_018: ['organism'],
+  hx_020: ['organism'], hx_022: ['organism'],
+  // financial (ob_021 dual-listed above under robotic)
+  ob_t_shell: ['financial'], ob_004: ['financial'], ob_011: ['financial'],
+  ob_013: ['financial'], ob_t_subsidiary: ['financial'], ntr_025: ['financial'],
+};
+
 function C(card) {
   card.keywords = card.keywords || [];
   card.effects = card.effects || {};
@@ -45,6 +81,9 @@ function C(card) {
   card.collectible = card.collectible !== undefined ? card.collectible : true;
   card.text = card.text || '';
   card.flavor = card.flavor || '';
+  // Assets get their tribe(s) from ASSET_TAGS, defaulting to personnel; other
+  // card types stay untagged. An explicit `tags` on the card def wins.
+  card.tags = card.tags || ASSET_TAGS[card.id] || (card.type === 'ASSET' ? ['personnel'] : []);
   if (CARDS[card.id]) throw new Error('duplicate card id ' + card.id);
   CARDS[card.id] = card;
   return card;

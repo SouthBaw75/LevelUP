@@ -10,6 +10,7 @@ const FACTIONS = ['nexus', 'vulcan', 'helix', 'obsidian', 'neutral'];
 const PREFIX = { nexus: 'nx', vulcan: 'vx', helix: 'hx', obsidian: 'ob', neutral: 'ntr' };
 const KEYWORDS = ['firewall', 'fasttrack', 'stealth', 'shielded', 'overtime', 'toxic', 'siphon',
   'layoff', 'severance'];
+const TAG_VALUES = ['robotic', 'software', 'facility', 'organism', 'financial', 'personnel'];
 const RARITIES = ['common', 'rare', 'epic', 'legendary'];
 const TYPES = ['ASSET', 'OPERATION', 'CEO', 'POWER', 'CONTRACT'];
 const TRIGGERS = ['onboarding', 'play', 'parachute', 'endOfTurn',
@@ -130,6 +131,26 @@ test('collectible counts match the contract (26 obsidian, 25 other factions + 36
   for (const f of ['nexus', 'vulcan', 'helix', 'obsidian']) {
     assert.equal(contracts.filter((c) => c.faction === f).length, 3, f + ' contracts');
   }
+});
+
+test('tribal tags: every ASSET has ≥1 valid tag; non-assets untagged; spot checks', () => {
+  for (const c of Object.values(CARDS)) {
+    assert.ok(Array.isArray(c.tags), c.id + ' has a tags array');
+    for (const t of c.tags) assert.ok(TAG_VALUES.includes(t), `${c.id}: unknown tag "${t}"`);
+    if (c.type === 'ASSET') assert.ok(c.tags.length >= 1, c.id + ' (ASSET) must have a tribe');
+    else assert.equal(c.tags.length, 0, c.id + ' (' + c.type + ') should be untagged');
+  }
+  // spot-check one of each tribe + the intentional dual-tag
+  assert.deepEqual(CARDS.vx_011.tags, ['robotic'], 'Blitz Mech');
+  assert.deepEqual(CARDS.nx_002.tags, ['software'], 'Web Crawler');
+  assert.deepEqual(CARDS.vx_013.tags, ['facility'], 'War Factory');
+  assert.deepEqual(CARDS.hx_022.tags, ['organism'], 'Gigafauna');
+  assert.deepEqual(CARDS.ob_t_shell.tags, ['financial'], 'Shell Corp');
+  assert.deepEqual(CARDS.ntr_001.tags, ['personnel'], 'Unpaid Intern (default)');
+  assert.deepEqual(CARDS.ob_021.tags, ['robotic', 'financial'], 'Bullion Golem dual-tag');
+  // the Vulcan robotic tribe is exactly these six
+  const robotic = Object.values(CARDS).filter((c) => c.faction === 'vulcan' && c.tags.includes('robotic')).map((c) => c.id).sort();
+  assert.deepEqual(robotic, ['vx_002', 'vx_011', 'vx_016', 'vx_017', 'vx_022', 'vx_t_scrapbot']);
 });
 
 test('cost and rarity spreads', () => {
