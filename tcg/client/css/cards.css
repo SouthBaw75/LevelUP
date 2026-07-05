@@ -116,6 +116,13 @@
   text-align: center; font: 600 calc(var(--cw) * 0.048)/1 var(--mono);
   letter-spacing: 0.22em; color: color-mix(in srgb, var(--fc) 75%, #aab6c8);
   margin-top: calc(var(--cw) * 0.012);
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+/* asset class fits alongside the type on one line: tighter tracking so
+   "ASSET · PERSONNEL" doesn't overflow narrow cards */
+.card-typeline.has-class { letter-spacing: 0.12em; }
+.card-assetclass {
+  font-size: 0.88em; letter-spacing: 0.1em; opacity: 0.62;
 }
 
 .card-body {

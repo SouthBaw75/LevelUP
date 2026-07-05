@@ -115,12 +115,23 @@ export function renderCard(defOrId, opts = {}) {
   else if (nameLen > 13) name.classList.add('long');
   el.appendChild(name);
 
-  // type line
+  // type line — for assets, extended MTG-style with the card's ASSET CLASS
+  // (its tribe tag) as a subtler trailing span, e.g. "ASSET · ROBOTIC".
   const typeLine = document.createElement('div');
   typeLine.className = 'card-typeline';
-  typeLine.textContent = def.type === 'ASSET' ? 'ASSET' : def.type === 'OPERATION' ? 'OPERATION'
+  const baseType = def.type === 'ASSET' ? 'ASSET' : def.type === 'OPERATION' ? 'OPERATION'
     : def.type === 'CONTRACT' ? 'CONTRACT'
     : def.type === 'CEO' ? 'CHIEF EXECUTIVE' : 'CEO POWER';
+  typeLine.appendChild(document.createTextNode(baseType));
+  if (def.type === 'ASSET' && Array.isArray(def.tags) && def.tags.length) {
+    typeLine.classList.add('has-class');
+    const cls = document.createElement('span');
+    cls.className = 'card-assetclass';
+    cls.textContent = ' · ' + def.tags.map((t) => t.toUpperCase()).join(' · ');
+    const pretty = def.tags.map((t) => t[0].toUpperCase() + t.slice(1)).join(', ');
+    cls.title = 'Asset class: ' + pretty;
+    typeLine.appendChild(cls);
+  }
   el.appendChild(typeLine);
 
   // body: rules text (+ flavor when zoomed)
