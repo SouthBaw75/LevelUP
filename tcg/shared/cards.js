@@ -93,8 +93,9 @@ C({ id: 'ob_power', name: 'Shell Company', faction: 'obsidian', type: 'POWER', c
 // ---------------------------------------------------------------------------
 // Tokens (non-collectible)
 // ---------------------------------------------------------------------------
-A('ob_t_shell', 'Shell Corp', 'obsidian', 1, 1, 1, { collectible: false,
-  flavor: 'One employee, zero products, immaculate paperwork.' });
+A('ob_t_shell', 'Shell Corp', 'obsidian', 1, 1, 1, { collectible: false, keywords: ['firewall'],
+  text: 'FIREWALL.',
+  flavor: 'One employee, zero products, immaculate paperwork, and a wall of liability nobody wants to touch first.' });
 A('vx_t_scrapbot', 'Scrap Bot', 'vulcan', 1, 2, 1, { collectible: false,
   keywords: ['layoff'], text: 'LAYOFF.',
   flavor: 'Assembled from recalls.' });
