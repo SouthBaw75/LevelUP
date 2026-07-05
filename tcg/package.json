@@ -4,6 +4,9 @@
   "private": true,
   "description": "HOSTILE TAKEOVER — an online multiplayer corporate-warfare TCG. Mega-conglomerates battle for market dominance.",
   "type": "module",
+  "engines": {
+    "node": ">=22"
+  },
   "scripts": {
     "start": "node server/index.js",
     "dev": "node server/index.js",
