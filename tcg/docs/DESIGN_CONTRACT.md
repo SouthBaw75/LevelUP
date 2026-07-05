@@ -62,6 +62,7 @@ battle for industry dominance. Tone: sleek corporate cyberpunk, dry satirical fl
 | `overtime`       | OVERTIME            | Can attack twice per turn (Windfury)                            |
 | `toxic`          | TOXIC ASSET         | Destroys any asset it damages (Poisonous)                       |
 | `siphon`         | SIPHON              | Damage dealt by this also restores your CEO's integrity (Lifesteal) |
+| `layoff`         | LAYOFF              | Once, any time on your turn: sacrifice this asset for free; your CEO gains Integrity equal to its current Durability (see §3c) |
 | Triggered abilities (not stand-alone keywords, defined per-card in effect data):          |
 | `onboarding`     | ONBOARDING          | Effect when played from hand (Battlecry)                        |
 | `parachute`      | GOLDEN PARACHUTE    | Effect when destroyed (Deathrattle)                             |
@@ -93,6 +94,41 @@ Persistent cards representing corporate agreements. Rules:
   (contracts are public). Targeting enum gains `"enemyContract"`. `playCard`'s `target`
   may be a `"c<N>"` id for null-&-void effects. Board limit 7 is unaffected.
 - Deck rules unchanged: contracts are collectible, count in the 30, max 2 copies.
+
+## 3c. LAYOFF (v1)
+
+Active sacrifice mechanic: convert an asset's remaining Durability into CEO Integrity.
+
+- **Action** (new, §5 list extended): `{ "type": "layoff", "unitId": "u<N>" }`.
+  Legal when: game not over, it is the actor's turn, the unit is on the ACTOR's board,
+  and the unit's live `keywords` include `layoff`. **No capital cost. No exhaustion
+  requirement** — a just-deployed or already-attacked asset may still be laid off.
+  Silence empties `unit.keywords`, so a silenced asset cannot be laid off (correct).
+- **Resolution order** (fixed — client animates in this order):
+  1. Emit `layoff {unitId, cardId, player}`.
+  2. Heal the actor's CEO by the unit's CURRENT health (captured before removal),
+     via the standard heal path → emits `heal {targetId:"hero<p>", amount}`.
+     Uncapped per §1 healing rule. Amount may be reduced by damage already taken.
+  3. Destroy the unit through the SAME death path as the `destroy` op (health→0 +
+     standard death sweep) so GOLDEN PARACHUTE and `onFriendlyAssetDestroyed`
+     contract triggers (e.g. hx_c03 Life Insurance Policy) fire normally.
+- **`legalActions()`** enumerates one `layoff` action per eligible friendly unit
+  (this is what teaches the bot the mechanic; `evaluate()` needs no special case).
+- **Operation-card variant**: a new SPECIALS key `layoffTarget` performs steps 1-3 on a
+  TARGETED friendly asset (targeting `friendlyUnit`) — used by the Layoff Notice card.
+  It emits the same `layoff` event so both paths animate identically.
+- **New event** (§5 list extended): `layoff {unitId, cardId, player}`.
+- **v1 card changes**:
+  - NEW `ntr_033` **Layoff Notice** — neutral OPERATION, cost 1, rare.
+    Text: "Destroy a friendly asset. Restore Integrity to your CEO equal to its Durability."
+    `effects: { targeting:'friendlyUnit', play:[{op:'special', key:'layoffTarget'}] }`.
+  - Keyword `layoff` ADDED to: `ntr_001` Unpaid Intern, `ob_017` Escrow Guard,
+    `hx_018` Spore Pod, `vx_t_scrapbot` Scrap Bot (token). Their face text gains "LAYOFF."
+- **Client UX**: clicking a friendly LAYOFF unit on your turn (when not already in a
+  targeting mode) opens a two-option chooser anchored to the unit — ATTACK (enters the
+  normal attack flow; disabled with the usual toast reason if it can't attack) and
+  LAYOFF (free; sends the action). Click-away/right-click cancels, same as other modes.
+  Units without the keyword keep the existing click behavior exactly.
 
 ### v1 contract set (12 faction + 2 neutral answers)
 
@@ -187,6 +223,7 @@ import { createGame, applyAction, legalActions, getView, redactEvents, cloneStat
 { "type": "playCard", "handIndex": 2, "target": "u17" | "hero0" | "hero1" | null, "position": 0-6 | null }
 { "type": "attack", "attackerId": "u17", "targetId": "u4" | "hero1" }
 { "type": "heroPower", "target": "u17" | "hero0" | "hero1" | null }
+{ "type": "layoff", "unitId": "u17" }   // §3c — free sacrifice, LAYOFF keyword holders only
 { "type": "concede" }
 ```
 
@@ -228,6 +265,7 @@ Every event: `{ "e": "<type>", ...fields }`. Types (fixed list):
 - `heroPower {player}` · `returnToHand {unitId}` · `silence {unitId}` *(if used)* · `transform {unitId, cardId}`
 - `gameOver {winner, reason}`  // reason: "takeover" | "concede" | "timeout" | "desertion"
 - `contractFiled {player, contract:{id, cardId, turnsLeft}}` · `contractVoided {contractId, cardId, reason}` (§3b)
+- `layoff {unitId, cardId, player}` (§3c — always followed by `heal` on the owner's hero, then `death`)
 
 After applying redacted events, the client re-renders from the authoritative `view` that
 accompanies every state broadcast — events are for animation only, never for state derivation.
