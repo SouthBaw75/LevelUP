@@ -54,7 +54,7 @@ export const KEYWORD_HELP = {
   toxic: 'Destroys any asset it damages.',
   siphon: 'Damage dealt also restores your CEO’s integrity.',
   layoff: 'Sacrifice during your turn (free): your CEO gains Integrity equal to its Durability.',
-  severance: 'When destroyed by an enemy, deal 2 damage to the enemy CEO.',
+  severance: 'When destroyed by an enemy, draw a card.',
   onboarding: 'Effect when played from hand.',
   parachute: 'Effect when destroyed.',
 };

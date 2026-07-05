@@ -450,17 +450,17 @@ function sweepDeaths(state, ev) {
       }
     }
     // §3d SEVERANCE: after parachutes, an ENEMY-caused death of a live-keyword
-    // (non-silenced) severance unit sues — 2 damage to the enemy CEO. Emit the
-    // `severance` event before its `damage`. Unit-sourced (no isSpell → not
-    // opDamageBonus-boosted). Lethal severance is caught by the next
-    // checkHeroes iteration of this guarded loop.
+    // (non-silenced) severance unit pays out — the OWNER draws a card (real
+    // severance is compensation to the departed, not a suit against the
+    // company). Emit the `severance` event before its `draw`. Fatigue from an
+    // empty deck (if any) is handled by drawCards itself, including the
+    // checkHeroes call on lethal fatigue damage.
     for (const d of dead) {
       if (state.over) break;
       if (d.unit.silenced || !hasKw(d.unit, 'severance')) continue;
       if (d.unit.killedBy !== 1 - d.owner) continue;
-      const targetId = 'hero' + (1 - d.owner);
-      ev.push({ e: 'severance', unitId: d.unit.id, cardId: d.unit.cardId, player: d.owner, targetId });
-      dealDamage(state, ev, targetId, 2, { player: d.owner, id: d.unit.cardId });
+      ev.push({ e: 'severance', unitId: d.unit.id, cardId: d.unit.cardId, player: d.owner });
+      drawCards(state, d.owner, 1, ev);
     }
   }
 }

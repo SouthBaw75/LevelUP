@@ -20,7 +20,7 @@ const KEYWORD_FACE_GLOSS = {
   toxic: 'Destroys what it damages.',
   siphon: 'Its damage heals your CEO.',
   layoff: 'Sacrifice: CEO gains its Durability.',
-  severance: 'Destroyed by foe: 2 to enemy CEO.',
+  severance: 'Destroyed by foe: draw a card.',
 };
 
 // Remove bare "<KEYWORD>." sentences from rules text (e.g. "FIREWALL. SIPHON.")
@@ -360,7 +360,7 @@ const UNIT_KW_GLYPH = {
   toxic: '☠',
   siphon: '♥',
   layoff: '\u{1FA93}', // axe
-  severance: '\u{2696}', // scales of justice
+  severance: '\u{1F4B0}', // money bag (payout)
 };
 
 // ---- enlarged hover preview layer ----

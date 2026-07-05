@@ -1021,16 +1021,17 @@
 }
 @keyframes wisp-flicker { from { filter: brightness(1); } to { filter: brightness(1.55); } }
 
-/* ---------- severance event fx: lawsuit doc/gavel arc + "SERVED" verdict ---------- */
-/* legal-document + gavel ghost that arcs from a dying SEVERANCE unit to the
-   enemy CEO. left/top set once at spawn; the flight is an inline transform
-   transition (compositor-friendly), so only the drop-shadow is styled here. */
+/* ---------- severance event fx: payout doc arc + "PAID" stamp ---------- */
+/* severance-paperwork + payout ghost that arcs from a dying SEVERANCE unit to
+   its OWNER's own deck. left/top set once at spawn; the flight is an inline
+   transform transition (compositor-friendly), so only the drop-shadow is
+   styled here. */
 .severance-doc {
   position: absolute; z-index: 165; width: 40px; height: 40px; pointer-events: none;
   filter: drop-shadow(0 4px 10px rgba(0, 0, 0, 0.6)) drop-shadow(0 0 8px rgba(230, 199, 102, 0.55));
 }
 .severance-doc svg { width: 100%; height: 100%; display: block; }
-/* gold "SERVED" verdict stamp slammed onto the enemy CEO as the suit lands */
+/* gold "PAID" stamp slammed onto the owner's deck as the payout lands */
 .severance-verdict {
   position: absolute; z-index: 170; pointer-events: none;
   transform: translate(-50%, -50%);
@@ -1047,4 +1048,11 @@
   38% { transform: translate(-50%, -50%) scale(1.06) rotate(5deg); }
   52%, 78% { opacity: 1; transform: translate(-50%, -50%) scale(1) rotate(5deg); }
   100% { opacity: 0; transform: translate(-50%, -50%) scale(1) rotate(5deg); }
+}
+/* gold glow pulse on the deck pill as the payout lands (fatigue-pulse is red
+   — wrong tone for a positive payout, so this gets its own keyframe) */
+.deck-pill.severance-pulse { animation: severance-pill 0.5s cubic-bezier(0.34, 1.56, 0.64, 1); }
+@keyframes severance-pill {
+  20% { transform: scale(1.16); filter: drop-shadow(0 0 10px rgba(230, 199, 102, 0.9)) brightness(1.4); }
+  100% { transform: scale(1); filter: none; }
 }

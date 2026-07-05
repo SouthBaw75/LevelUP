@@ -387,14 +387,15 @@ test('targeted ONBOARDING requires a valid target when one exists, fizzles when 
 
 test('GOLDEN PARACHUTE fires on death', () => {
   const s = newGame();
-  const exec = addUnit(s, 1, 'ob_007'); // parachute: draw
+  const exec = addUnit(s, 1, 'ob_007'); // parachute: draw; ALSO carries SEVERANCE (§3d)
   const a = addUnit(s, 0, 'vx_013'); // 6/7
   const handBefore = s.players[1].hand.length;
   const r = applyAction(s, 0, { type: 'attack', attackerId: a.id, targetId: exec.id });
   assert.equal(r.ok, true);
-  assert.equal(s.players[1].hand.length, handBefore + 1, 'opponent drew from parachute');
-  const draw = find(r.events, 'draw');
-  assert.equal(draw.player, 1);
+  // enemy kill double-dips: GOLDEN PARACHUTE (any death) + SEVERANCE (enemy-caused)
+  assert.equal(s.players[1].hand.length, handBefore + 2, 'opponent drew from parachute AND severance');
+  const draws = findAll(r.events, 'draw').filter((d) => d.player === 1);
+  assert.equal(draws.length, 2);
 });
 
 test('parachute chains resolve until stable (pod -> spore)', () => {
@@ -1360,28 +1361,28 @@ test('legalActions enumerates layoff for eligible units only', () => {
 });
 
 // ---------------------------------------------------------------------------
-// SEVERANCE (§3d) — enemy-caused death of a live-keyword unit sues the enemy
-// CEO for 2. Owner-caused deaths (LAYOFF, own AoE/destroy) never fire it.
+// SEVERANCE (§3d) — enemy-caused death of a live-keyword unit pays its OWNER
+// a compensation draw. Owner-caused deaths (LAYOFF, own AoE/destroy) never
+// fire it — you don't get severance for quitting.
 // ---------------------------------------------------------------------------
-const dmgOn = (events, targetId) => findAll(events, 'damage').filter((e) => e.targetId === targetId);
 
-test('SEVERANCE: enemy combat kill sues the enemy CEO for 2; event precedes its damage', () => {
+test('SEVERANCE: enemy combat kill pays out a card to the owner; event precedes its draw', () => {
   const s = newGame(); // p0 active
   const attacker = addUnit(s, 0, 'ntr_019'); // 7/7
   const sev = addUnit(s, 1, 'ntr_011'); // 4/2 severance (enemy of p0)
-  const before = s.players[0].integrity;
+  const handBefore = s.players[1].hand.length;
   const r = applyAction(s, 0, { type: 'attack', attackerId: attacker.id, targetId: sev.id });
   assert.equal(r.ok, true);
   assert.equal(s.players[1].board.length, 0, 'severance unit died');
-  assert.equal(s.players[0].integrity, before - 2, 'p0 CEO (the killer) took 2');
+  assert.equal(s.players[1].hand.length, handBefore + 1, 'owner (p1) drew a card');
   const sevEv = find(r.events, 'severance');
   assert.ok(sevEv, 'severance event emitted');
   assert.deepEqual(
-    { unitId: sevEv.unitId, cardId: sevEv.cardId, player: sevEv.player, targetId: sevEv.targetId },
-    { unitId: sev.id, cardId: 'ntr_011', player: 1, targetId: 'hero0' });
+    { unitId: sevEv.unitId, cardId: sevEv.cardId, player: sevEv.player },
+    { unitId: sev.id, cardId: 'ntr_011', player: 1 });
   const sevIdx = r.events.findIndex((e) => e.e === 'severance');
-  const hitIdx = r.events.findIndex((e) => e.e === 'damage' && e.targetId === 'hero0');
-  assert.ok(sevIdx >= 0 && hitIdx > sevIdx, 'severance event precedes its damage event');
+  const drawIdx = r.events.findIndex((e) => e.e === 'draw' && e.player === 1);
+  assert.ok(sevIdx >= 0 && drawIdx > sevIdx, 'severance event precedes its draw event');
 });
 
 test('SEVERANCE: enemy destroy op fires it', () => {
@@ -1389,37 +1390,36 @@ test('SEVERANCE: enemy destroy op fires it', () => {
   const sev = addUnit(s, 1, 'ntr_015'); // severance (enemy of p0)
   giveCapital(s, 0, 10);
   const idx = putInHand(s, 0, 'ob_005'); // Destroy an enemy asset
-  const before = s.players[0].integrity;
+  const handBefore = s.players[1].hand.length;
   const r = applyAction(s, 0, { type: 'playCard', handIndex: idx, target: sev.id, position: null });
   assert.equal(r.ok, true);
   assert.equal(s.players[1].board.length, 0);
   assert.ok(find(r.events, 'severance'));
-  assert.equal(s.players[0].integrity, before - 2, 'destroyer CEO took 2');
+  assert.equal(s.players[1].hand.length, handBefore + 1, 'owner (p1) drew a card');
 });
 
 test('SEVERANCE: enemy TOXIC kill fires it', () => {
   const s = newGame();
   const troll = addUnit(s, 0, 'ntr_020'); // 1/1 toxic
   const sev = addUnit(s, 1, 'ntr_034'); // 2/4 Whistleblower severance
-  const before = s.players[0].integrity;
+  const handBefore = s.players[1].hand.length;
   const r = applyAction(s, 0, { type: 'attack', attackerId: troll.id, targetId: sev.id });
   assert.equal(r.ok, true);
   assert.equal(s.players[1].board.length, 0, 'toxic killed the severance unit');
   assert.ok(find(r.events, 'severance'));
-  assert.equal(s.players[0].integrity, before - 2, 'toxic owner CEO took 2');
+  assert.equal(s.players[1].hand.length, handBefore + 1, 'owner (p1) drew a card');
 });
 
 test('SEVERANCE: owner-caused death (own AoE) does NOT fire', () => {
   const s = newGame();
-  const sev = addUnit(s, 0, 'ntr_034', { health: 1, maxHealth: 1 }); // owner p0
+  addUnit(s, 0, 'ntr_034', { health: 1, maxHealth: 1 }); // owner p0
   giveCapital(s, 0, 10);
   const idx = putInHand(s, 0, 'ntr_027'); // Budget Cuts: 1 dmg to all assets
-  const before = s.players[1].integrity;
   const r = applyAction(s, 0, { type: 'playCard', handIndex: idx, target: null, position: null });
   assert.equal(r.ok, true);
   assert.equal(s.players[0].board.length, 0, 'own severance unit died to own AoE');
   assert.equal(find(r.events, 'severance'), undefined, 'no severance on owner kill');
-  assert.equal(s.players[1].integrity, before, 'enemy CEO untouched');
+  assert.equal(find(r.events, 'draw'), undefined, 'no bonus draw either');
 });
 
 test('SEVERANCE: owner self-destroy (LAYOFF Notice) does NOT fire', () => {
@@ -1427,13 +1427,12 @@ test('SEVERANCE: owner self-destroy (LAYOFF Notice) does NOT fire', () => {
   const sev = addUnit(s, 0, 'ntr_034'); // owner p0
   giveCapital(s, 0, 10);
   const idx = putInHand(s, 0, 'ntr_033'); // Layoff Notice (destroy friendly)
-  const before = s.players[1].integrity;
   const r = applyAction(s, 0, { type: 'playCard', handIndex: idx, target: sev.id, position: null });
   assert.equal(r.ok, true);
   assert.equal(s.players[0].board.length, 0, 'unit laid off');
   assert.ok(find(r.events, 'layoff'));
-  assert.equal(find(r.events, 'severance'), undefined, 'self-sacrifice never sues');
-  assert.equal(s.players[1].integrity, before);
+  assert.equal(find(r.events, 'severance'), undefined, 'self-sacrifice never gets its own severance');
+  assert.equal(find(r.events, 'draw'), undefined, 'no bonus draw either');
 });
 
 test('SEVERANCE: stale enemy tag is overwritten by a later owner destroy → no fire', () => {
@@ -1450,50 +1449,35 @@ test('SEVERANCE: stale enemy tag is overwritten by a later owner destroy → no 
   end(s);
   giveCapital(s, 0, 10);
   const idx2 = putInHand(s, 0, 'ntr_033'); // Layoff Notice
-  const before = s.players[1].integrity;
   const r = applyAction(s, 0, { type: 'playCard', handIndex: idx2, target: sev.id, position: null });
   assert.equal(r.ok, true);
   assert.equal(find(r.events, 'severance'), undefined, 'stale enemy tag did not mis-fire');
-  assert.equal(s.players[1].integrity, before, 'enemy CEO untouched');
 });
 
 test('SEVERANCE: silenced severance unit killed by enemy does NOT fire', () => {
   const s = newGame();
   const attacker = addUnit(s, 0, 'ntr_019'); // 7/7
   addUnit(s, 1, 'ntr_011', { silenced: true, keywords: [] }); // silenced severance
-  const before = s.players[0].integrity;
   const r = applyAction(s, 0, { type: 'attack', attackerId: attacker.id, targetId: s.players[1].board[0].id });
   assert.equal(r.ok, true);
   assert.equal(find(r.events, 'severance'), undefined, 'silence strips SEVERANCE');
-  assert.equal(s.players[0].integrity, before);
 });
 
-test('SEVERANCE: lethal severance ends the game, owner wins', () => {
+test('SEVERANCE: a payout draw from an EMPTY deck backfires as fatigue on the OWNER — can be lethal to the owner, not the killer', () => {
   const s = newGame();
-  s.players[0].integrity = 2; // p0 is the killer/enemy of the severance owner
   const attacker = addUnit(s, 0, 'ntr_019'); // 7/7
-  const sev = addUnit(s, 1, 'ntr_011'); // severance (owner p1)
+  const sev = addUnit(s, 1, 'ntr_011'); // 4/2 severance, owner p1
+  s.players[1].deck = []; // empty: the compensation draw pays fatigue instead
+  s.players[1].fatigue = 0;
+  s.players[1].integrity = 1; // the first fatigue point (1) is exactly lethal
   const r = applyAction(s, 0, { type: 'attack', attackerId: attacker.id, targetId: sev.id });
   assert.equal(r.ok, true);
-  assert.ok(find(r.events, 'severance'));
-  assert.ok(s.players[0].integrity <= 0, 'killer CEO reduced to 0');
+  assert.ok(find(r.events, 'severance'), 'severance fired');
+  assert.ok(find(r.events, 'fatigue'), 'empty deck → fatigue instead of a real draw');
+  assert.equal(s.players[1].integrity, 0, "the OWNER's own CEO took the fatigue hit");
   assert.equal(s.over, true);
-  assert.equal(s.winner, 1, 'severance owner wins');
+  assert.equal(s.winner, 0, 'the killer wins — the payout backfired on its own owner');
   assert.ok(find(r.events, 'gameOver'));
-});
-
-test('SEVERANCE: damage is NOT boosted by a filed opDamageBonus contract (vx_c01)', () => {
-  const s = newGame();
-  const attacker = addUnit(s, 0, 'ntr_019'); // 7/7
-  const sev = addUnit(s, 1, 'ntr_011'); // owner p1
-  fileContract(s, 1, 'vx_c01'); // owner's +1 operation/power damage — must not touch severance
-  const before = s.players[0].integrity;
-  const r = applyAction(s, 0, { type: 'attack', attackerId: attacker.id, targetId: sev.id });
-  assert.equal(r.ok, true);
-  const hit = dmgOn(r.events, 'hero0').find((e) => e.source === 'ntr_011');
-  assert.ok(hit, 'severance damage event present');
-  assert.equal(hit.amount, 2, 'stays 2 (unit-sourced, no isSpell)');
-  assert.equal(s.players[0].integrity, before - 2);
 });
 
 test('SEVERANCE: ntr_034 Whistleblower plays with the keyword and fires on enemy kill', () => {
@@ -1505,13 +1489,13 @@ test('SEVERANCE: ntr_034 Whistleblower plays with the keyword and fires on enemy
   const w = s.players[0].board[s.players[0].board.length - 1];
   assert.equal(w.cardId, 'ntr_034');
   assert.ok(w.keywords.includes('severance'), 'has SEVERANCE keyword in play');
-  // enemy destroys it next turn → owner (p0) sues the enemy (p1)
+  // enemy destroys it next turn → owner (p0) gets the compensation draw
   end(s);
   giveCapital(s, 1, 10);
   const kidx = putInHand(s, 1, 'ob_005'); // destroy enemy asset
-  const before = s.players[1].integrity;
+  const handBefore = s.players[0].hand.length;
   const r = applyAction(s, 1, { type: 'playCard', handIndex: kidx, target: w.id, position: null });
   assert.equal(r.ok, true);
   assert.ok(find(r.events, 'severance'));
-  assert.equal(s.players[1].integrity, before - 2, 'the destroyer took 2');
+  assert.equal(s.players[0].hand.length, handBefore + 1, 'the owner (p0) drew a card');
 });
