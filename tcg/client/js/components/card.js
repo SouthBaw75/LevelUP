@@ -23,6 +23,12 @@ const KEYWORD_FACE_GLOSS = {
   severance: 'Destroyed by foe: draw a card.',
 };
 
+// Per-card keyword display label (flavor rename of a mechanic, e.g. Hedge Fund
+// shows STEALTH as "CORPORATE VEIL"). Mechanics still key off the real keyword id.
+function kwName(def, k) {
+  return (def && def.keywordLabels && def.keywordLabels[k]) || KEYWORD_NAMES[k] || k.toUpperCase();
+}
+
 // Remove bare "<KEYWORD>." sentences from rules text (e.g. "FIREWALL. SIPHON.")
 // so the face can replace them with real glosses instead of echoing the badge.
 // Ability text like "Onboarding: deal 1 damage." is left untouched.
@@ -146,7 +152,7 @@ export function renderCard(defOrId, opts = {}) {
   // are stripped from the ability text first so nothing is said twice.
   const glossKws = def.keywords || [];
   const bodyText = stripKeywordSentences(def.text || '', glossKws);
-  const glossLen = glossKws.reduce((n, k) => n + faceGloss(k).length + KEYWORD_NAMES[k].length + 2, 0);
+  const glossLen = glossKws.reduce((n, k) => n + faceGloss(k).length + kwName(def, k).length + 2, 0);
 
   // Text + flavor share one vertical budget below the name plate — shrink
   // together once they'd otherwise overflow the body and get clipped.
@@ -164,7 +170,7 @@ export function renderCard(defOrId, opts = {}) {
       row.className = 'kwg-row';
       const nm = document.createElement('div');
       nm.className = 'kwg-name';
-      nm.textContent = KEYWORD_NAMES[k] || k.toUpperCase();
+      nm.textContent = kwName(def, k);
       const dc = document.createElement('div');
       dc.className = 'kwg-desc';
       dc.textContent = faceGloss(k);
@@ -315,7 +321,7 @@ export function renderUnit(unit, opts = {}) {
     for (const k of kws) {
       const ic = document.createElement('span');
       ic.className = 'unit-kw ukw-' + k;
-      ic.title = (KEYWORD_NAMES[k] || k) + ' — ' + (KEYWORD_HELP[k] || '');
+      ic.title = kwName(def, k) + ' — ' + (KEYWORD_HELP[k] || '');
       ic.textContent = UNIT_KW_GLYPH[k] || '•';
       row.appendChild(ic);
     }

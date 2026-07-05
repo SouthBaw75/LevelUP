@@ -1677,3 +1677,63 @@ test('COUNTER aura: cloneState carries auras (bot simulation sees boosted stats)
   const clone = cloneState(s);
   assert.equal(boardView(clone, 0, bot.id).attack, CARDS.vx_011.attack + 1, 'aura survives clone');
 });
+
+// ---------------------------------------------------------------------------
+// DYNAMIC ATTACK — Hedge Fund (ob_024): Attack always equals owner's Capital.
+// ---------------------------------------------------------------------------
+test('DYNAMIC attack: Hedge Fund attack equals current Capital, live', () => {
+  const s = newGame();
+  const hf = addUnit(s, 0, 'ob_024'); // prints 0 attack, dynamicAttack: capital
+  s.players[0].capital = 4;
+  assert.equal(boardView(s, 0, hf.id).attack, 4, 'attack = capital (4)');
+  s.players[0].capital = 7;
+  assert.equal(boardView(s, 0, hf.id).attack, 7, 'attack tracks capital up to 7');
+  s.players[0].capital = 1;
+  assert.equal(boardView(s, 0, hf.id).attack, 1, 'and back down to 1');
+});
+
+test('DYNAMIC attack: combat swings for current Capital; buffs & auras stack on top', () => {
+  const s = newGame();
+  const hf = addUnit(s, 0, 'ob_024', { enteredTurn: 0 }); // can attack
+  s.players[0].capital = 6;
+  const before = s.players[1].integrity;
+  const r = applyAction(s, 0, { type: 'attack', attackerId: hf.id, targetId: 'hero1' });
+  assert.equal(r.ok, true);
+  assert.equal(s.players[1].integrity, before - 6, 'hero took Capital-worth of damage');
+  // a +2/+0 buff bakes onto the base and adds to the dynamic value
+  s.players[0].board[0].attack += 2; // simulate a buff delta on the base
+  assert.equal(boardView(s, 0, hf.id).attack, 6 + 2, 'buff stacks with the capital-driven attack');
+});
+
+test('DYNAMIC attack: at 0 Capital, attack is 0 and it cannot attack', () => {
+  const s = newGame();
+  const hf = addUnit(s, 0, 'ob_024', { enteredTurn: 0 });
+  s.players[0].capital = 0;
+  assert.equal(boardView(s, 0, hf.id).attack, 0);
+  assert.ok(!legalActions(s, 0).some((a) => a.type === 'attack' && a.attackerId === hf.id),
+    'a 0-attack Hedge Fund has no attack action');
+});
+
+test('DYNAMIC attack: Hedge Fund carries STEALTH (corporate veil) — untargetable until it attacks', () => {
+  const s = newGame(); // p0 nexus, p1 vulcan
+  const hf = addUnit(s, 1, 'ob_024');   // owned by p1, stealthed
+  const other = addUnit(s, 1, 'ntr_013'); // non-stealth enemy, for contrast
+  assert.ok(hf.keywords.includes('stealth'), 'has the stealth mechanic');
+  giveCapital(s, 0, 10);
+  const idx = putInHand(s, 0, 'ob_005'); // destroy an enemy asset (targeting enemyUnit)
+  const targeted = legalActions(s, 0)
+    .filter((a) => a.type === 'playCard' && a.handIndex === idx)
+    .map((a) => a.target);
+  assert.ok(targeted.includes(other.id), 'the non-stealth unit IS a legal target');
+  assert.ok(!targeted.includes(hf.id), 'the stealthed Hedge Fund is NOT targetable');
+});
+
+test('DYNAMIC attack: hand entry previews the live Capital value', () => {
+  const s = newGame();
+  s.players[0].hand.push('ob_024');
+  s.players[0].capital = 5;
+  const v = getView(s, 0);
+  const entry = v.you.hand.find((h) => h.cardId === 'ob_024');
+  assert.ok(entry, 'Hedge Fund in hand');
+  assert.equal(entry.dynAttack, 5, 'hand shows current capital as its attack');
+});

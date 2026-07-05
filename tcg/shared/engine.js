@@ -295,12 +295,18 @@ function unitCounters(state, owner, unit) {
   }
   return { atk, count: sources.length, sources };
 }
-// Live effective attack = base (incl. baked buffs) + aura, floored at 0.
-// Pass `owner` when the caller already knows it to skip the board scan.
+// Live effective attack = base (incl. baked buffs) + dynamic term + aura, floored
+// at 0. `effects.dynamicAttack: 'capital'` ties a unit's Attack to its owner's
+// current Capital (printed base is 0; Capital drives it, so it re-reads live on
+// every view/combat). Pass `owner` when known to skip the board scan.
 export function effectiveAttack(state, unit, owner) {
   const o = owner === undefined ? ownerOf(state, unit) : owner;
+  let base = unit.attack;
+  if (o >= 0 && CARDS[unit.cardId]?.effects?.dynamicAttack === 'capital') {
+    base += state.players[o].capital;
+  }
   const aura = o >= 0 ? unitCounters(state, o, unit).atk : 0;
-  return Math.max(0, unit.attack + aura);
+  return Math.max(0, base + aura);
 }
 
 // THE one cost helper: view display, playable calc, applyAction validation and
@@ -1074,13 +1080,16 @@ function handEntry(state, playerIndex, cardId, isActive) {
       playable = !targeting || validTargets(state, playerIndex, targeting).length > 0;
     }
   }
-  return {
+  const entry = {
     cardId,
     cost,
     playable,
     targeting,
     validPositions: card.type === 'ASSET',
   };
+  // dynamic-attack cards preview their live value in hand (= current Capital)
+  if (card.effects.dynamicAttack === 'capital') entry.dynAttack = p.capital;
+  return entry;
 }
 
 function unitView(state, unit, canAct, owner) {

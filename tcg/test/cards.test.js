@@ -93,6 +93,12 @@ test('every referenced DSL op / special / token / keyword is implemented', () =>
         assert.ok(Number.isInteger(val.attack) && val.attack !== 0, `${card.id} aura attack`);
         continue;
       }
+      if (key === 'dynamicAttack') {
+        assert.equal(card.type, 'ASSET', `${card.id} dynamicAttack is asset-only`);
+        assert.ok(['capital'].includes(val), `${card.id} dynamicAttack source`);
+        assert.equal(card.attack, 0, `${card.id} dynamicAttack cards print 0 base attack`);
+        continue;
+      }
       assert.ok(TRIGGERS.includes(key), `${card.id} unknown trigger ${key}`);
       assert.ok(Array.isArray(val), `${card.id} trigger ${key} must be an ops array`);
       for (const op of val) {
@@ -122,15 +128,15 @@ test('every referenced DSL op / special / token / keyword is implemented', () =>
   }
 });
 
-test('collectible counts match the contract (26 vulcan, 26 obsidian, 25 nexus/helix + 37 neutral = 139)', () => {
+test('collectible counts match the contract (26 vulcan, 27 obsidian, 25 nexus/helix + 37 neutral = 140)', () => {
   const byFaction = {};
   for (const c of collectible) byFaction[c.faction] = (byFaction[c.faction] || 0) + 1;
   assert.equal(byFaction.nexus, 25);
   assert.equal(byFaction.vulcan, 26); // + vx_c04 Retooling Order (counter aura)
   assert.equal(byFaction.helix, 25);
-  assert.equal(byFaction.obsidian, 26); // + ob_023 Counter Offer (control-steal)
+  assert.equal(byFaction.obsidian, 27); // + ob_023 Counter Offer; + ob_024 Hedge Fund
   assert.equal(byFaction.neutral, 37); // §3c Layoff Notice; §3d Whistleblower; + ntr_035 The Nuclear Option
-  assert.equal(collectible.length, 139);
+  assert.equal(collectible.length, 140);
   // CONTRACT cards: 3 per faction, plus vx_c04 (a 4th Vulcan, the counter card)
   const contracts = collectible.filter((c) => c.type === 'CONTRACT');
   assert.equal(contracts.length, 13);

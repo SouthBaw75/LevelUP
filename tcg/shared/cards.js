@@ -71,7 +71,8 @@ const ASSET_TAGS = {
   hx_020: ['organism'], hx_022: ['organism'],
   // financial (ob_021 dual-listed above under robotic)
   ob_t_shell: ['financial'], ob_004: ['financial'], ob_011: ['financial'],
-  ob_013: ['financial'], ob_t_subsidiary: ['financial'], ntr_025: ['financial'],
+  ob_013: ['financial'], ob_t_subsidiary: ['financial'], ob_024: ['financial'],
+  ntr_025: ['financial'],
 };
 
 function C(card) {
@@ -465,6 +466,11 @@ O('ob_023', 'Counter Offer', 'obsidian', 5, { rarity: 'epic',
   text: 'Take control of an enemy asset that costs 4 or less.',
   flavor: 'Name your price. They already did. We doubled it and kept the receipt.',
   effects: { targeting: 'enemyUnitCost4', play: [{ op: 'special', key: 'stealUnit' }] } });
+A('ob_024', 'Hedge Fund', 'obsidian', 5, 0, 5, { keywords: ['stealth'], rarity: 'epic',
+  keywordLabels: { stealth: 'CORPORATE VEIL' },
+  text: 'This asset’s Attack always equals your current Capital.',
+  flavor: 'It is long on everything and accountable for nothing.',
+  effects: { dynamicAttack: 'capital' } });
 
 // ---------------------------------------------------------------------------
 // NEUTRAL — Independent Contractors (ntr)

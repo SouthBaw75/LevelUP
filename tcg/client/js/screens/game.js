@@ -362,9 +362,9 @@ function renderHand(hand, myTurn) {
     const centerOffset = (i - (n - 1) / 2);
     wrap.style.left = `calc(50% + ${Math.round(centerOffset * spacing - cardW / 2)}px)`;
     wrap.style.transform = `rotate(${(centerOffset * Math.min(5, 26 / n)).toFixed(2)}deg)`;
-    const cardEl = renderCard(def || hc.cardId, { width: cardW, cost: hc.cost, interactive: false });
+    const cardEl = renderCard(def || hc.cardId, { width: cardW, cost: hc.cost, attack: hc.dynAttack, interactive: false });
     wrap.appendChild(cardEl);
-    if (def) attachPreview(wrap, def, { cost: hc.cost });
+    if (def) attachPreview(wrap, def, { cost: hc.cost, attack: hc.dynAttack });
     wrap.addEventListener('click', (ev) => { ev.stopPropagation(); onHandClick(hc, i); });
     fan.appendChild(wrap);
   });
