@@ -86,6 +86,13 @@ test('every referenced DSL op / special / token / keyword is implemented', () =>
         assert.equal(val, true, `${card.id} bothParties`);
         continue;
       }
+      if (key === 'aura') {
+        assert.equal(card.type, 'CONTRACT', `${card.id} aura is contract-only`);
+        assert.ok(val && typeof val === 'object', `${card.id} aura object`);
+        assert.ok(val.match && TAG_VALUES.includes(val.match.tag), `${card.id} aura match.tag`);
+        assert.ok(Number.isInteger(val.attack) && val.attack !== 0, `${card.id} aura attack`);
+        continue;
+      }
       assert.ok(TRIGGERS.includes(key), `${card.id} unknown trigger ${key}`);
       assert.ok(Array.isArray(val), `${card.id} trigger ${key} must be an ops array`);
       for (const op of val) {
@@ -115,22 +122,22 @@ test('every referenced DSL op / special / token / keyword is implemented', () =>
   }
 });
 
-test('collectible counts match the contract (26 obsidian, 25 other factions + 36 neutral = 137)', () => {
+test('collectible counts match the contract (26 vulcan, 26 obsidian, 25 nexus/helix + 36 neutral = 138)', () => {
   const byFaction = {};
   for (const c of collectible) byFaction[c.faction] = (byFaction[c.faction] || 0) + 1;
   assert.equal(byFaction.nexus, 25);
-  assert.equal(byFaction.vulcan, 25);
+  assert.equal(byFaction.vulcan, 26); // + vx_c04 Retooling Order (counter aura)
   assert.equal(byFaction.helix, 25);
   assert.equal(byFaction.obsidian, 26); // + ob_023 Counter Offer (control-steal)
   assert.equal(byFaction.neutral, 36); // §3c added ntr_033 Layoff Notice; §3d added ntr_034 Whistleblower
-  assert.equal(collectible.length, 137);
-  // 3 CONTRACT cards per faction, none neutral (the neutral answers are
-  // ntr_c01 ASSET / ntr_c02 OPERATION)
+  assert.equal(collectible.length, 138);
+  // CONTRACT cards: 3 per faction, plus vx_c04 (a 4th Vulcan, the counter card)
   const contracts = collectible.filter((c) => c.type === 'CONTRACT');
-  assert.equal(contracts.length, 12);
-  for (const f of ['nexus', 'vulcan', 'helix', 'obsidian']) {
+  assert.equal(contracts.length, 13);
+  for (const f of ['nexus', 'helix', 'obsidian']) {
     assert.equal(contracts.filter((c) => c.faction === f).length, 3, f + ' contracts');
   }
+  assert.equal(contracts.filter((c) => c.faction === 'vulcan').length, 4, 'vulcan contracts (+Retooling Order)');
 });
 
 test('tribal tags: every ASSET has ≥1 valid tag; non-assets untagged; spot checks', () => {
@@ -252,7 +259,9 @@ test('starter decks each swapped in ONE faction contract + ONE Void Clause (stil
     assert.equal(deck.cards.filter((id) => id === 'ntr_c02').length, 1,
       key + ' has exactly one Void Clause');
     const contracts = deck.cards.filter((id) => CARDS[id].type === 'CONTRACT');
-    assert.equal(contracts.length, 1, key + ' has exactly one CONTRACT card');
-    assert.equal(CARDS[contracts[0]].faction, key, key + ' contract is on-faction');
+    // vulcan carries a second faction contract, vx_c04 Retooling Order (§3e counters)
+    const expected = key === 'vulcan' ? 2 : 1;
+    assert.equal(contracts.length, expected, `${key} has ${expected} on-faction CONTRACT card(s)`);
+    for (const cid of contracts) assert.equal(CARDS[cid].faction, key, key + ' contract is on-faction');
   }
 });

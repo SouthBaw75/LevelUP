@@ -1551,3 +1551,102 @@ test('SEVERANCE: ntr_034 Whistleblower plays with the keyword and fires on enemy
   assert.ok(find(r.events, 'severance'));
   assert.equal(s.players[0].hand.length, handBefore + 1, 'the owner (p0) drew a card');
 });
+
+// ---------------------------------------------------------------------------
+// COUNTERS §Phase 1 — Retooling Order (vx_c04): a live +1 Attack aura on the
+// ROBOTIC asset class. Auras are computed live, never baked onto the unit.
+// ---------------------------------------------------------------------------
+const boardView = (s, p, unitId) => {
+  const v = getView(s, p);
+  return v.you.board.find((u) => u.id === unitId) || v.opp.board.find((u) => u.id === unitId);
+};
+
+test('COUNTER aura: Retooling Order gives ROBOTIC assets +1 Attack (view + combat)', () => {
+  const s = newGame();
+  const bot = addUnit(s, 0, 'vx_011'); // Blitz Mech, robotic
+  const base = CARDS.vx_011.attack;
+  assert.equal(boardView(s, 0, bot.id).attack, base, 'no aura yet');
+  fileContract(s, 0, 'vx_c04');
+  const v = boardView(s, 0, bot.id);
+  assert.equal(v.attack, base + 1, 'effective attack boosted in view');
+  assert.ok(v.counters && v.counters.count === 1 && v.counters.atk === 1, 'counters reported');
+  assert.equal(v.counters.sources[0].cardId, 'vx_c04');
+  // combat actually swings for the boosted number
+  giveCapital(s, 0);
+  const before = s.players[1].integrity;
+  const r = applyAction(s, 0, { type: 'attack', attackerId: bot.id, targetId: 'hero1' });
+  assert.equal(r.ok, true);
+  assert.equal(s.players[1].integrity, before - (base + 1), 'hero took the boosted hit');
+});
+
+test('COUNTER aura: only ROBOTIC-class assets are affected', () => {
+  const s = newGame();
+  const person = addUnit(s, 0, 'ntr_001'); // personnel
+  fileContract(s, 0, 'vx_c04');
+  const v = boardView(s, 0, person.id);
+  assert.equal(v.attack, CARDS.ntr_001.attack, 'non-robotic unchanged');
+  assert.equal(v.counters, undefined, 'no counters block on a non-matching unit');
+});
+
+test('COUNTER aura: two copies stack (+2)', () => {
+  const s = newGame();
+  const bot = addUnit(s, 0, 'vx_011');
+  fileContract(s, 0, 'vx_c04');
+  fileContract(s, 0, 'vx_c04');
+  const v = boardView(s, 0, bot.id);
+  assert.equal(v.attack, CARDS.vx_011.attack + 2);
+  assert.equal(v.counters.count, 2);
+  assert.equal(v.counters.atk, 2);
+});
+
+test('COUNTER aura: retracts the instant the contract is voided', () => {
+  const s = newGame(); // p0 nexus, p1 vulcan
+  const bot = addUnit(s, 0, 'vx_011');
+  fileContract(s, 0, 'vx_c04');
+  assert.equal(boardView(s, 0, bot.id).attack, CARDS.vx_011.attack + 1);
+  const cid = s.players[0].contracts[0].id;
+  end(s); // p1's turn
+  giveCapital(s, 1);
+  const idx = putInHand(s, 1, 'ntr_c02'); // Void Clause — null & void enemy contract
+  const r = applyAction(s, 1, { type: 'playCard', handIndex: idx, target: cid, position: null });
+  assert.equal(r.ok, true);
+  assert.ok(find(r.events, 'contractVoided'));
+  assert.equal(boardView(s, 0, bot.id).attack, CARDS.vx_011.attack, 'aura gone once contract left');
+});
+
+test('COUNTER aura: an aura only applies for the CURRENT owner (steal drops it)', () => {
+  const s = newGame(); // p0 nexus, p1 vulcan
+  const bot = addUnit(s, 1, 'vx_011'); // robotic, owned by p1
+  fileContract(s, 1, 'vx_c04'); // p1 has the aura → boosted
+  assert.equal(boardView(s, 1, bot.id).attack, CARDS.vx_011.attack + 1);
+  giveCapital(s, 0, 10);
+  const idx = putInHand(s, 0, 'ob_015'); // Hostile Takeover — steal any enemy asset
+  const r = applyAction(s, 0, { type: 'playCard', handIndex: idx, target: bot.id, position: null });
+  assert.equal(r.ok, true);
+  const stolen = s.players[0].board[s.players[0].board.length - 1];
+  assert.equal(stolen.cardId, 'vx_011');
+  // p0 has no Retooling Order, so the aura does NOT follow the unit
+  assert.equal(boardView(s, 0, stolen.id).attack, CARDS.vx_011.attack, 'stolen unit unbuffed under new owner');
+});
+
+test('COUNTER aura: transform off the ROBOTIC class ends the buff', () => {
+  const s = newGame(); // p0 nexus, p1 vulcan
+  const bot = addUnit(s, 1, 'vx_011'); // robotic
+  fileContract(s, 1, 'vx_c04');
+  assert.equal(boardView(s, 1, bot.id).attack, CARDS.vx_011.attack + 1);
+  giveCapital(s, 0, 10);
+  const idx = putInHand(s, 0, 'hx_021'); // Forced Mutation → Lab Rat (organism)
+  const r = applyAction(s, 0, { type: 'playCard', handIndex: idx, target: bot.id, position: null });
+  assert.equal(r.ok, true);
+  const now = s.players[1].board.find((u) => u.id === bot.id);
+  assert.equal(now.cardId, 'hx_t_labrat', 'transformed');
+  assert.equal(boardView(s, 1, bot.id).attack, CARDS.hx_t_labrat.attack, 'lab rat gets no robotic aura');
+});
+
+test('COUNTER aura: cloneState carries auras (bot simulation sees boosted stats)', () => {
+  const s = newGame();
+  const bot = addUnit(s, 0, 'vx_011');
+  fileContract(s, 0, 'vx_c04');
+  const clone = cloneState(s);
+  assert.equal(boardView(clone, 0, bot.id).attack, CARDS.vx_011.attack + 1, 'aura survives clone');
+});

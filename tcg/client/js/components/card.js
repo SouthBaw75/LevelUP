@@ -338,6 +338,22 @@ export function renderUnit(unit, opts = {}) {
   else if (def.health !== undefined && unit.health > def.health) hp.classList.add('buffed');
   el.appendChild(hp);
 
+  // §counters: asset-class aura bonus badge (top-left corner). Non-intrusive —
+  // the atk chip already shows the boosted number with .buffed styling; this
+  // pip surfaces HOW MANY bonuses are active and, via its tooltip, from what.
+  if (unit.counters && unit.counters.count) {
+    const cb = document.createElement('div');
+    cb.className = 'unit-counter';
+    const atk = unit.counters.atk || 0;
+    cb.textContent = (atk > 0 ? '+' : '') + atk;
+    const lines = (unit.counters.sources || []).map((sc) => {
+      const nm = getCard(sc.cardId)?.name || sc.cardId;
+      return `${nm}: ${sc.atk > 0 ? '+' : ''}${sc.atk} Attack`;
+    });
+    cb.title = 'Asset-class bonus — ' + lines.join(' · ');
+    el.appendChild(cb);
+  }
+
   if (unit.canAttack && !opts.enemy) el.classList.add('ready');
   if (unit.exhausted) el.classList.add('exhausted');
   return el;

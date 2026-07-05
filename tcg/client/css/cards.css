@@ -272,6 +272,17 @@
 .unit .stat-chip { width: 26px; height: 26px; font-size: 13px; border-radius: 7px; bottom: 6px; }
 .unit .atk-chip { left: -6px; }
 .unit .hp-chip { right: -6px; }
+/* §counters: asset-class aura bonus pip, top-left corner (gold, matches the
+   payout/bonus motif). Static — no per-render pop, so board re-renders stay calm. */
+.unit-counter {
+  position: absolute; top: -7px; left: -7px; z-index: 4;
+  min-width: 16px; height: 16px; padding: 0 3px; box-sizing: border-box;
+  display: flex; align-items: center; justify-content: center;
+  font: 800 10px/1 var(--mono); color: #2a2205;
+  background: linear-gradient(160deg, #ffe08a, #e0a92e);
+  border: 1px solid #7a5c1e; border-radius: 8px;
+  box-shadow: 0 0 8px rgba(230, 199, 102, 0.55), 0 1px 3px rgba(0, 0, 0, 0.6);
+}
 
 /* unit state treatments */
 .unit.ready .unit-frame { box-shadow: 0 0 12px color-mix(in srgb, var(--gr) 55%, transparent), 0 4px 12px rgba(0,0,0,0.6); border-color: color-mix(in srgb, var(--gr) 60%, var(--fc)); }

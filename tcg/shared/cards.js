@@ -605,6 +605,11 @@ K('vx_c03', 'Escalation Clause', 'vulcan', 5, { rarity: 'epic',
   text: 'BOTH PARTIES. At the start of each player’s turn, that player’s CEO takes 1 damage.',
   flavor: 'Both parties agree to escalate in good faith.',
   effects: { bothParties: true, startOfTurn: [{ op: 'damage', amount: 1, to: 'friendlyHero' }] } });
+// §counters (Phase 1): a live ATTACK aura on the ROBOTIC asset class.
+K('vx_c04', 'Retooling Order', 'vulcan', 3, { rarity: 'rare',
+  text: 'While in play, your ROBOTIC-class assets have +1 Attack.',
+  flavor: 'Every machine on the floor gets a firmware patch and a grievance.',
+  effects: { aura: { match: { tag: 'robotic' }, attack: 1 } } });
 
 K('hx_c01', 'Corporate Wellness Program', 'helix', 3, {
   text: 'At the end of your turn, restore 2 Integrity to your CEO.',
@@ -669,12 +674,13 @@ export const STARTER_DECKS = {
     ['nx_010', 'ntr_013'], 'nx_c01'),
   },
   vulcan: {
-    // swaps: -1 ntr_003, -1 ntr_006 / +1 vx_c02 (Overtime Mandate), +1 ntr_c02
+    // swaps: -1 ntr_003 / +1 vx_c02 (Overtime Mandate), +1 ntr_c02;
+    // -2 ntr_006 (Sales Rep) / +1 vx_c04 (Retooling Order, robotic +1 Atk aura)
     name: 'Vulcan Heavy Industries — Q3 Shock & Awe',
     faction: 'vulcan',
     cards: withContracts(['vx_001', 'vx_002', 'vx_003', 'vx_004', 'vx_005', 'vx_006', 'vx_007',
-      'vx_008', 'vx_009', 'vx_011', 'vx_013', 'vx_014', 'vx_018', 'ntr_003', 'ntr_006'],
-    ['ntr_003', 'ntr_006'], 'vx_c02'),
+      'vx_008', 'vx_009', 'vx_011', 'vx_013', 'vx_014', 'vx_018', 'ntr_003', 'vx_c04'],
+    ['ntr_003', 'vx_c04'], 'vx_c02'),
   },
   helix: {
     // swaps: -1 ntr_005, -1 ntr_013 / +1 hx_c01 (Corporate Wellness Program), +1 ntr_c02

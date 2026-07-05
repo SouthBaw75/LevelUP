@@ -198,7 +198,7 @@ function maxAttacks(unit) {
 }
 
 function unitCanAttack(state, unit) {
-  if (unit.attack <= 0) return false;
+  if (effectiveAttack(state, unit) <= 0) return false;
   if (unit.attacksUsed >= maxAttacks(unit)) return false;
   if (unit.enteredTurn === state.turn && !hasKw(unit, 'fasttrack')) return false;
   return true;
@@ -262,6 +262,45 @@ function contractStatic(state, player, key) {
     if (st && st[key]) total += st[key];
   }
   return total;
+}
+
+// §counters — per-unit aura modifiers. Unlike the `buff` op (which bakes deltas
+// permanently onto a unit's stats), auras are computed LIVE from the owner's
+// filed contracts every time a stat is read. So they appear/vanish on their own
+// as contracts or matching units enter/leave, and steal/copy naturally drop them
+// (the new owner's auras reapply). Phase 1 covers ATTACK only.
+function auraMatches(match, def) {
+  if (!match || !def) return false;
+  if (match.tag) return (def.tags || []).includes(match.tag);
+  return false;
+}
+// Owner index (0|1) of a board unit, or -1 if it is not on either board.
+function ownerOf(state, unit) {
+  if (state.players[0].board.includes(unit)) return 0;
+  if (state.players[1].board.includes(unit)) return 1;
+  return -1;
+}
+// Detailed counter contribution to `unit` from `owner`'s aura contracts:
+// { atk, count, sources: [{cardId, atk}] }.
+function unitCounters(state, owner, unit) {
+  const def = CARDS[unit.cardId];
+  const sources = [];
+  let atk = 0;
+  for (const c of state.players[owner].contracts) {
+    const aura = CARDS[c.cardId].effects.aura;
+    if (aura && aura.attack && auraMatches(aura.match, def)) {
+      atk += aura.attack;
+      sources.push({ cardId: c.cardId, atk: aura.attack });
+    }
+  }
+  return { atk, count: sources.length, sources };
+}
+// Live effective attack = base (incl. baked buffs) + aura, floored at 0.
+// Pass `owner` when the caller already knows it to skip the board scan.
+export function effectiveAttack(state, unit, owner) {
+  const o = owner === undefined ? ownerOf(state, unit) : owner;
+  const aura = o >= 0 ? unitCounters(state, o, unit).atk : 0;
+  return Math.max(0, unit.attack + aura);
 }
 
 // THE one cost helper: view display, playable calc, applyAction validation and
@@ -517,7 +556,7 @@ function summonUnit(state, ev, player, cardId, position = null, overrides = {}) 
   board.splice(pos, 0, unit);
   ev.push({
     e: 'summon', player,
-    unit: { id: unit.id, cardId: unit.cardId, attack: unit.attack, health: unit.health, keywords: unit.keywords.slice() },
+    unit: { id: unit.id, cardId: unit.cardId, attack: effectiveAttack(state, unit, player), health: unit.health, keywords: unit.keywords.slice() },
     position: pos,
   });
   return unit;
@@ -906,14 +945,17 @@ function applyActionInner(state, playerIndex, action) {
 
       attacker.attacksUsed += 1;
       ev.push({ e: 'attack', attackerId: attacker.id, targetId: action.targetId });
+      // §counters: combat uses LIVE effective attack (base + auras), so a
+      // buffed robotic unit actually swings for its boosted number.
+      const atkPower = effectiveAttack(state, attacker, playerIndex);
       if (isHeroId(action.targetId)) {
-        dealDamage(state, ev, action.targetId, attacker.attack,
+        dealDamage(state, ev, action.targetId, atkPower,
           { unit: attacker, player: playerIndex, id: attacker.id });
       } else {
         const def = findUnit(state, action.targetId);
         const defender = def.unit;
-        const defAttack = defender.attack;
-        dealDamage(state, ev, defender.id, attacker.attack,
+        const defAttack = effectiveAttack(state, defender, def.owner);
+        dealDamage(state, ev, defender.id, atkPower,
           { unit: attacker, player: playerIndex, id: attacker.id });
         if (defAttack > 0) {
           dealDamage(state, ev, attacker.id, defAttack,
@@ -1041,11 +1083,12 @@ function handEntry(state, playerIndex, cardId, isActive) {
   };
 }
 
-function unitView(state, unit, canAct) {
-  return {
+function unitView(state, unit, canAct, owner) {
+  const ctr = unitCounters(state, owner, unit);
+  const v = {
     id: unit.id,
     cardId: unit.cardId,
-    attack: unit.attack,
+    attack: effectiveAttack(state, unit, owner), // §counters: live (base + auras)
     health: unit.health,
     maxHealth: unit.maxHealth,
     keywords: unit.keywords.slice(),
@@ -1053,6 +1096,8 @@ function unitView(state, unit, canAct) {
     exhausted: unit.attacksUsed >= maxAttacks(unit),
     damaged: unit.health < unit.maxHealth,
   };
+  if (ctr.count) v.counters = ctr; // {atk, count, sources} — omitted when none
+  return v;
 }
 
 function playerView(state, i, { self }) {
@@ -1074,7 +1119,7 @@ function playerView(state, i, { self }) {
       used: p.powerUsed,
       targeting: powerCard.effects.targeting || null,
     },
-    board: p.board.map((u) => unitView(state, u, self && isActive)),
+    board: p.board.map((u) => unitView(state, u, self && isActive, i)),
     // §3b: contracts are public — full detail on both `you` and `opp`
     contracts: p.contracts.map((c) => ({ id: c.id, cardId: c.cardId, turnsLeft: c.turnsLeft })),
     deckCount: p.deck.length,

@@ -176,6 +176,36 @@ Passive death-reaction keyword: an asset that compensates its OWNER for being de
   the actual card-to-hand flight — the severance beat renders no card of its own). How-to-play
   picks it up automatically if it derives from the keyword maps.
 
+## 3e. COUNTERS / asset-class auras (v1, Phase 1 — attack only)
+
+Stacking, live-computed stat modifiers that strengthen/weaken assets. Phase 1 delivers
+**contract auras that boost an asset class's Attack**; the design generalizes to durability
+(Phase 2) and unit-placed "intrinsic" counters (Phase 3).
+
+- **Asset class (tags)**: every ASSET carries `tags: [...]` from a fixed taxonomy —
+  `robotic`, `software`, `facility`, `organism`, `financial`, `personnel` (default). Applied
+  via a central `ASSET_TAGS` map in the card constructor; non-asset cards are untagged.
+  Player-facing term is **"asset class"** (shown on the card type line, e.g. `ASSET · ROBOTIC`).
+- **Aura**: a contract may carry `effects.aura = { match: { tag }, attack: N }`. While the
+  contract is filed, every friendly asset whose `tags` include `match.tag` gets `+N` Attack.
+- **Live, never baked**: auras are summed on every stat read (`effectiveAttack`), NOT written
+  onto the unit (contrast the `buff` op, which bakes permanently). Consequences, all automatic:
+  they retract the instant the contract leaves; a newly-played matching asset picks them up;
+  a `transform` off the class ends them; and **steal/copy drop them** (the new owner's own
+  auras reapply) because the copied `unit.attack` is base-only.
+- **Engine**: `effectiveAttack(state, unit, owner?) = max(0, unit.attack + Σ matching auras)`.
+  Combat (both strike and retaliation), `unitCanAttack`, the `summon` event's displayed
+  attack, and `unitView.attack` all read through it. Damage/heal/health are UNTOUCHED in
+  Phase 1. `cloneState` needs no change (auras live on contracts, which it already copies).
+- **View**: a boosted unit's board entry gains `counters: { atk, count, sources: [{cardId, atk}] }`
+  (omitted entirely when zero). `attack` in the view is already the effective value.
+- **Client**: the atk chip shows the boosted number with existing `.buffed` styling; a small
+  gold corner **counter pip** shows the active count, tooltip `Asset-class bonus — <source>: +N Attack`.
+- **Bot**: values effective attack for free (it scores off the view, which now carries it).
+- **v1 card**: `vx_c04` **Retooling Order** — Vulcan CONTRACT, cost 3, rare, no term.
+  *"While in play, your ROBOTIC-class assets have +1 Attack."* (This makes Vulcan a 4-contract
+  faction; deck/collectible counts adjust accordingly.)
+
 ### v1 contract set (12 faction + 2 neutral answers)
 
 | id | Name | Cost | Effect |
