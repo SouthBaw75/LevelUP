@@ -137,9 +137,21 @@ export function playFactionSelect(faction) {
 
 /** Winning CEO's victory taunt: assets/audio/ceo-taunts/<faction>.*, plus any
  *  numbered variants (<faction>-1.*, <faction>-2.*, ...) picked at random —
- *  same convention as the sfx-destroy variants, just nested one folder down. */
-export function playCeoTaunt(faction) {
-  playSfx('ceo-taunts/' + faction);
+ *  same convention as the sfx-destroy variants, just nested one folder down.
+ *  Logs a clear warning if no matching file is found, so a missing/misnamed
+ *  taunt is diagnosable from the console instead of failing silently. */
+export async function playCeoTaunt(faction) {
+  const urls = await findVariants('ceo-taunts/' + faction);
+  if (!urls.length) {
+    console.warn(`[audio] no CEO taunt found for "${faction}" — expected a file at ` +
+      `assets/audio/ceo-taunts/${faction}.mp3 (or .ogg/.m4a/.wav).`);
+    return;
+  }
+  if (!sfxOn) return;
+  const url = urls[Math.floor(Math.random() * urls.length)];
+  const a = new Audio(url);
+  a.volume = SFX_VOL;
+  a.play().catch((e) => console.warn('[audio] CEO taunt playback blocked:', e?.message || e));
 }
 
 export function isMusicOn() { return musicOn; }

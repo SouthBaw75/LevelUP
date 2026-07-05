@@ -7,6 +7,7 @@ import { showScreen, toast } from '../main.js';
 import { renderCard, renderUnit, renderCardBack, renderContractTile, attachPreview, hidePreview } from '../components/card.js';
 import { mountCeoPortrait, artSvg } from '../art.js';
 import { initAnim, stopAnim, queueBatch, isAnimating, fxRoot, showBanner } from '../anim.js';
+import * as audio from '../audio.js';
 
 let root = null;
 let active = false;
@@ -854,6 +855,14 @@ function showGameOver(msg) {
   cancelMode();
   document.querySelector('.gameover-veil')?.remove();
   const won = msg.winner === youIdx;
+  // Winning CEO's taunt — fired here (as the rematch overlay is built) rather
+  // than off the gameOver animation event, so it plays on EVERY end path
+  // (takeover, concede, timeout, desertion) and lands exactly as the screen
+  // appears. `view` faction is stable for the whole match.
+  if (typeof msg.winner === 'number' && view) {
+    const wf = msg.winner === youIdx ? view.you?.faction : view.opp?.faction;
+    if (wf) audio.playCeoTaunt(wf);
+  }
   const reasons = {
     takeover: won ? 'Enemy CEO integrity reduced to zero.' : 'Your CEO integrity reached zero.',
     concede: won ? 'The rival board voted to capitulate.' : 'You conceded the takeover.',
