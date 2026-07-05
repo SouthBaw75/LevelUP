@@ -855,13 +855,22 @@ function showGameOver(msg) {
   cancelMode();
   document.querySelector('.gameover-veil')?.remove();
   const won = msg.winner === youIdx;
-  // Winning CEO's taunt — fired here (as the rematch overlay is built) rather
-  // than off the gameOver animation event, so it plays on EVERY end path
-  // (takeover, concede, timeout, desertion) and lands exactly as the screen
-  // appears. `view` faction is stable for the whole match.
+  // Winning CEO's taunt — fired here (as the rematch overlay is built) so it
+  // plays on EVERY end path (takeover, concede, timeout, desertion) and lands
+  // exactly as the screen appears. `view` faction is stable for the whole match.
+  // If it can't play, say WHY on screen — the three failure modes otherwise all
+  // look identical (silence): no file for that faction, SFX muted, or blocked.
   if (typeof msg.winner === 'number' && view) {
     const wf = msg.winner === youIdx ? view.you?.faction : view.opp?.faction;
-    if (wf) audio.playCeoTaunt(wf);
+    if (wf) {
+      const fname = factionMeta(wf)?.name || wf;
+      audio.playCeoTaunt(wf).then((r) => {
+        if (!r || r.status === 'played') return;
+        if (r.status === 'muted') toast(`🔇 ${fname} CEO taunt is ready but SFX is muted — enable it in ⚙.`, 'warn', 6000);
+        else if (r.status === 'no-file') toast(`🔊 No taunt audio for ${fname} — add ${r.expected}`, 'warn', 7000);
+        else if (r.status === 'blocked') toast(`🔊 ${fname} CEO taunt was blocked by the browser.`, 'warn', 6000);
+      });
+    }
   }
   const reasons = {
     takeover: won ? 'Enemy CEO integrity reduced to zero.' : 'Your CEO integrity reached zero.',

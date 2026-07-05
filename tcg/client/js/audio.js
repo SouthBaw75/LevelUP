@@ -136,22 +136,29 @@ export function playFactionSelect(faction) {
 }
 
 /** Winning CEO's victory taunt: assets/audio/ceo-taunts/<faction>.*, plus any
- *  numbered variants (<faction>-1.*, <faction>-2.*, ...) picked at random —
- *  same convention as the sfx-destroy variants, just nested one folder down.
- *  Logs a clear warning if no matching file is found, so a missing/misnamed
- *  taunt is diagnosable from the console instead of failing silently. */
+ *  numbered variants (<faction>-1.*, ...) picked at random. Returns a status
+ *  object so the caller can surface WHY it was silent (the three failure modes
+ *  — missing file, SFX muted, browser-blocked — all fail silently otherwise):
+ *    { status: 'played' | 'no-file' | 'muted' | 'blocked', expected? } */
 export async function playCeoTaunt(faction) {
-  const urls = await findVariants('ceo-taunts/' + faction);
+  const base = 'ceo-taunts/' + faction;
+  const expected = `assets/audio/${base}.mp3`;
+  const urls = await findVariants(base);
   if (!urls.length) {
-    console.warn(`[audio] no CEO taunt found for "${faction}" — expected a file at ` +
-      `assets/audio/ceo-taunts/${faction}.mp3 (or .ogg/.m4a/.wav).`);
-    return;
+    console.warn(`[audio] no CEO taunt found for "${faction}" — expected ${expected} (or .ogg/.m4a/.wav).`);
+    return { status: 'no-file', expected };
   }
-  if (!sfxOn) return;
+  if (!sfxOn) return { status: 'muted' };
   const url = urls[Math.floor(Math.random() * urls.length)];
   const a = new Audio(url);
   a.volume = SFX_VOL;
-  a.play().catch((e) => console.warn('[audio] CEO taunt playback blocked:', e?.message || e));
+  try {
+    await a.play();
+    return { status: 'played', url };
+  } catch (e) {
+    console.warn('[audio] CEO taunt playback blocked:', e?.message || e);
+    return { status: 'blocked' };
+  }
 }
 
 export function isMusicOn() { return musicOn; }
