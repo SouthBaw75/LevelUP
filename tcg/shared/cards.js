@@ -714,11 +714,12 @@ export const STARTER_DECKS = {
   obsidian: {
     // swaps: +1 ob_c03 (Liquidation Rights), +1 ntr_c02;
     // -2 ntr_016 (Teamsters Rep) / +1 ob_023 (Counter Offer, faction steal);
-    // -1 ntr_013 (Middle Management, vanilla) / +1 ob_024 (Hedge Fund)
+    // -1 ntr_013 (Middle Management) / +1 ob_024 (Hedge Fund);
+    // -1 ob_022 (Repo Crew, vanilla) / +1 ntr_037 (Flirty Intern)
     name: 'Obsidian Capital — Leveraged Everything',
     faction: 'obsidian',
     cards: withContracts(['ob_001', 'ob_003', 'ob_005', 'ob_006', 'ob_007', 'ob_008', 'ob_009',
-      'ob_010', 'ob_012', 'ob_013', 'ob_018', 'ob_019', 'ob_022', 'ob_024', 'ob_023'],
-    ['ob_024', 'ob_023'], 'ob_c03'),
+      'ob_010', 'ob_012', 'ob_013', 'ob_018', 'ob_019', 'ob_022', 'ob_024', 'ob_023', 'ntr_037'],
+    ['ob_024', 'ob_023', 'ob_022', 'ntr_037'], 'ob_c03'),
   },
 };
