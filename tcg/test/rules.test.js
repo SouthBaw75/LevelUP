@@ -1918,3 +1918,50 @@ test('BULLISH + SIPHON (Gigafauna): overflow to the CEO also siphons', () => {
   // 9 total damage dealt (2 to blocker + 7 trample) → siphon heals owner for all of it
   assert.equal(s.players[0].integrity, 10 + 9, 'siphon healed for all damage incl. the trample');
 });
+
+// ---------------------------------------------------------------------------
+// FLIRTY INTERN (ntr_037): distract an enemy asset — can't attack for 3 turns.
+// ---------------------------------------------------------------------------
+test('FLIRTY INTERN: charms an enemy asset for 3 turns', () => {
+  const s = newGame();
+  giveCapital(s, 0, 10);
+  const foe = addUnit(s, 1, 'ntr_013');
+  const idx = putInHand(s, 0, 'ntr_037');
+  const r = applyAction(s, 0, { type: 'playCard', handIndex: idx, target: foe.id, position: null });
+  assert.equal(r.ok, true);
+  assert.equal(foe.distracted, 3, 'distracted counter set to 3');
+  const ev = find(r.events, 'distract');
+  assert.ok(ev && ev.turns === 3, 'distract event carries the count');
+});
+
+test('FLIRTY INTERN: a distracted unit cannot be declared as an attacker', () => {
+  const s = newGame();
+  end(s); // p1 active
+  const foe = addUnit(s, 1, 'ntr_013', { distracted: 2, enteredTurn: -5 });
+  const acts = legalActions(s, 1).filter((a) => a.type === 'attack' && a.attackerId === foe.id);
+  assert.equal(acts.length, 0, 'charmed — no attack action offered');
+  foe.distracted = 0;
+  const freed = legalActions(s, 1).filter((a) => a.type === 'attack' && a.attackerId === foe.id);
+  assert.ok(freed.length > 0, 'once the counter hits 0 it can attack again');
+});
+
+test('FLIRTY INTERN: the counter ticks down only at the end of the OWNER’s turn', () => {
+  const s = newGame(); // p0 active; foe belongs to p1
+  const foe = addUnit(s, 1, 'ntr_013', { distracted: 3, enteredTurn: -5 });
+  end(s); assert.equal(foe.distracted, 3, 'p0 turn ended — p1 unit untouched');
+  end(s); assert.equal(foe.distracted, 2, 'p1 turn ended — ticked to 2');
+  end(s); assert.equal(foe.distracted, 2, 'p0 turn ended — still 2');
+  end(s); assert.equal(foe.distracted, 1, 'p1 turn ended — ticked to 1');
+  end(s); assert.equal(foe.distracted, 1, 'p0 turn ended — still 1');
+  end(s); assert.equal(foe.distracted, 0, 'p1 turn ended — free again');
+});
+
+test('FLIRTY INTERN: SILENCE (Gag Order) cleanses the distraction', () => {
+  const s = newGame();
+  giveCapital(s, 0, 10);
+  const foe = addUnit(s, 1, 'ntr_013', { distracted: 3 });
+  const idx = putInHand(s, 0, 'ntr_029'); // Gag Order — silence an asset
+  const r = applyAction(s, 0, { type: 'playCard', handIndex: idx, target: foe.id, position: null });
+  assert.equal(r.ok, true);
+  assert.equal(foe.distracted, 0, 'silence removed the charm');
+});

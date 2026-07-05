@@ -957,6 +957,18 @@ async function playEvent(ev) {
       await wait(260);
       break;
     }
+    case 'distract': {
+      // Flirty Intern: a soft rose "charm" pulse when applied (turns === 3);
+      // the per-turn ticks just update the countdown pip via the re-render.
+      const el = hooks.resolveTarget(ev.unitId);
+      const applied = ev.turns >= 3;
+      if (el && applied) {
+        pulseClass(el, 'distract-pop', 620);
+        floatNum(el, '\u{1F48B}', 'distract-mark', { size: 'med' });
+      }
+      await wait(applied ? 300 : 40);
+      break;
+    }
     case 'layoff': {
       // §3c: always followed by heal (owner's hero) then death in the same
       // batch — this beat only sells the "pink slip" moment; the heal event

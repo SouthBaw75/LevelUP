@@ -289,6 +289,21 @@
   border: 1px solid #7a5c1e; border-radius: 8px;
   box-shadow: 0 0 8px rgba(230, 199, 102, 0.55), 0 1px 3px rgba(0, 0, 0, 0.6);
 }
+/* Flirty Intern: rose "distracted" countdown pip (top-right) + charmed tint.
+   The 💋 pseudo marks it as the flirt debuff; the number is the turns left. */
+.unit-distracted {
+  position: absolute; top: -7px; right: -7px; z-index: 5;
+  min-width: 16px; height: 16px; padding: 0 3px; box-sizing: border-box;
+  display: flex; align-items: center; justify-content: center;
+  font: 800 10px/1 var(--mono); color: #fff;
+  background: linear-gradient(160deg, #ff8fc4, #d61f75);
+  border: 1px solid #ffd0e6; border-radius: 8px;
+  box-shadow: 0 0 8px rgba(214, 31, 117, 0.6), 0 1px 3px rgba(0, 0, 0, 0.6);
+}
+.unit-distracted::before { content: "\1F48B"; position: absolute; top: -9px; left: -8px; font-size: 11px; }
+.unit.distracted .unit-frame { filter: saturate(1.15) hue-rotate(-8deg); }
+.unit.distracted { animation: distracted-sway 2.4s ease-in-out infinite; }
+@keyframes distracted-sway { 0%,100% { transform: rotate(-0.8deg); } 50% { transform: rotate(0.8deg); } }
 
 /* unit state treatments */
 .unit.ready .unit-frame { box-shadow: 0 0 12px color-mix(in srgb, var(--gr) 55%, transparent), 0 4px 12px rgba(0,0,0,0.6); border-color: color-mix(in srgb, var(--gr) 60%, var(--fc)); }

@@ -142,8 +142,8 @@ test('collectible counts match the contract (26 vulcan, 27 obsidian, 25 nexus/he
   assert.equal(byFaction.vulcan, 26); // + vx_c04 Retooling Order (counter aura)
   assert.equal(byFaction.helix, 25);
   assert.equal(byFaction.obsidian, 27); // + ob_023 Counter Offer; + ob_024 Hedge Fund
-  assert.equal(byFaction.neutral, 38); // + ntr_035 The Nuclear Option; + ntr_036 Firewall Upgrade
-  assert.equal(collectible.length, 141);
+  assert.equal(byFaction.neutral, 39); // + ntr_035 Nuclear Option; + ntr_036 Firewall Upgrade; + ntr_037 Flirty Intern
+  assert.equal(collectible.length, 142);
   // CONTRACT cards: 3 per faction, plus vx_c04 (a 4th Vulcan, the counter card)
   const contracts = collectible.filter((c) => c.type === 'CONTRACT');
   assert.equal(contracts.length, 13);

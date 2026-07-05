@@ -589,6 +589,10 @@ O('ntr_036', 'Firewall Upgrade', 'neutral', 1, {
   text: 'Give a friendly asset FIREWALL.',
   flavor: 'Patched, hardened, and now legally a load-bearing wall.',
   effects: { targeting: 'friendlyUnitNoFirewall', play: [{ op: 'grantKeyword', keyword: 'firewall', to: 'target' }] } });
+O('ntr_037', 'Flirty Intern', 'neutral', 2, { rarity: 'rare',
+  text: 'Distract an enemy asset — it can’t attack for 3 of its turns.',
+  flavor: 'Turns out “let’s circle back after lunch” is a load-bearing sentence.',
+  effects: { targeting: 'enemyUnit', play: [{ op: 'distract', turns: 3, to: 'target' }] } });
 
 // ---------------------------------------------------------------------------
 // CONTRACTS (§3b) — persistent corporate agreements, plus the two neutral

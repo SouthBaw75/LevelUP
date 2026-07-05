@@ -382,6 +382,17 @@ export function renderUnit(unit, opts = {}) {
     el.appendChild(cb);
   }
 
+  // Flirty Intern: a distracted asset can't attack — show a rose countdown pip
+  // (top-right) with the turns remaining, and tint the unit as charmed.
+  if (unit.distracted > 0) {
+    el.classList.add('distracted');
+    const db = document.createElement('div');
+    db.className = 'unit-distracted';
+    db.textContent = unit.distracted;
+    db.title = `Distracted — can't attack for ${unit.distracted} more turn${unit.distracted === 1 ? '' : 's'}`;
+    el.appendChild(db);
+  }
+
   if (unit.canAttack && !opts.enemy) el.classList.add('ready');
   if (unit.exhausted) el.classList.add('exhausted');
   return el;

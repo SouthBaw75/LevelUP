@@ -189,6 +189,7 @@ function makeUnit(state, cardId, overrides = {}) {
     silenced: false,
     pendingDestroy: false,
     killedBy: null, // §3d: player index that put this unit on a death path (last-writer-wins)
+    distracted: 0,  // Flirty Intern: turns of "can't attack" remaining; ticks down each owner turn
     ...overrides,
   };
 }
@@ -198,6 +199,7 @@ function maxAttacks(unit) {
 }
 
 function unitCanAttack(state, unit) {
+  if (unit.distracted > 0) return false; // Flirty Intern: charmed, can't attack
   if (effectiveAttack(state, unit) <= 0) return false;
   if (unit.attacksUsed >= maxAttacks(unit)) return false;
   if (unit.enteredTurn === state.turn && !hasKw(unit, 'fasttrack')) return false;
@@ -722,7 +724,18 @@ export const OPS = {
       if (!found) continue;
       found.unit.silenced = true;
       found.unit.keywords = [];
+      found.unit.distracted = 0; // silence cleanses the Flirty Intern debuff too
       ev.push({ e: 'silence', unitId: id });
+    }
+  },
+  // Flirty Intern: charm the target — it can't attack for `turns` of its owner's
+  // turns; the counter ticks down at the end of each of those turns (see endTurn).
+  distract(state, ev, op, ctx) {
+    for (const id of resolveTargets(state, ctx, op.to)) {
+      const found = findUnit(state, id);
+      if (!found) continue;
+      found.unit.distracted = op.turns || 3;
+      ev.push({ e: 'distract', unitId: id, turns: found.unit.distracted });
     }
   },
   special(state, ev, op, ctx) {
@@ -860,6 +873,14 @@ function endTurn(state, ev) {
     }
   }
   if (state.over) return;
+  // Flirty Intern: tick down "distracted" counters on the ending player's own
+  // units (blocked for `turns` of their turns; reaches 0 → can attack again).
+  for (const u of state.players[player].board) {
+    if (u.distracted > 0) {
+      u.distracted -= 1;
+      ev.push({ e: 'distract', unitId: u.id, turns: u.distracted });
+    }
+  }
   // §3b: contract endOfTurn triggers (vx_c02, hx_c01) fire at the end of the
   // owner's turn, after board triggers, before the opponent's turnStart.
   fireContractTrigger(state, ev, player, 'endOfTurn');
@@ -1151,6 +1172,7 @@ function unitView(state, unit, canAct, owner) {
     damaged: unit.health < unit.maxHealth,
   };
   if (ctr.count) v.counters = ctr; // {atk, count, sources} — omitted when none
+  if (unit.distracted > 0) v.distracted = unit.distracted; // Flirty Intern countdown
   return v;
 }
 

@@ -40,6 +40,9 @@ function unitValue(u) {
     for (const kw of u.keywords) v += KEYWORD_VALUE[kw] || 0;
   }
   if ((u.attack || 0) === 0) v -= 0.5; // walls without teeth are worth less
+  // Flirty Intern: a distracted unit can't attack for a few turns — its offense
+  // is dead weight while charmed, so discount its attack value.
+  if (u.distracted > 0) v -= (u.attack || 0) * 0.7;
   return v;
 }
 

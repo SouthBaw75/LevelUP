@@ -779,6 +779,9 @@ function logEvent(ev) {
     case 'silence':
       logLine(`<b>${escapeHtml(nameOfTarget(ev.unitId))}</b> was gagged by legal.`);
       break;
+    case 'distract':
+      if (ev.turns >= 3) logLine(`<b>${escapeHtml(nameOfTarget(ev.unitId))}</b> is <span class="dmg">distracted</span> — can’t attack for ${ev.turns} turns.`);
+      break;
     case 'contractFiled': {
       const term = ev.contract && ev.contract.turnsLeft != null ? ` (term: ${ev.contract.turnsLeft})` : '';
       logLine(`${who(ev.player)} filed ${card(ev.contract?.cardId)}${term}.`);
