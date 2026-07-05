@@ -23,6 +23,10 @@ in the bottom-right corner, in the lobby or in-game (each choice is remembered).
 | `sfx-attack.mp3`  | An asset attacking | SFX — short |
 | `sfx-destroy.mp3` | An asset being destroyed | SFX — short |
 | `sfx-ceo-damage.mp3` | A CEO (either player) taking damage | SFX — short |
+| `ceo-taunts/nexus.mp3` | The winning CEO's victory taunt, when Nexus Dynamics wins | SFX — voice line |
+| `ceo-taunts/vulcan.mp3` | Same, when Vulcan Heavy Industries wins | SFX — voice line |
+| `ceo-taunts/helix.mp3` | Same, when Helix Biosystems wins | SFX — voice line |
+| `ceo-taunts/obsidian.mp3` | Same, when Obsidian Capital wins | SFX — voice line |
 
 ### Notes on names
 - Music tracks are set to **loop** automatically, so they can be seamless clips.
@@ -30,6 +34,13 @@ in the bottom-right corner, in the lobby or in-game (each choice is remembered).
   (`select-nexus`, `select-vulcan`, `select-helix`, `select-obsidian`). If that
   file is missing it falls back to `ui-select`. So you can either give each
   conglomerate its own sting, or just drop in a single `ui-select` for all four.
+- The **CEO taunts** live in their own subfolder, `assets/audio/ceo-taunts/`,
+  named by faction (not by card ID). It plays for BOTH players the instant the
+  match result is confirmed — before the victory/defeat overlay appears —
+  because it's "the winning CEO speaking," not a per-player reaction. Only
+  the four CEO factions need a file; there's no neutral CEO. Numbered variants
+  work here too (`ceo-taunts/nexus-1.mp3`, `ceo-taunts/nexus-2.mp3`, ...) if
+  you want more than one line per faction.
 
 ## Randomized variants (multiple takes of one sound)
 
@@ -52,6 +63,9 @@ combination) goes into the pool and one is chosen at random on each play. This
 works for **every** name in the table, not just `sfx-destroy` — e.g. you could
 add `sfx-attack-1.mp3` / `sfx-attack-2.mp3` for varied attack impacts, or
 `ui-click-1.mp3` / `ui-click-2.mp3` for menu clicks.
+
+Both `sfx-destroy-2.mp3` (hyphenated) and `sfx-destroy2.mp3` (no hyphen) are
+checked, so either style works — no need to rename anything already saved.
 
 ## Accepted formats
 

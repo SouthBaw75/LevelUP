@@ -45,12 +45,15 @@ function findAudio(name) {
 
 // A sound effect can have multiple randomized takes: assets/audio/<name>.*
 // (the plain file) plus assets/audio/<name>-1.*, <name>-2.*, ... <name>-8.*.
-// Every variant that exists is collected once (cached), then playSfx picks a
-// random one on each play. A single plain file works exactly as before.
+// Both <name>-N (hyphenated) and <name>N (bare) suffixes are probed, since
+// files have shown up saved either way — every variant found (either style)
+// goes into the same pool. Every variant that exists is collected once
+// (cached), then playSfx picks a random one on each play. A single plain
+// file works exactly as before.
 function findVariants(name) {
   if (variantCache.has(name)) return variantCache.get(name);
   const candidates = [name];
-  for (let i = 1; i <= MAX_VARIANTS; i++) candidates.push(`${name}-${i}`);
+  for (let i = 1; i <= MAX_VARIANTS; i++) { candidates.push(`${name}-${i}`); candidates.push(`${name}${i}`); }
   const p = Promise.all(candidates.map(findAudio)).then((urls) => urls.filter(Boolean));
   variantCache.set(name, p);
   return p;
@@ -130,6 +133,13 @@ export async function playSfx(name, fallback) {
  *  generic assets/audio/ui-select.* if no per-faction file exists. */
 export function playFactionSelect(faction) {
   playSfx('select-' + faction, 'ui-select');
+}
+
+/** Winning CEO's victory taunt: assets/audio/ceo-taunts/<faction>.*, plus any
+ *  numbered variants (<faction>-1.*, <faction>-2.*, ...) picked at random —
+ *  same convention as the sfx-destroy variants, just nested one folder down. */
+export function playCeoTaunt(faction) {
+  playSfx('ceo-taunts/' + faction);
 }
 
 export function isMusicOn() { return musicOn; }

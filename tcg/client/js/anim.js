@@ -1136,8 +1136,12 @@ async function playEvent(ev) {
     }
     case 'gameOver': {
       // terminal overlay is built by game.js right after this batch; a heavy
-      // shake here lands as the VICTORY title slams in (defeat stays quiet)
+      // shake here lands as the VICTORY title slams in (defeat stays quiet).
+      // The winning CEO's taunt plays immediately for BOTH players, as soon
+      // as the result is confirmed — ahead of the overlay appearing.
       if (ev.winner === you) screenShake('heavy');
+      const winnerFaction = hooks.factionOf?.(ev.winner);
+      if (winnerFaction) audio.playCeoTaunt(winnerFaction);
       await wait(200);
       break;
     }

@@ -208,6 +208,7 @@ const hooks = {
   },
   logEvent,
   youIndex() { return youIdx; },
+  factionOf(player) { return player === youIdx ? view.you.faction : view.opp.faction; },
   onBatchDone() {
     if (pendingGameOver) {
       const msg = pendingGameOver;
