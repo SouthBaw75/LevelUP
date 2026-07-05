@@ -572,7 +572,7 @@ function summonUnit(state, ev, player, cardId, position = null, overrides = {}) 
   return unit;
 }
 
-// Placement-time adjacency buffs (Armor Plant: +1 Durability to whatever sits
+// Placement-time adjacency buffs (Armor Plant: +1 Integrity to whatever sits
 // immediately left/right of it). Baked on deploy — persists even if the source
 // later leaves — matching "when placed beside it, gets a buff". Runs BOTH ways:
 // a unit dropped next to a granter, and a granter dropped next to existing units.

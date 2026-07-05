@@ -1321,7 +1321,7 @@ test('cloneState deep-copies contract state', () => {
 });
 
 // ---------------------------------------------------------------------------
-// LAYOFF (§3c): free sacrifice — heal your CEO by current Durability
+// LAYOFF (§3c): free sacrifice — heal your CEO by current Integrity
 // ---------------------------------------------------------------------------
 test('layoff heals CEO by CURRENT health; events layoff -> heal -> death', () => {
   const s = newGame();
@@ -1740,9 +1740,9 @@ test('DYNAMIC attack: hand entry previews the live Capital value', () => {
 
 // ---------------------------------------------------------------------------
 // ADJACENCY BUFF — Armor Plant (vx_009): an asset placed immediately beside it
-// gains +1 Durability (armor), baked at placement, both directions.
+// gains +1 Integrity (armor), baked at placement, both directions.
 // ---------------------------------------------------------------------------
-test('ARMOR: an asset deployed beside Armor Plant gains +1 Durability', () => {
+test('ARMOR: an asset deployed beside Armor Plant gains +1 Integrity', () => {
   const s = newGame();
   giveCapital(s, 0, 10);
   addUnit(s, 0, 'vx_009'); // Armor Plant at index 0

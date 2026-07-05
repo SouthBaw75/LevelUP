@@ -262,7 +262,7 @@ A('vx_008', 'Repo Squad', 'vulcan', 3, 3, 1, { keywords: ['fasttrack'],
   text: 'FAST-TRACK.',
   flavor: 'They repossess first and read the paperwork in the truck.' });
 A('vx_009', 'Armor Plant', 'vulcan', 4, 4, 5, {
-  text: 'When an asset is placed to the immediate left or right of this, it gains +1 Durability.',
+  text: 'When an asset is placed to the immediate left or right of this, it gains +1 Integrity.',
   flavor: 'OSHA-compliant, Geneva-adjacent.',
   effects: { adjacencyBuff: { health: 1 } } });
 O('vx_010', 'Carpet Bombing', 'vulcan', 4, { rarity: 'rare',
@@ -574,7 +574,7 @@ O('ntr_032', 'All-Hands Meeting', 'neutral', 4, {
   flavor: 'This meeting could have been three emails and one resignation.',
   effects: { targeting: null, play: [{ op: 'summon', cardId: 'ntr_001', count: 3 }] } });
 O('ntr_033', 'Layoff Notice', 'neutral', 1, { rarity: 'rare',
-  text: 'Destroy a friendly asset. Restore Integrity to your CEO equal to its Durability.',
+  text: 'Destroy a friendly asset. Restore Integrity to your CEO equal to its Integrity.',
   flavor: 'Your position has been consolidated into the CEO’s wellness plan.',
   effects: { targeting: 'friendlyUnit', play: [{ op: 'special', key: 'layoffTarget' }] } });
 A('ntr_034', 'Whistleblower', 'neutral', 3, 2, 4, { keywords: ['severance'], rarity: 'rare',
@@ -632,7 +632,7 @@ K('hx_c01', 'Corporate Wellness Program', 'helix', 3, {
   flavor: 'Participation is voluntary and enrollment is automatic.',
   effects: { endOfTurn: [{ op: 'heal', amount: 2, to: 'friendlyHero' }] } });
 K('hx_c02', 'Regeneration Rider', 'helix', 4, { rarity: 'rare',
-  text: 'At the start of your turn, restore 1 Durability to each friendly asset.',
+  text: 'At the start of your turn, restore 1 Integrity to each friendly asset.',
   flavor: 'Coverage renews nightly. Exclusions apply to pre-existing employees.',
   effects: { startOfTurn: [{ op: 'heal', amount: 1, to: 'allFriendlyUnits' }] } });
 K('hx_c03', 'Life Insurance Policy', 'helix', 2, {

@@ -19,7 +19,7 @@ const KEYWORD_FACE_GLOSS = {
   overtime: 'Attacks twice per turn.',
   toxic: 'Destroys what it damages.',
   siphon: 'Its damage heals your CEO.',
-  layoff: 'Sacrifice: CEO gains its Durability.',
+  layoff: 'Sacrifice: CEO gains its Integrity.',
   severance: 'Destroyed by foe: draw a card.',
 };
 

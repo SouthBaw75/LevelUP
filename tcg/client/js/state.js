@@ -53,7 +53,7 @@ export const KEYWORD_HELP = {
   overtime: 'Can attack twice per turn.',
   toxic: 'Destroys any asset it damages.',
   siphon: 'Damage dealt also restores your CEO’s integrity.',
-  layoff: 'Sacrifice during your turn (free): your CEO gains Integrity equal to its Durability.',
+  layoff: 'Sacrifice during your turn (free): your CEO gains Integrity equal to this asset’s Integrity.',
   severance: 'When destroyed by an enemy, draw a card.',
   onboarding: 'Effect when played from hand.',
   parachute: 'Effect when destroyed.',

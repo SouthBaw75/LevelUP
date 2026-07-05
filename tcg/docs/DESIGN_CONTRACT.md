@@ -30,7 +30,10 @@ battle for industry dominance. Tone: sleek corporate cyberpunk, dry satirical fl
 - Board limit: **7 ASSETS** per player.
 - Turn timer: **90 seconds** (enforced by server, not engine). Auto end-turn on expiry.
 - Cards in play are called by their card `type`:
-  - **ASSET** — a unit (minion). Has cost, ATTACK (aka *Output*), HEALTH (aka *Durability*).
+  - **ASSET** — a unit (minion). Has cost, ATTACK (aka *Output*), HEALTH (aka *Integrity* — the
+    SAME player-facing term used for a CEO's health; both are "Integrity" in all card text/UI,
+    never "Durability". Internal field names stay `health`/`maxHealth` on units vs `integrity`/
+    `maxIntegrity` on players — an implementation detail, invisible to players).
     Summoning sickness: cannot attack the turn it's deployed unless it has FAST-TRACK.
     Assets attack once per turn (twice with OVERTIME). Attackers can target enemy assets
     or the enemy CEO — but must attack a FIREWALL asset if any exists (STEALTH ignores nothing;
@@ -62,7 +65,7 @@ battle for industry dominance. Tone: sleek corporate cyberpunk, dry satirical fl
 | `overtime`       | OVERTIME            | Can attack twice per turn (Windfury)                            |
 | `toxic`          | TOXIC ASSET         | Destroys any asset it damages (Poisonous)                       |
 | `siphon`         | SIPHON              | Damage dealt by this also restores your CEO's integrity (Lifesteal) |
-| `layoff`         | LAYOFF              | Once, any time on your turn: sacrifice this asset for free; your CEO gains Integrity equal to its current Durability (see §3c) |
+| `layoff`         | LAYOFF              | Once, any time on your turn: sacrifice this asset for free; your CEO gains Integrity equal to its current Integrity (see §3c) |
 | `severance`      | SEVERANCE           | When destroyed by an ENEMY, its owner draws a card (compensation payout; see §3d) |
 | Triggered abilities (not stand-alone keywords, defined per-card in effect data):          |
 | `onboarding`     | ONBOARDING          | Effect when played from hand (Battlecry)                        |
@@ -98,7 +101,7 @@ Persistent cards representing corporate agreements. Rules:
 
 ## 3c. LAYOFF (v1)
 
-Active sacrifice mechanic: convert an asset's remaining Durability into CEO Integrity.
+Active sacrifice mechanic: convert an asset's remaining Integrity into CEO Integrity (both are the same stat, same name — see §4).
 
 - **Action** (new, §5 list extended): `{ "type": "layoff", "unitId": "u<N>" }`.
   Legal when: game not over, it is the actor's turn, the unit is on the ACTOR's board,
@@ -121,7 +124,7 @@ Active sacrifice mechanic: convert an asset's remaining Durability into CEO Inte
 - **New event** (§5 list extended): `layoff {unitId, cardId, player}`.
 - **v1 card changes**:
   - NEW `ntr_033` **Layoff Notice** — neutral OPERATION, cost 1, rare.
-    Text: "Destroy a friendly asset. Restore Integrity to your CEO equal to its Durability."
+    Text: "Destroy a friendly asset. Restore Integrity to your CEO equal to its Integrity."
     `effects: { targeting:'friendlyUnit', play:[{op:'special', key:'layoffTarget'}] }`.
   - Keyword `layoff` ADDED to: `ntr_001` Unpaid Intern, `ob_017` Escrow Guard,
     `hx_018` Spore Pod, `vx_t_scrapbot` Scrap Bot (token). Their face text gains "LAYOFF."

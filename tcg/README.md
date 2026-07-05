@@ -31,7 +31,7 @@ Open the URL in two browser windows (or share your host with a friend) and:
 ## Rules in 30 seconds
 
 Each turn you gain a **Capital** crystal (max 10, refills every turn). Spend it to deploy
-**ASSETS** (units) and run **OPERATIONS** (spells). Assets fight with Output/Durability
+**ASSETS** (units) and run **OPERATIONS** (spells). Assets fight with Output/Integrity
 stats and corporate keywords — **FIREWALL** (taunt), **FAST-TRACK** (charge), **STEALTH
 MODE**, **PATENT PROTECTION** (shield), **OVERTIME** (attack twice), **TOXIC ASSET**
 (destroy on damage), **SIPHON** (lifesteal) — plus **ONBOARDING** (on-play) and **GOLDEN
