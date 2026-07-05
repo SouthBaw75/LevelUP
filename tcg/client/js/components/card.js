@@ -19,6 +19,7 @@ const KEYWORD_FACE_GLOSS = {
   overtime: 'Attacks twice per turn.',
   toxic: 'Destroys what it damages.',
   siphon: 'Its damage heals your CEO.',
+  layoff: 'Sacrifice: CEO gains its Durability.',
 };
 
 // Remove bare "<KEYWORD>." sentences from rules text (e.g. "FIREWALL. SIPHON.")
@@ -357,6 +358,7 @@ const UNIT_KW_GLYPH = {
   overtime: '✖',
   toxic: '☠',
   siphon: '♥',
+  layoff: '\u{1FA93}', // axe
 };
 
 // ---- enlarged hover preview layer ----

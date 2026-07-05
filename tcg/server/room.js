@@ -45,6 +45,10 @@ export function cleanAction(a) {
           : null;
       return { type: 'heroPower', target };
     }
+    case 'layoff': {
+      if (typeof a.unitId !== 'string' || a.unitId.length > 16) return null;
+      return { type: 'layoff', unitId: a.unitId };
+    }
     default:
       return null;
   }

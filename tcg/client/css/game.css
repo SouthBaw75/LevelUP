@@ -954,3 +954,69 @@
   .contract-zone, .contract-tile { width: 78px; }
   .ct-name { font-size: 7px; }
 }
+
+/* ================= LAYOFF (§3c) ================= */
+/* ---------- attack-or-layoff chooser, anchored above the clicked unit ---------- */
+.layoff-chooser {
+  position: absolute; z-index: 60; transform: translate(-50%, -100%);
+  display: flex; flex-direction: column; gap: 5px; padding: 8px;
+  background: var(--panel); border: 1px solid var(--edge-hi); border-radius: 8px;
+  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.7);
+  animation: chooser-in 0.13s ease;
+}
+@keyframes chooser-in { from { opacity: 0; transform: translate(-50%, -100%) scale(0.92); } }
+/* caret pointing down at the unit it belongs to */
+.layoff-chooser::after {
+  content: ""; position: absolute; left: 50%; bottom: -13px; transform: translateX(-50%);
+  border: 7px solid transparent; border-top-color: var(--edge-hi);
+}
+.lc-btn {
+  display: flex; align-items: center; gap: 9px; padding: 7px 12px;
+  border: 1px solid transparent; border-radius: 5px; background: transparent;
+  font: 700 11px/1.1 var(--sans); letter-spacing: 0.1em; color: var(--ink);
+  white-space: nowrap; text-align: left; cursor: pointer;
+  transition: background 0.12s, border-color 0.12s, box-shadow 0.12s;
+}
+.lc-btn:hover { background: var(--panel2); }
+.lc-btn.lc-attack:hover { border-color: var(--red); box-shadow: 0 0 10px rgba(244, 88, 106, 0.3); }
+.lc-btn.lc-layoff:hover { border-color: var(--cy); box-shadow: 0 0 10px rgba(34, 211, 238, 0.3); }
+.lc-icon { font-size: 15px; line-height: 1; flex: none; }
+.lc-label { display: flex; flex-direction: column; gap: 3px; }
+.lc-sub { font: 500 8.5px/1 var(--mono); letter-spacing: 0.08em; color: var(--ink-dim); text-transform: lowercase; }
+.lc-btn.disabled { opacity: 0.45; cursor: not-allowed; }
+.lc-btn.disabled:hover { background: transparent; border-color: transparent; box-shadow: none; }
+
+/* ---------- layoff event fx: pink-slip slam + desaturating dip + wisp ---------- */
+/* pink slip slapped over the unit — slam-in like the void stamp, pink-tinted */
+.pink-slip {
+  position: absolute; z-index: 170; pointer-events: none;
+  transform: translate(-50%, -50%);
+  font: 900 12px/1 var(--mono); letter-spacing: 0.14em; white-space: nowrap;
+  padding: 4px 7px; border: 2.5px solid currentColor; border-radius: 3px;
+  color: #ff9ec2; background: rgba(46, 10, 26, 0.6);
+  box-shadow: 0 0 14px rgba(255, 130, 175, 0.45), inset 0 0 10px rgba(255, 130, 175, 0.2);
+  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.8);
+  animation: pink-slip-slam 0.75s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+}
+@keyframes pink-slip-slam {
+  0% { opacity: 0; transform: translate(-50%, -50%) scale(2.2) rotate(5deg); }
+  22% { opacity: 1; transform: translate(-50%, -50%) scale(0.88) rotate(-7deg); }
+  34% { transform: translate(-50%, -50%) scale(1.06) rotate(-6deg); }
+  46%, 80% { opacity: 1; transform: translate(-50%, -50%) scale(1) rotate(-6deg); }
+  100% { opacity: 0; transform: translate(-50%, -50%) scale(1) rotate(-6deg); }
+}
+/* brief desaturating dip on the frame while the slip lands (filter only) */
+.unit.anim-layoff-dip .unit-frame { animation: layoff-dip 0.42s ease both; }
+@keyframes layoff-dip {
+  30% { filter: saturate(0.15) brightness(0.72); }
+  100% { filter: saturate(0.55) brightness(0.9); }
+}
+/* pale integrity wisp: spawned over the unit, drifts to the owner's hero
+   plate via an inline transform transition; only filter animates here */
+.layoff-wisp {
+  position: absolute; z-index: 155; width: 18px; height: 18px; border-radius: 50%; pointer-events: none;
+  background: radial-gradient(circle, rgba(255, 246, 250, 0.95), rgba(255, 176, 205, 0.4) 55%, transparent 75%);
+  box-shadow: 0 0 12px rgba(255, 190, 215, 0.7), 0 0 22px rgba(140, 245, 180, 0.35);
+  animation: wisp-flicker 0.24s ease-in-out infinite alternate;
+}
+@keyframes wisp-flicker { from { filter: brightness(1); } to { filter: brightness(1.55); } }

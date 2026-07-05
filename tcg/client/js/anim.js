@@ -942,6 +942,50 @@ async function playEvent(ev) {
       await wait(260);
       break;
     }
+    case 'layoff': {
+      // §3c: always followed by heal (owner's hero) then death in the same
+      // batch — this beat only sells the "pink slip" moment; the heal event
+      // renders the +N float / chip update and the death event removes the
+      // unit with FLIP.
+      audio.playSfx('sfx-layoff', 'sfx-play'); // optional drop-in; falls back
+      const el = hooks.resolveTarget(ev.unitId);
+      if (el) {
+        const { x, y } = centerOf(el);
+        // pink slip slapped over the unit — rotate-in slam like the void stamp
+        const slip = document.createElement('div');
+        slip.className = 'pink-slip';
+        slip.textContent = 'PINK SLIP';
+        slip.style.left = x + 'px';
+        slip.style.top = y + 'px';
+        fxLayer.appendChild(slip);
+        setTimeout(() => slip.remove(), 780);
+        // brief desaturating dip on the frame while the slip lands
+        pulseClass(el, 'anim-layoff-dip', 420);
+        // pale wisp drifting from the unit to the OWNER's hero plate,
+        // foreshadowing the heal that follows. Launches on the slam beat;
+        // outlives the blocking window → non-blocking + generation-guarded.
+        const hero = hooks.resolveTarget('hero' + ev.player);
+        if (hero) {
+          fxTimeout(() => {
+            const wisp = document.createElement('div');
+            wisp.className = 'layoff-wisp';
+            wisp.style.left = x + 'px';
+            wisp.style.top = y + 'px';
+            wisp.style.transform = 'translate(-50%,-50%)';
+            fxLayer.appendChild(wisp);
+            void wisp.offsetWidth;
+            const h = centerOf(hero);
+            // flight is a pure transform transition (left/top set once at spawn)
+            wisp.style.transition = 'transform 420ms cubic-bezier(0.3, 0.8, 0.4, 1), opacity 420ms ease-in';
+            wisp.style.transform = `translate(-50%,-50%) translate(${h.x - x}px, ${h.y - y}px) scale(0.55)`;
+            wisp.style.opacity = '0.15';
+            setTimeout(() => wisp.remove(), 480);
+          }, 220);
+        }
+      }
+      await wait(420);
+      break;
+    }
     case 'contractFiled': {
       // Follows cardPlayed in the same batch (which already played sfx-play):
       // a document ghost detaches from the reveal position, flies to the

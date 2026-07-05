@@ -1,7 +1,7 @@
 // screens/game.js — the match screen. Renders the authoritative view, drives
 // targeting/attack/positioning input, and feeds server batches to the anim queue.
 
-import { getCard, factionMeta, session, EMOTES, KEYWORD_NAMES } from '../state.js';
+import { getCard, factionMeta, session, EMOTES, KEYWORD_NAMES, KEYWORD_HELP } from '../state.js';
 import * as net from '../net.js';
 import { showScreen, toast } from '../main.js';
 import { renderCard, renderUnit, renderCardBack, renderContractTile, attachPreview, hidePreview } from '../components/card.js';
@@ -72,7 +72,7 @@ export function exit() {
 export function onKey(ev, typing) {
   if (typing) return false;
   if (ev.key === 'Escape') {
-    if (mode) { cancelMode(); return true; }
+    if (mode || layoffChooser) { cancelMode(); return true; }
     return false;
   }
   if ((ev.key === ' ' || ev.key.toLowerCase() === 'e') && !over) {
@@ -167,11 +167,17 @@ function buildSkeleton() {
     els[id].addEventListener('click', () => onTargetClick(els[id].dataset.targetId));
   }
 
-  // click-away / right-click cancels modes
+  // click-away / right-click cancels modes (and the layoff chooser)
   root.addEventListener('mousedown', (ev) => {
     if (ev.button === 2) { cancelMode(); return; }
+    // layoff chooser: close on any press outside it — except on its own unit,
+    // whose click handler toggles it (closing here would make it re-open)
+    if (layoffChooser && !ev.target.closest('.layoff-chooser')) {
+      const unitEl = ev.target.closest('.unit');
+      if (!unitEl || unitEl.dataset.unitId !== layoffChooser.dataset.unitId) closeLayoffChooser();
+    }
     if (!mode) return;
-    if (!ev.target.closest('.unit, .hand-card, .hero-plate, .drop-slot, .power-btn, .contract-tile')) cancelMode();
+    if (!ev.target.closest('.unit, .hand-card, .hero-plate, .drop-slot, .power-btn, .contract-tile, .layoff-chooser')) cancelMode();
   });
   root.addEventListener('mousemove', onMouseMove);
 }
@@ -217,6 +223,10 @@ function renderView() {
   if (!view || !active) return;
   const me = view.you, opp = view.opp;
   if (!me || !opp) return;
+
+  // the board is about to be rebuilt: a surviving chooser would be anchored to
+  // a detached element and could act on a stale unit id — always remove it
+  closeLayoffChooser();
 
   // remember unit names for the log
   for (const u of [...(me.board || []), ...(opp.board || [])]) {
@@ -425,12 +435,76 @@ function onUnitClick(u, enemy, el) {
   if (mode && mode.kind === 'attack') { onTargetClick(u.id); return; }
   if (enemy) return;
   if (view.activePlayer !== youIdx) return;
+  // LAYOFF units (§3c): in the neutral state, offer ATTACK-or-LAYOFF instead
+  // of entering attack mode directly. Clicking its own unit again toggles.
+  if ((u.keywords || []).includes('layoff')) {
+    if (layoffChooser && layoffChooser.dataset.unitId === u.id) { closeLayoffChooser(); return; }
+    openLayoffChooser(u, el);
+    return;
+  }
   if (!u.canAttack) { toast(u.exhausted ? 'Asset is exhausted.' : 'Asset cannot attack yet.', 'warn', 1500); return; }
+  enterAttackMode(u, el);
+}
+
+function enterAttackMode(u, el) {
   cancelMode(true);
   mode = { kind: 'attack', attackerId: u.id };
   el.classList.add('attack-source');
   startArrow(el, '');
   highlightAttackTargets();
+}
+
+// ---------- LAYOFF chooser (§3c) ----------
+let layoffChooser = null;
+
+function openLayoffChooser(u, el) {
+  cancelMode(true); // clears any position/target/attack mode + old chooser
+  const pop = document.createElement('div');
+  pop.className = 'layoff-chooser';
+  pop.dataset.unitId = u.id;
+
+  const atkBtn = document.createElement('button');
+  atkBtn.className = 'lc-btn lc-attack';
+  atkBtn.innerHTML = `<span class="lc-icon">⚔</span><span class="lc-label">ATTACK</span>`;
+  if (u.canAttack) {
+    atkBtn.addEventListener('click', (ev) => {
+      ev.stopPropagation();
+      closeLayoffChooser();
+      enterAttackMode(u, el);
+    });
+  } else {
+    const reason = u.exhausted ? 'Asset is exhausted.' : 'Asset cannot attack yet.';
+    atkBtn.classList.add('disabled');
+    atkBtn.title = reason;
+    atkBtn.setAttribute('aria-disabled', 'true');
+    atkBtn.addEventListener('click', (ev) => { ev.stopPropagation(); toast(reason, 'warn', 1500); });
+  }
+  pop.appendChild(atkBtn);
+
+  const layBtn = document.createElement('button');
+  layBtn.className = 'lc-btn lc-layoff';
+  layBtn.title = KEYWORD_HELP.layoff;
+  layBtn.innerHTML = `<span class="lc-icon">🪓</span><span class="lc-label">LAYOFF<span class="lc-sub">free · +Integrity</span></span>`;
+  layBtn.addEventListener('click', (ev) => {
+    ev.stopPropagation();
+    closeLayoffChooser();
+    net.sendAction({ type: 'layoff', unitId: u.id });
+  });
+  pop.appendChild(layBtn);
+
+  // anchor above the unit, inside the table so mousedown bubbles to the
+  // click-away handler (which whitelists .layoff-chooser)
+  const table = els['g-table'];
+  const tr = table.getBoundingClientRect();
+  const r = el.getBoundingClientRect();
+  pop.style.left = (r.left + r.width / 2 - tr.left) + 'px';
+  pop.style.top = (r.top - tr.top - 8) + 'px';
+  table.appendChild(pop);
+  layoffChooser = pop;
+}
+
+function closeLayoffChooser() {
+  if (layoffChooser) { layoffChooser.remove(); layoffChooser = null; }
 }
 
 function onPowerClick(ev) {
@@ -586,6 +660,7 @@ export function cancelMode(keepQuiet = false) {
   clearSelectedHand();
   clearTargetHighlights();
   removeDropSlots();
+  closeLayoffChooser();
   stopArrow();
 }
 
@@ -670,6 +745,9 @@ function logEvent(ev) {
       break;
     case 'death':
       logLine(`${card(ev.cardId)} was <span class="dmg">liquidated</span>.`);
+      break;
+    case 'layoff':
+      logLine(`${card(ev.cardId)} was <span class="dmg">laid off</span>.`);
       break;
     case 'buff':
       logLine(`<b>${escapeHtml(nameOfTarget(ev.unitId))}</b> gained +${ev.attack ?? 0}/+${ev.health ?? 0}.`);
