@@ -814,37 +814,50 @@
 .contract-zone {
   position: absolute; left: 10px; z-index: 15;
   width: 88px;
-  display: flex; flex-direction: column; gap: 6px;
+  display: flex; flex-direction: column; gap: 12px; /* room for the folder tabs */
   pointer-events: none; /* empty zone = no chrome, no click shadowing */
 }
 .contract-zone.opp { top: 6px; }
 .contract-zone.me { bottom: 128px; flex-direction: column-reverse; }
 .contract-zone .contract-tile { pointer-events: auto; }
 
-/* document-styled tile: parchment tint in the dark palette, faction accent
-   edge, doc glyph, abbreviated name, term counter pip */
+/* filed contract styled as a manila FILE FOLDER: kraft-paper body, a raised
+   faction-colored tab poking up behind the top edge, dark label text, term pip */
 .contract-tile {
   --fc: #94a3b8;
-  position: relative; width: 88px; min-height: 44px; flex: none;
+  position: relative; isolation: isolate; /* keeps the tab pseudo behind THIS tile */
+  width: 88px; min-height: 46px; flex: none;
   display: flex; align-items: center; gap: 5px;
-  padding: 5px 7px 5px 7px;
-  border-radius: 4px;
+  padding: 7px 8px 6px;
+  border-radius: 3px 7px 5px 5px; /* faintly asymmetric, like a folded folder */
   background:
-    repeating-linear-gradient(0deg, transparent 0 7px, rgba(236, 227, 198, 0.035) 7px 8px),
-    linear-gradient(165deg, rgba(236, 227, 198, 0.14), rgba(214, 200, 160, 0.05) 55%, rgba(0, 0, 0, 0.28)),
-    #141826;
-  border: 1px solid color-mix(in srgb, var(--fc) 40%, #3d4438);
-  border-left: 3px solid var(--fc);
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.55), inset 0 0 0 1px rgba(255, 244, 214, 0.04);
+    linear-gradient(168deg, rgba(255, 250, 232, 0.16), rgba(0, 0, 0, 0) 26%),
+    linear-gradient(168deg, #e4d29d 0%, #ccb279 55%, #ab9159 100%);
+  border: 1px solid #86703f; border-top-color: #bb9d61;
+  box-shadow: 0 3px 8px rgba(0, 0, 0, 0.55), inset 0 1px 0 rgba(255, 249, 226, 0.4);
   transition: transform 0.15s ease, filter 0.15s ease, box-shadow 0.15s ease;
 }
-.contract-tile:hover { transform: translateY(-1px); filter: brightness(1.18); z-index: 6; }
-.ct-glyph { width: 14px; height: 18px; flex: none; color: color-mix(in srgb, var(--fc) 70%, #e8e2cf); }
-.ct-glyph svg { width: 100%; height: 100%; display: block; }
+/* the folder tab — pokes above the body, tucked behind it where they meet */
+.contract-tile::before {
+  content: ''; position: absolute; z-index: -1;
+  top: -7px; left: 11px; width: 34px; height: 12px;
+  background: linear-gradient(180deg, color-mix(in srgb, var(--fc) 80%, #fff), var(--fc));
+  border: 1px solid color-mix(in srgb, var(--fc) 55%, #000); border-bottom: none;
+  border-radius: 6px 7px 0 0;
+  box-shadow: 0 -1px 4px rgba(0, 0, 0, 0.35);
+}
+/* a faint ruled fold line near the top of the folder face */
+.contract-tile::after {
+  content: ''; position: absolute; left: 7px; right: 7px; top: 6px; height: 1px;
+  background: rgba(120, 96, 40, 0.35);
+}
+.contract-tile:hover { transform: translateY(-2px); filter: brightness(1.08); z-index: 6; }
+.ct-glyph { display: none; } /* the folder shape is the icon now */
 .ct-name {
-  font: 600 7.5px/1.25 var(--mono); letter-spacing: 0.05em; text-transform: uppercase;
-  color: #e6e0cc; min-width: 0;
+  font: 700 7.5px/1.22 var(--mono); letter-spacing: 0.03em; text-transform: uppercase;
+  color: #3a2c12; min-width: 0;
   display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 3; overflow: hidden;
+  text-shadow: 0 1px 0 rgba(255, 249, 226, 0.45);
 }
 /* remaining-term pip — counts down; gold like the capital economy it belongs to */
 .ct-term {
