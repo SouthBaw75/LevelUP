@@ -1737,3 +1737,70 @@ test('DYNAMIC attack: hand entry previews the live Capital value', () => {
   assert.ok(entry, 'Hedge Fund in hand');
   assert.equal(entry.dynAttack, 5, 'hand shows current capital as its attack');
 });
+
+// ---------------------------------------------------------------------------
+// ADJACENCY BUFF — Armor Plant (vx_009): an asset placed immediately beside it
+// gains +1 Durability (armor), baked at placement, both directions.
+// ---------------------------------------------------------------------------
+test('ARMOR: an asset deployed beside Armor Plant gains +1 Durability', () => {
+  const s = newGame();
+  giveCapital(s, 0, 10);
+  addUnit(s, 0, 'vx_009'); // Armor Plant at index 0
+  const idx = putInHand(s, 0, 'ntr_013'); // 4/5
+  const r = applyAction(s, 0, { type: 'playCard', handIndex: idx, target: null, position: 1 });
+  assert.equal(r.ok, true);
+  const placed = s.players[0].board[1];
+  assert.equal(placed.cardId, 'ntr_013');
+  assert.equal(placed.health, CARDS.ntr_013.health + 1, '+1 current durability');
+  assert.equal(placed.maxHealth, CARDS.ntr_013.health + 1, '+1 max durability');
+  const buff = findAll(r.events, 'buff').find((e) => e.unitId === placed.id);
+  assert.ok(buff && buff.health === 1 && buff.attack === 0, 'a +0/+1 buff was emitted');
+});
+
+test('ARMOR: an asset deployed NOT adjacent gets nothing', () => {
+  const s = newGame();
+  giveCapital(s, 0, 10);
+  addUnit(s, 0, 'vx_009');   // index 0
+  addUnit(s, 0, 'vx_005');   // index 1 (a spacer)
+  const idx = putInHand(s, 0, 'ntr_013');
+  const r = applyAction(s, 0, { type: 'playCard', handIndex: idx, target: null, position: 2 }); // right of the spacer
+  assert.equal(r.ok, true);
+  const placed = s.players[0].board[2];
+  assert.equal(placed.health, CARDS.ntr_013.health, 'no armor when not beside the plant');
+  assert.equal(findAll(r.events, 'buff').length, 0);
+});
+
+test('ARMOR: dropping Armor Plant beside existing assets buffs them (both directions)', () => {
+  const s = newGame();
+  giveCapital(s, 0, 10);
+  const left = addUnit(s, 0, 'ntr_013');  // index 0
+  const right = addUnit(s, 0, 'vx_005');  // index 1
+  const idx = putInHand(s, 0, 'vx_009');  // Armor Plant
+  const r = applyAction(s, 0, { type: 'playCard', handIndex: idx, target: null, position: 1 }); // between them
+  assert.equal(r.ok, true);
+  assert.equal(s.players[0].board[1].cardId, 'vx_009', 'plant landed in the middle');
+  assert.equal(left.health, CARDS.ntr_013.health + 1, 'left neighbor armored');
+  assert.equal(right.health, CARDS.vx_005.health + 1, 'right neighbor armored');
+});
+
+test('ARMOR: an asset flanked by TWO Armor Plants gets +2', () => {
+  const s = newGame();
+  giveCapital(s, 0, 10);
+  addUnit(s, 0, 'vx_009'); // index 0
+  addUnit(s, 0, 'vx_009'); // index 1
+  const idx = putInHand(s, 0, 'ntr_013');
+  const r = applyAction(s, 0, { type: 'playCard', handIndex: idx, target: null, position: 1 }); // between the two plants
+  assert.equal(r.ok, true);
+  const placed = s.players[0].board[1];
+  assert.equal(placed.health, CARDS.ntr_013.health + 2, 'armored by both plants');
+});
+
+test('ARMOR: an enemy Armor Plant never armors your assets', () => {
+  const s = newGame();
+  addUnit(s, 1, 'vx_009'); // enemy plant at their index 0
+  giveCapital(s, 0, 10);
+  const idx = putInHand(s, 0, 'ntr_013');
+  const r = applyAction(s, 0, { type: 'playCard', handIndex: idx, target: null, position: 0 });
+  assert.equal(r.ok, true);
+  assert.equal(s.players[0].board[0].health, CARDS.ntr_013.health, 'no cross-board armor');
+});

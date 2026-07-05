@@ -262,7 +262,9 @@ A('vx_008', 'Repo Squad', 'vulcan', 3, 3, 1, { keywords: ['fasttrack'],
   text: 'FAST-TRACK.',
   flavor: 'They repossess first and read the paperwork in the truck.' });
 A('vx_009', 'Armor Plant', 'vulcan', 4, 4, 5, {
-  flavor: 'OSHA-compliant, Geneva-adjacent.' });
+  text: 'When an asset is placed to the immediate left or right of this, it gains +1 Durability.',
+  flavor: 'OSHA-compliant, Geneva-adjacent.',
+  effects: { adjacencyBuff: { health: 1 } } });
 O('vx_010', 'Carpet Bombing', 'vulcan', 4, { rarity: 'rare',
   text: 'Deal 2 damage to all enemy assets.',
   flavor: 'Restructuring, delivered by air.',

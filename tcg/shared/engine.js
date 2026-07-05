@@ -565,7 +565,40 @@ function summonUnit(state, ev, player, cardId, position = null, overrides = {}) 
     unit: { id: unit.id, cardId: unit.cardId, attack: effectiveAttack(state, unit, player), health: unit.health, keywords: unit.keywords.slice() },
     position: pos,
   });
+  applyAdjacencyBuffs(state, ev, player, pos);
   return unit;
+}
+
+// Placement-time adjacency buffs (Armor Plant: +1 Durability to whatever sits
+// immediately left/right of it). Baked on deploy — persists even if the source
+// later leaves — matching "when placed beside it, gets a buff". Runs BOTH ways:
+// a unit dropped next to a granter, and a granter dropped next to existing units.
+function applyAdjacencyBuffs(state, ev, player, pos) {
+  const board = state.players[player].board;
+  const unit = board[pos];
+  if (!unit) return;
+  // 1) a granter immediately beside the newly-placed unit buffs it
+  for (const j of [pos - 1, pos + 1]) {
+    const nb = board[j];
+    if (nb && CARDS[nb.cardId].effects.adjacencyBuff) {
+      grantStatBuff(ev, unit, CARDS[nb.cardId].effects.adjacencyBuff);
+    }
+  }
+  // 2) if the newly-placed unit is itself a granter, buff its existing neighbors
+  const mine = CARDS[unit.cardId].effects.adjacencyBuff;
+  if (mine) {
+    for (const j of [pos - 1, pos + 1]) {
+      if (board[j]) grantStatBuff(ev, board[j], mine);
+    }
+  }
+}
+function grantStatBuff(ev, unit, buff) {
+  const da = buff.attack || 0, dh = buff.health || 0;
+  if (!da && !dh) return;
+  unit.attack = Math.max(0, unit.attack + da);
+  unit.health += dh;
+  unit.maxHealth += dh;
+  ev.push({ e: 'buff', unitId: unit.id, attack: da, health: dh });
 }
 
 // ---------------------------------------------------------------------------

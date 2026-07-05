@@ -99,6 +99,13 @@ test('every referenced DSL op / special / token / keyword is implemented', () =>
         assert.equal(card.attack, 0, `${card.id} dynamicAttack cards print 0 base attack`);
         continue;
       }
+      if (key === 'adjacencyBuff') {
+        assert.equal(card.type, 'ASSET', `${card.id} adjacencyBuff is asset-only`);
+        assert.ok(val && typeof val === 'object', `${card.id} adjacencyBuff object`);
+        assert.ok(Number.isInteger(val.attack ?? 0) && Number.isInteger(val.health ?? 0),
+          `${card.id} adjacencyBuff deltas`);
+        continue;
+      }
       assert.ok(TRIGGERS.includes(key), `${card.id} unknown trigger ${key}`);
       assert.ok(Array.isArray(val), `${card.id} trigger ${key} must be an ops array`);
       for (const op of val) {
