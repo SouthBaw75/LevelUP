@@ -422,6 +422,10 @@ A('ob_021', 'Bullion Golem', 'obsidian', 8, 8, 8, { rarity: 'epic',
   flavor: 'A hedge against inflation, sentiment, and small-arms fire.' });
 A('ob_022', 'Repo Crew', 'obsidian', 2, 3, 2, {
   flavor: 'They accept cash, cars, and kidneys, in that order.' });
+O('ob_023', 'Counter Offer', 'obsidian', 5, { rarity: 'epic',
+  text: 'Take control of an enemy asset that costs 4 or less.',
+  flavor: 'Name your price. They already did. We doubled it and kept the receipt.',
+  effects: { targeting: 'enemyUnitCost4', play: [{ op: 'special', key: 'stealUnit' }] } });
 
 // ---------------------------------------------------------------------------
 // NEUTRAL — Independent Contractors (ntr)
@@ -642,11 +646,12 @@ export const STARTER_DECKS = {
     ['ntr_005', 'ntr_013'], 'hx_c01'),
   },
   obsidian: {
-    // swaps: -1 ntr_013, -1 ntr_016 / +1 ob_c03 (Liquidation Rights), +1 ntr_c02
+    // swaps: -1 ntr_013 / +1 ob_c03 (Liquidation Rights), +1 ntr_c02;
+    // -2 ntr_016 (Teamsters Rep, vanilla) / +1 ob_023 (Counter Offer, faction steal)
     name: 'Obsidian Capital — Leveraged Everything',
     faction: 'obsidian',
     cards: withContracts(['ob_001', 'ob_003', 'ob_005', 'ob_006', 'ob_007', 'ob_008', 'ob_009',
-      'ob_010', 'ob_012', 'ob_013', 'ob_018', 'ob_019', 'ob_022', 'ntr_013', 'ntr_016'],
-    ['ntr_013', 'ntr_016'], 'ob_c03'),
+      'ob_010', 'ob_012', 'ob_013', 'ob_018', 'ob_019', 'ob_022', 'ntr_013', 'ob_023'],
+    ['ntr_013', 'ob_023'], 'ob_c03'),
   },
 };

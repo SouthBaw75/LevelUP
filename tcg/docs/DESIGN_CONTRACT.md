@@ -275,7 +275,10 @@ import { createGame, applyAction, legalActions, getView, redactEvents, cloneStat
 
 - Unit instance ids: `"u<N>"` unique per game. CEO target ids: `"hero0"`, `"hero1"` (by player index).
 - `target` is required by cards whose effect needs a target (`targeting` field in view hand cards
-  tells the client: `null | "any" | "anyUnit" | "enemyUnit" | "friendlyUnit" | "enemyHero" | "anyHero" | "enemyContract"`).
+  tells the client: `null | "any" | "anyUnit" | "enemyUnit" | "enemyUnitCost4" | "friendlyUnit" | "enemyHero" | "anyHero" | "enemyContract"`).
+  `enemyUnitCost4` = enemy assets whose printed cost is ≤ 4 (Counter Offer's outbid-poach); both
+  the engine `validTargets` and the client highlighter filter on `CARDS[cardId].cost`, which is
+  never modified in-game.
 
 ### View shape (getView result — this exact shape goes over the wire)
 

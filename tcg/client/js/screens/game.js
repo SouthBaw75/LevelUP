@@ -606,6 +606,10 @@ function highlightTargets(targeting) {
     case 'any': targets = [...myUnits, ...oppTargetable, els['g-hero-me'], els['g-hero-opp']]; break;
     case 'anyUnit': targets = [...myUnits, ...oppTargetable]; break;
     case 'enemyUnit': targets = oppTargetable; break;
+    // Counter Offer: only enemy assets whose printed cost is 4 or less light up.
+    // Cost isn't modified in-game, so getCard(cardId).cost matches the server.
+    case 'enemyUnitCost4':
+      targets = oppTargetable.filter((el) => (getCard(el.dataset.cardId)?.cost ?? 0) <= 4); break;
     case 'friendlyUnit': targets = myUnits; break;
     case 'enemyHero': targets = [els['g-hero-opp']]; break;
     case 'anyHero': targets = [els['g-hero-me'], els['g-hero-opp']]; break;

@@ -114,15 +114,15 @@ test('every referenced DSL op / special / token / keyword is implemented', () =>
   }
 });
 
-test('collectible counts match the contract (25 per faction + 36 neutral = 136)', () => {
+test('collectible counts match the contract (26 obsidian, 25 other factions + 36 neutral = 137)', () => {
   const byFaction = {};
   for (const c of collectible) byFaction[c.faction] = (byFaction[c.faction] || 0) + 1;
   assert.equal(byFaction.nexus, 25);
   assert.equal(byFaction.vulcan, 25);
   assert.equal(byFaction.helix, 25);
-  assert.equal(byFaction.obsidian, 25);
+  assert.equal(byFaction.obsidian, 26); // + ob_023 Counter Offer (control-steal)
   assert.equal(byFaction.neutral, 36); // §3c added ntr_033 Layoff Notice; §3d added ntr_034 Whistleblower
-  assert.equal(collectible.length, 136);
+  assert.equal(collectible.length, 137);
   // 3 CONTRACT cards per faction, none neutral (the neutral answers are
   // ntr_c01 ASSET / ntr_c02 OPERATION)
   const contracts = collectible.filter((c) => c.type === 'CONTRACT');

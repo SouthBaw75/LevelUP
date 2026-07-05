@@ -57,8 +57,8 @@ const MAX_CAPITAL = 10;
 const POWER_COST = 2;
 const MAX_CONTRACTS = 3;
 const PLAYABLE_TYPES = ['ASSET', 'OPERATION', 'CONTRACT'];
-const TARGETINGS = [null, 'any', 'anyUnit', 'enemyUnit', 'friendlyUnit', 'enemyHero', 'anyHero',
-  'enemyContract'];
+const TARGETINGS = [null, 'any', 'anyUnit', 'enemyUnit', 'enemyUnitCost4', 'friendlyUnit',
+  'enemyHero', 'anyHero', 'enemyContract'];
 
 // ---------------------------------------------------------------------------
 // Seeded RNG (mulberry32 stepping state.rng)
@@ -227,6 +227,12 @@ function validTargets(state, player, targeting) {
     case 'any': return [...friendlyUnits, ...enemyUnits, 'hero' + player, 'hero' + enemy];
     case 'anyUnit': return [...friendlyUnits, ...enemyUnits];
     case 'enemyUnit': return enemyUnits;
+    // enemy assets printed cost ≤ 4 — for Counter Offer's outbid-poach (§Counter Offer).
+    // Cost is never modified in-game, so the printed CARDS[cardId].cost is stable/correct.
+    case 'enemyUnitCost4':
+      return state.players[enemy].board
+        .filter((u) => !hasKw(u, 'stealth') && (CARDS[u.cardId]?.cost ?? 0) <= 4)
+        .map((u) => u.id);
     case 'friendlyUnit': return friendlyUnits;
     case 'enemyHero': return ['hero' + enemy];
     case 'anyHero': return ['hero' + player, 'hero' + enemy];

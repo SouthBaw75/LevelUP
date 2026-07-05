@@ -683,6 +683,58 @@ test('special stealUnit: Hostile Takeover moves an enemy asset to your board', (
   assert.ok(!legalActions(s, 0).some((a) => a.type === 'attack'), 'stolen unit is summoning-sick');
 });
 
+test('Counter Offer: steals an enemy asset costing 4 or less', () => {
+  const s = newGame();
+  giveCapital(s, 0);
+  const cheap = addUnit(s, 1, 'vx_005'); // Foundry Worker, cost 2
+  const idx = putInHand(s, 0, 'ob_023');
+  const r = applyAction(s, 0, { type: 'playCard', handIndex: idx, target: cheap.id, position: null });
+  assert.equal(r.ok, true);
+  assert.equal(s.players[1].board.length, 0, 'left the enemy board');
+  assert.equal(s.players[0].board.length, 1, 'joined our board');
+  assert.equal(s.players[0].board[0].cardId, 'vx_005');
+  assert.notEqual(s.players[0].board[0].id, cheap.id, 'new unit id on control change');
+});
+
+test('Counter Offer: an enemy asset costing 5+ is NOT a legal target', () => {
+  const s = newGame();
+  giveCapital(s, 0);
+  const big = addUnit(s, 1, 'vx_013'); // War Factory, cost 6
+  const idx = putInHand(s, 0, 'ob_023');
+  // not enumerated as a legal play against the expensive unit
+  const legal = legalActions(s, 0)
+    .filter((a) => a.type === 'playCard' && a.handIndex === idx)
+    .map((a) => a.target);
+  assert.ok(!legal.includes(big.id), 'cost-6 asset not offered as a target');
+  // and the engine rejects it if a client tries anyway
+  const r = applyAction(s, 0, { type: 'playCard', handIndex: idx, target: big.id, position: null });
+  assert.equal(r.ok, false, 'engine rejects the illegal steal');
+  assert.equal(s.players[1].board.length, 1, 'the expensive asset stays put');
+});
+
+test('Counter Offer: a STEALTH enemy asset (even if cheap) is not targetable', () => {
+  const s = newGame();
+  giveCapital(s, 0);
+  const sneaky = addUnit(s, 1, 'ntr_021'); // Corporate Spy, cost 3, STEALTH
+  const idx = putInHand(s, 0, 'ob_023');
+  const legal = legalActions(s, 0)
+    .filter((a) => a.type === 'playCard' && a.handIndex === idx)
+    .map((a) => a.target);
+  assert.ok(!legal.includes(sneaky.id), 'stealth hides it from Counter Offer');
+});
+
+test('Counter Offer: enumerated only against eligible enemy assets', () => {
+  const s = newGame();
+  giveCapital(s, 0);
+  const cheap = addUnit(s, 1, 'vx_005'); // cost 2 — eligible
+  addUnit(s, 1, 'vx_013');               // cost 6 — not eligible
+  const idx = putInHand(s, 0, 'ob_023');
+  const targets = legalActions(s, 0)
+    .filter((a) => a.type === 'playCard' && a.handIndex === idx)
+    .map((a) => a.target);
+  assert.deepEqual(targets, [cheap.id], 'exactly the one eligible target');
+});
+
 test('special summonCopy: Mitosis copies current stats', () => {
   const s = newGame();
   giveCapital(s, 0);
