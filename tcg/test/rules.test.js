@@ -594,6 +594,33 @@ test('destroy: Market Crash destroys all assets, parachutes still fire', () => {
   assert.equal(s.players[1].board[0].cardId, 'hx_t_spore');
 });
 
+test('destroy: The Nuclear Option wipes every asset, including the caster\'s own, parachutes still fire', () => {
+  const s = newGame();
+  giveCapital(s, 0, 10);
+  addUnit(s, 0, 'ntr_013');
+  addUnit(s, 0, 'vx_005');
+  addUnit(s, 1, 'ntr_013');
+  addUnit(s, 1, 'hx_018'); // parachute: spore
+  const idx = putInHand(s, 0, 'ntr_035');
+  const r = applyAction(s, 0, { type: 'playCard', handIndex: idx, target: null, position: null });
+  assert.equal(r.ok, true);
+  assert.equal(findAll(r.events, 'death').length, 4, 'all 4 pre-wipe assets died');
+  assert.equal(s.players[0].board.length, 0, 'caster\'s own board wiped too');
+  assert.equal(s.players[1].board.length, 1, 'spore from parachute survives the wipe');
+  assert.equal(s.players[1].board[0].cardId, 'hx_t_spore');
+});
+
+test('destroy: The Nuclear Option is symmetric — does NOT fire SEVERANCE on your own severance units', () => {
+  const s = newGame();
+  giveCapital(s, 0, 10);
+  addUnit(s, 0, 'ntr_011'); // severance, owner p0 (the caster)
+  const idx = putInHand(s, 0, 'ntr_035');
+  const r = applyAction(s, 0, { type: 'playCard', handIndex: idx, target: null, position: null });
+  assert.equal(r.ok, true);
+  assert.equal(s.players[0].board.length, 0);
+  assert.equal(find(r.events, 'severance'), undefined, 'self-inflicted wipe never triggers severance');
+});
+
 test('returnToHand: bounced unit goes to owner hand; mills if hand full', () => {
   const s = newGame();
   giveCapital(s, 0);

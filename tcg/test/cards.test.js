@@ -122,15 +122,15 @@ test('every referenced DSL op / special / token / keyword is implemented', () =>
   }
 });
 
-test('collectible counts match the contract (26 vulcan, 26 obsidian, 25 nexus/helix + 36 neutral = 138)', () => {
+test('collectible counts match the contract (26 vulcan, 26 obsidian, 25 nexus/helix + 37 neutral = 139)', () => {
   const byFaction = {};
   for (const c of collectible) byFaction[c.faction] = (byFaction[c.faction] || 0) + 1;
   assert.equal(byFaction.nexus, 25);
   assert.equal(byFaction.vulcan, 26); // + vx_c04 Retooling Order (counter aura)
   assert.equal(byFaction.helix, 25);
   assert.equal(byFaction.obsidian, 26); // + ob_023 Counter Offer (control-steal)
-  assert.equal(byFaction.neutral, 36); // §3c added ntr_033 Layoff Notice; §3d added ntr_034 Whistleblower
-  assert.equal(collectible.length, 138);
+  assert.equal(byFaction.neutral, 37); // §3c Layoff Notice; §3d Whistleblower; + ntr_035 The Nuclear Option
+  assert.equal(collectible.length, 139);
   // CONTRACT cards: 3 per faction, plus vx_c04 (a 4th Vulcan, the counter card)
   const contracts = collectible.filter((c) => c.type === 'CONTRACT');
   assert.equal(contracts.length, 13);

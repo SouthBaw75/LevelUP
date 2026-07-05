@@ -572,6 +572,10 @@ O('ntr_033', 'Layoff Notice', 'neutral', 1, { rarity: 'rare',
 A('ntr_034', 'Whistleblower', 'neutral', 3, 2, 4, { keywords: ['severance'], rarity: 'rare',
   text: 'SEVERANCE.',
   flavor: 'Retained counsel before HR retained a reason.' });
+O('ntr_035', 'The Nuclear Option', 'neutral', 9, { rarity: 'legendary',
+  text: 'Destroy ALL assets.',
+  flavor: 'When the board can’t be won, it is instead ended. Every party. No survivors. Full compliance.',
+  effects: { targeting: null, play: [{ op: 'destroy', to: 'allUnits' }] } });
 
 // ---------------------------------------------------------------------------
 // CONTRACTS (§3b) — persistent corporate agreements, plus the two neutral
