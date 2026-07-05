@@ -1239,3 +1239,122 @@ test('cloneState deep-copies contract state', () => {
   assert.equal(s.players[0].contracts[0].turnsLeft, 3);
   assert.notEqual(s.nextContract, 50);
 });
+
+// ---------------------------------------------------------------------------
+// LAYOFF (§3c): free sacrifice — heal your CEO by current Durability
+// ---------------------------------------------------------------------------
+test('layoff heals CEO by CURRENT health; events layoff -> heal -> death', () => {
+  const s = newGame();
+  const u = addUnit(s, 0, 'ob_017', { health: 1 }); // Escrow Guard 1/3, damaged to 1
+  s.players[0].integrity = 20;
+  const r = applyAction(s, 0, { type: 'layoff', unitId: u.id });
+  assert.equal(r.ok, true);
+  assert.equal(s.players[0].integrity, 21, 'healed by current health (1), not maxHealth (3)');
+  assert.equal(s.players[0].board.length, 0, 'unit destroyed');
+  assert.deepEqual(r.events[0], { e: 'layoff', unitId: u.id, cardId: 'ob_017', player: 0 });
+  assert.deepEqual(r.events[1], { e: 'heal', targetId: 'hero0', amount: 1 },
+    'heal emitted BEFORE death, amount captured before removal');
+  assert.deepEqual(r.events[2], { e: 'death', unitId: u.id, cardId: 'ob_017' });
+});
+
+test('layoff is free and ignores exhaustion / summoning sickness', () => {
+  const s = newGame();
+  s.players[0].capital = 0;
+  // just deployed this turn AND already out of attacks: still layoff-able
+  const u = addUnit(s, 0, 'ntr_001', { enteredTurn: s.turn, attacksUsed: 1 });
+  const before = s.players[0].integrity;
+  const r = applyAction(s, 0, { type: 'layoff', unitId: u.id });
+  assert.equal(r.ok, true);
+  assert.equal(s.players[0].capital, 0, 'no capital spent');
+  assert.equal(s.players[0].integrity, before + 1);
+});
+
+test('layoff illegal: no keyword / enemy unit / off-turn / unknown id', () => {
+  const s = newGame();
+  const noKw = addUnit(s, 0, 'ntr_002'); // Temp Worker: no LAYOFF
+  assert.equal(applyAction(s, 0, { type: 'layoff', unitId: noKw.id }).ok, false);
+  const theirs = addUnit(s, 1, 'ntr_001'); // has LAYOFF, but not p0's unit
+  assert.equal(applyAction(s, 0, { type: 'layoff', unitId: theirs.id }).ok, false);
+  assert.equal(applyAction(s, 1, { type: 'layoff', unitId: theirs.id }).ok, false,
+    'not your turn');
+  assert.equal(applyAction(s, 0, { type: 'layoff', unitId: 'u999' }).ok, false);
+  assert.equal(s.players[0].board.length + s.players[1].board.length, 2,
+    'nothing was destroyed');
+  assert.equal(s.players[0].integrity, 30);
+});
+
+test('silence strips LAYOFF: action rejected and no longer enumerated', () => {
+  const s = newGame();
+  giveCapital(s, 0);
+  const u = addUnit(s, 0, 'ntr_001');
+  assert.ok(legalActions(s, 0).some((a) => a.type === 'layoff' && a.unitId === u.id));
+  const idx = putInHand(s, 0, 'ntr_029'); // Gag Order: silence an asset
+  applyAction(s, 0, { type: 'playCard', handIndex: idx, target: u.id, position: null });
+  assert.equal(applyAction(s, 0, { type: 'layoff', unitId: u.id }).ok, false);
+  assert.ok(!legalActions(s, 0).some((a) => a.type === 'layoff'));
+});
+
+test('layoff heal is uncapped: pushes integrity past 30', () => {
+  const s = newGame();
+  const u = addUnit(s, 0, 'ob_017'); // 1/3 at full health
+  assert.equal(s.players[0].integrity, 30);
+  applyAction(s, 0, { type: 'layoff', unitId: u.id });
+  assert.equal(s.players[0].integrity, 33);
+});
+
+test('layoff fires GOLDEN PARACHUTE (Spore Pod summons a Spore)', () => {
+  const s = newGame();
+  const u = addUnit(s, 0, 'hx_018');
+  const r = applyAction(s, 0, { type: 'layoff', unitId: u.id });
+  assert.equal(s.players[0].board.length, 1);
+  assert.equal(s.players[0].board[0].cardId, 'hx_t_spore');
+  const types = r.events.map((e) => e.e);
+  assert.ok(types.indexOf('death') < types.indexOf('summon'), 'parachute after death');
+});
+
+test('layoff fires onFriendlyAssetDestroyed (hx_c03 Life Insurance Policy)', () => {
+  const s = newGame();
+  fileContract(s, 0, 'hx_c03');
+  const u = addUnit(s, 0, 'ob_017'); // current health 3
+  s.players[0].integrity = 20;
+  const r = applyAction(s, 0, { type: 'layoff', unitId: u.id });
+  assert.equal(s.players[0].integrity, 25, 'layoff heal (3) + contract heal (2)');
+  const heals = findAll(r.events, 'heal');
+  assert.deepEqual(heals.map((h) => h.amount), [3, 2]);
+});
+
+test('ntr_033 Layoff Notice: layoffTarget special mirrors the action', () => {
+  const s = newGame();
+  giveCapital(s, 0, 5);
+  const u = addUnit(s, 0, 'hx_018', { health: 1 });
+  s.players[0].integrity = 20;
+  const idx = putInHand(s, 0, 'ntr_033');
+  // requires a friendly target
+  assert.equal(
+    applyAction(s, 0, { type: 'playCard', handIndex: idx, target: null, position: null }).ok,
+    false);
+  const r = applyAction(s, 0, { type: 'playCard', handIndex: idx, target: u.id, position: null });
+  assert.equal(r.ok, true);
+  assert.equal(s.players[0].capital, 4, 'costs 1');
+  assert.equal(s.players[0].integrity, 21, 'heal = current health');
+  assert.equal(s.players[0].board.length, 1, 'destroyed; parachute Spore summoned');
+  assert.equal(s.players[0].board[0].cardId, 'hx_t_spore');
+  const types = r.events.map((e) => e.e);
+  assert.deepEqual(types.slice(0, 5), ['cardPlayed', 'layoff', 'heal', 'death', 'summon'],
+    'same layoff event/order as the action path');
+  assert.deepEqual(find(r.events, 'layoff'),
+    { e: 'layoff', unitId: u.id, cardId: 'hx_018', player: 0 });
+});
+
+test('legalActions enumerates layoff for eligible units only', () => {
+  const s = newGame();
+  const eligible = addUnit(s, 0, 'ntr_001');
+  addUnit(s, 0, 'ntr_002'); // no keyword
+  addUnit(s, 1, 'ntr_001'); // enemy
+  const mine = legalActions(s, 0).filter((a) => a.type === 'layoff');
+  assert.deepEqual(mine, [{ type: 'layoff', unitId: eligible.id }]);
+  assert.deepEqual(legalActions(s, 1), [], 'off-turn: nothing enumerated');
+  // scrapbot token is also eligible
+  const bot = addUnit(s, 0, 'vx_t_scrapbot');
+  assert.ok(legalActions(s, 0).some((a) => a.type === 'layoff' && a.unitId === bot.id));
+});

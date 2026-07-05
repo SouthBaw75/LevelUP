@@ -34,7 +34,7 @@
 //   {op:"transform", cardId, to:"target"}
 //   {op:"silence", to:"target"}
 //   {op:"nullify", to:"target"}                  null & void a contract (targeting "enemyContract")
-//   {op:"special", key, ...}                     keyed handler (legendaries): "stealUnit"|"summonCopy"|"liquidate"
+//   {op:"special", key, ...}                     keyed handler: "stealUnit"|"summonCopy"|"liquidate"|"layoffTarget"
 
 export const CARDS = {};
 
@@ -96,6 +96,7 @@ C({ id: 'ob_power', name: 'Shell Company', faction: 'obsidian', type: 'POWER', c
 A('ob_t_shell', 'Shell Corp', 'obsidian', 1, 1, 1, { collectible: false,
   flavor: 'One employee, zero products, immaculate paperwork.' });
 A('vx_t_scrapbot', 'Scrap Bot', 'vulcan', 1, 2, 1, { collectible: false,
+  keywords: ['layoff'], text: 'LAYOFF.',
   flavor: 'Assembled from recalls.' });
 A('hx_t_hydra', 'Hydra Clone', 'helix', 3, 3, 3, { collectible: false,
   flavor: 'Cut costs, get two departments.' });
@@ -325,8 +326,8 @@ A('hx_017', 'The Hydra Initiative', 'helix', 8, 7, 7, { rarity: 'legendary',
   text: 'GOLDEN PARACHUTE: Summon two 3/3 Hydra Clones.',
   flavor: 'Terminate one department and two more appear in the budget.',
   effects: { parachute: [{ op: 'summon', cardId: 'hx_t_hydra', count: 2 }] } });
-A('hx_018', 'Spore Pod', 'helix', 1, 1, 1, {
-  text: 'GOLDEN PARACHUTE: Summon a 1/1 Spore.',
+A('hx_018', 'Spore Pod', 'helix', 1, 1, 1, { keywords: ['layoff'],
+  text: 'LAYOFF. GOLDEN PARACHUTE: Summon a 1/1 Spore.',
   flavor: 'Severance package includes spores.',
   effects: { parachute: [{ op: 'summon', cardId: 'hx_t_spore' }] } });
 O('hx_019', 'Regrowth', 'helix', 3, {
@@ -402,7 +403,8 @@ A('ob_016', 'The Liquidator', 'obsidian', 6, 5, 5, { rarity: 'legendary',
   text: 'ONBOARDING: Destroy a friendly asset and gain Capital equal to its cost this turn.',
   flavor: 'She can find the resale value of anything, including morale.',
   effects: { targeting: 'friendlyUnit', onboarding: [{ op: 'special', key: 'liquidate' }] } });
-A('ob_017', 'Escrow Guard', 'obsidian', 1, 1, 3, {
+A('ob_017', 'Escrow Guard', 'obsidian', 1, 1, 3, { keywords: ['layoff'],
+  text: 'LAYOFF.',
   flavor: 'Holds funds, grudges, and the elevator.' });
 O('ob_018', 'Depreciation', 'obsidian', 2, {
   text: 'Give an enemy asset -2/-2.',
@@ -423,7 +425,8 @@ A('ob_022', 'Repo Crew', 'obsidian', 2, 3, 2, {
 // ---------------------------------------------------------------------------
 // NEUTRAL — Independent Contractors (ntr)
 // ---------------------------------------------------------------------------
-A('ntr_001', 'Unpaid Intern', 'neutral', 0, 1, 1, {
+A('ntr_001', 'Unpaid Intern', 'neutral', 0, 1, 1, { keywords: ['layoff'],
+  text: 'LAYOFF.',
   flavor: 'Compensation: one (1) line on a résumé.' });
 A('ntr_002', 'Temp Worker', 'neutral', 1, 1, 2, {
   flavor: 'Day 400 of the two-week assignment.' });
@@ -517,6 +520,10 @@ O('ntr_032', 'All-Hands Meeting', 'neutral', 4, {
   text: 'Summon three 1/1 Unpaid Interns.',
   flavor: 'This meeting could have been three emails and one resignation.',
   effects: { targeting: null, play: [{ op: 'summon', cardId: 'ntr_001', count: 3 }] } });
+O('ntr_033', 'Layoff Notice', 'neutral', 1, { rarity: 'rare',
+  text: 'Destroy a friendly asset. Restore Integrity to your CEO equal to its Durability.',
+  flavor: 'Your position has been consolidated into the CEO’s wellness plan.',
+  effects: { targeting: 'friendlyUnit', play: [{ op: 'special', key: 'layoffTarget' }] } });
 
 // ---------------------------------------------------------------------------
 // CONTRACTS (§3b) — persistent corporate agreements, plus the two neutral

@@ -628,6 +628,20 @@ export const OPS = {
   },
 };
 
+// §3c LAYOFF resolution (shared by the `layoff` action and the `layoffTarget`
+// special so both paths emit identical events, in the spec-fixed order):
+// 1. emit `layoff`; 2. heal the actor's CEO by the unit's CURRENT health
+// (captured before removal, uncapped, via the standard heal path); 3. destroy
+// through the same path as the `destroy` op (pendingDestroy + standard
+// sweepDeaths) so GOLDEN PARACHUTE and onFriendlyAssetDestroyed contract
+// triggers (hx_c03, ob_c03) fire normally.
+function layoffUnit(state, ev, player, unit) {
+  ev.push({ e: 'layoff', unitId: unit.id, cardId: unit.cardId, player });
+  healTarget(state, ev, 'hero' + player, unit.health);
+  unit.pendingDestroy = true;
+  sweepDeaths(state, ev);
+}
+
 export const SPECIALS = {
   // take control of the targeted enemy asset (new id; destroyed if board full)
   stealUnit(state, ev, op, ctx) {
@@ -651,6 +665,15 @@ export const SPECIALS = {
       attack: u.attack, health: u.health, maxHealth: u.maxHealth,
       keywords: u.keywords.slice(), silenced: u.silenced,
     });
+  },
+  // §3c: lay off the targeted friendly asset (targeting 'friendlyUnit' —
+  // validTargets already restricts to the caster's own board). Same 3 steps
+  // and same `layoff` event as the layoff action, so the client animates
+  // both paths identically.
+  layoffTarget(state, ev, op, ctx) {
+    const found = ctx.target && findUnit(state, ctx.target);
+    if (!found) return;
+    layoffUnit(state, ev, ctx.player, found.unit);
   },
   // destroy target friendly asset, gain temporary capital equal to its cost
   liquidate(state, ev, op, ctx) {
@@ -889,6 +912,17 @@ function applyActionInner(state, playerIndex, action) {
       return { ok: true, events: ev };
     }
 
+    // §3c LAYOFF: free sacrifice — no capital cost, no exhaustion requirement
+    // (a just-deployed or already-attacked asset may still be laid off).
+    case 'layoff': {
+      const found = findUnit(state, action.unitId);
+      if (!found || found.owner !== playerIndex) return { ok: false, error: 'invalid unit' };
+      if (!hasKw(found.unit, 'layoff'))
+        return { ok: false, error: 'asset does not have LAYOFF' };
+      layoffUnit(state, ev, playerIndex, found.unit);
+      return { ok: true, events: ev };
+    }
+
     default:
       return { ok: false, error: 'unknown action type' };
   }
@@ -927,6 +961,12 @@ export function legalActions(state, playerIndex) {
     if (!unitCanAttack(state, unit)) continue;
     for (const t of attackTargetIds(state, playerIndex))
       actions.push({ type: 'attack', attackerId: unit.id, targetId: t });
+  }
+
+  // §3c: one free layoff per LAYOFF-keyword unit (no cost / exhaustion gate;
+  // silence empties keywords, so silenced units are excluded automatically)
+  for (const unit of p.board) {
+    if (hasKw(unit, 'layoff')) actions.push({ type: 'layoff', unitId: unit.id });
   }
 
   if (!p.powerUsed && p.capital >= POWER_COST) {

@@ -8,7 +8,8 @@ import {
 
 const FACTIONS = ['nexus', 'vulcan', 'helix', 'obsidian', 'neutral'];
 const PREFIX = { nexus: 'nx', vulcan: 'vx', helix: 'hx', obsidian: 'ob', neutral: 'ntr' };
-const KEYWORDS = ['firewall', 'fasttrack', 'stealth', 'shielded', 'overtime', 'toxic', 'siphon'];
+const KEYWORDS = ['firewall', 'fasttrack', 'stealth', 'shielded', 'overtime', 'toxic', 'siphon',
+  'layoff'];
 const RARITIES = ['common', 'rare', 'epic', 'legendary'];
 const TYPES = ['ASSET', 'OPERATION', 'CEO', 'POWER', 'CONTRACT'];
 const TRIGGERS = ['onboarding', 'play', 'parachute', 'endOfTurn',
@@ -113,15 +114,15 @@ test('every referenced DSL op / special / token / keyword is implemented', () =>
   }
 });
 
-test('collectible counts match the contract (25 per faction + 34 neutral = 134)', () => {
+test('collectible counts match the contract (25 per faction + 35 neutral = 135)', () => {
   const byFaction = {};
   for (const c of collectible) byFaction[c.faction] = (byFaction[c.faction] || 0) + 1;
   assert.equal(byFaction.nexus, 25);
   assert.equal(byFaction.vulcan, 25);
   assert.equal(byFaction.helix, 25);
   assert.equal(byFaction.obsidian, 25);
-  assert.equal(byFaction.neutral, 34);
-  assert.equal(collectible.length, 134);
+  assert.equal(byFaction.neutral, 35); // §3c added ntr_033 Layoff Notice
+  assert.equal(collectible.length, 135);
   // 3 CONTRACT cards per faction, none neutral (the neutral answers are
   // ntr_c01 ASSET / ntr_c02 OPERATION)
   const contracts = collectible.filter((c) => c.type === 'CONTRACT');
