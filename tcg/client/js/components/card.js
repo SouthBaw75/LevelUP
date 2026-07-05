@@ -46,6 +46,27 @@ function escapeRegExp(s) {
   return s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 }
 
+function escapeHtml(s) {
+  return String(s ?? '').replace(/[&<>"']/g, (c) =>
+    ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+}
+
+// Bold + faction-tint any ability/keyword LABEL that appears inline in rules
+// text (e.g. "GOLDEN PARACHUTE", "ONBOARDING") so it matches the standalone
+// keyword names. Keywords in the card's `keywords` array are already stripped
+// into the gloss block, so what remains here are the triggered abilities and
+// keyword references (e.g. "gains OVERTIME"). Longest labels first so a label
+// that contains a shorter one can't be double-wrapped.
+const ABILITY_LABELS = Object.values(KEYWORD_NAMES).sort((a, b) => b.length - a.length);
+function highlightAbilities(text) {
+  let html = escapeHtml(text);
+  for (const label of ABILITY_LABELS) {
+    html = html.replace(new RegExp(escapeRegExp(label), 'g'),
+      `<span class="ability-label">${label}</span>`);
+  }
+  return html;
+}
+
 function faceGloss(k) {
   return KEYWORD_FACE_GLOSS[k] || KEYWORD_HELP[k] || '';
 }
@@ -182,7 +203,7 @@ export function renderCard(defOrId, opts = {}) {
   if (bodyText) {
     const txt = document.createElement('div');
     txt.className = 'card-text';
-    txt.textContent = bodyText;
+    txt.innerHTML = highlightAbilities(bodyText); // inline ability labels → bold faction color
     if (combinedLen > 70) txt.classList.add('long');
     if (combinedLen > 115) txt.classList.add('xlong');
     body.appendChild(txt);
