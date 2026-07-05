@@ -63,6 +63,7 @@ battle for industry dominance. Tone: sleek corporate cyberpunk, dry satirical fl
 | `toxic`          | TOXIC ASSET         | Destroys any asset it damages (Poisonous)                       |
 | `siphon`         | SIPHON              | Damage dealt by this also restores your CEO's integrity (Lifesteal) |
 | `layoff`         | LAYOFF              | Once, any time on your turn: sacrifice this asset for free; your CEO gains Integrity equal to its current Durability (see §3c) |
+| `severance`      | SEVERANCE           | When destroyed by an ENEMY, deal 2 damage to the enemy CEO (wrongful-termination suit; see §3d) |
 | Triggered abilities (not stand-alone keywords, defined per-card in effect data):          |
 | `onboarding`     | ONBOARDING          | Effect when played from hand (Battlecry)                        |
 | `parachute`      | GOLDEN PARACHUTE    | Effect when destroyed (Deathrattle)                             |
@@ -129,6 +130,49 @@ Active sacrifice mechanic: convert an asset's remaining Durability into CEO Inte
   normal attack flow; disabled with the usual toast reason if it can't attack) and
   LAYOFF (free; sends the action). Click-away/right-click cancels, same as other modes.
   Units without the keyword keep the existing click behavior exactly.
+
+## 3d. SEVERANCE (v1)
+
+Passive death-reaction keyword: an asset that punishes the ENEMY for destroying it.
+
+- **Effect**: when a unit with live keyword `severance` (not silenced) dies AND its death
+  was caused by the enemy, deal **2 damage to the enemy CEO** (`hero<1-owner>`).
+  This is a wrongful-termination lawsuit — it does NOT fire when the owner destroys their
+  own unit (LAYOFF, Asset Strip, The Liquidator, own AoE, own destroy op).
+- **Kill attribution (the core engine addition)**: units carry a `killedBy` field
+  (player index | null; initialized null at creation, cloned by `cloneState`). It is set
+  to the **causing player** at every point a unit is put on a path to death:
+  - `dealDamage()` — whenever it reduces a unit's `health`, or sets `pendingDestroy` via
+    the attacker's TOXIC: `unit.killedBy = source.player` (guard: only when
+    `typeof source.player === 'number'`). In combat both directions already pass the
+    opponent as `source.player`; effect damage passes the caster; so the killing blow's
+    owner is always recorded, last-writer-wins.
+  - Every other `pendingDestroy = true` site MUST set `killedBy` too, so a stale tag from
+    an earlier non-lethal hit can never mis-fire: `destroy` op → `ctx.player`; `layoffUnit`
+    → the owner (self-sacrifice, so no severance); transform/silence paths as applicable.
+    The engine agent audits ALL `pendingDestroy = true` assignments.
+- **Firing in `sweepDeaths`**: after the existing `onFriendlyAssetDestroyed` and
+  `parachute` resolution for a death wave, iterate the same `dead` list; for each unit
+  with `severance` (and `!silenced`) whose `killedBy === (1 - owner)`, call
+  `dealDamage(state, ev, 'hero'+(1-owner), 2, { player: owner, id: unit.cardId })`.
+  **No `isSpell`** → not boosted by `opDamageBonus` (unit-sourced, like parachute). This
+  sits INSIDE the guarded sweep loop, so lethal severance ends the game via the next
+  `checkHeroes` iteration, and severance-into-severance chains are bounded by the guard.
+- **Emits**: a `severance {unitId, cardId, player, targetId}` event BEFORE its `damage`
+  event (so the client can animate the lawsuit arc), where `player` = the severance unit's
+  owner and `targetId` = the enemy hero id. (§5 event list extended.)
+- **No new action or targeting**; purely reactive. `evaluate()` in the bot may optionally
+  add a small defensive bonus for owning severance units, but is not required.
+- **v1 card changes**:
+  - Keyword `severance` ADDED to existing assets (face text gains "SEVERANCE."):
+    `ob_007` Departing Executive, `ntr_011` Ambulance Chaser, `ntr_015` Process Server.
+  - NEW `ntr_034` **Whistleblower** — neutral ASSET, cost 3, stats 2/4, rare,
+    keywords `['severance']`, text "SEVERANCE.",
+    flavor: a dry corporate-satire one-liner in house style (agent writes it).
+- **Client**: keyword name/help/face-gloss/unit-badge added exactly as LAYOFF was; the
+  `severance` animation is a small legal-document/gavel motif flying from the dying unit's
+  position to the enemy CEO plate (arc like the CEO power beam), landing on the `damage`
+  beat. How-to-play picks it up automatically if it derives from the keyword maps.
 
 ### v1 contract set (12 faction + 2 neutral answers)
 
@@ -266,6 +310,7 @@ Every event: `{ "e": "<type>", ...fields }`. Types (fixed list):
 - `gameOver {winner, reason}`  // reason: "takeover" | "concede" | "timeout" | "desertion"
 - `contractFiled {player, contract:{id, cardId, turnsLeft}}` · `contractVoided {contractId, cardId, reason}` (§3b)
 - `layoff {unitId, cardId, player}` (§3c — always followed by `heal` on the owner's hero, then `death`)
+- `severance {unitId, cardId, player, targetId}` (§3d — emitted during the death sweep, immediately before its `damage` on the enemy hero)
 
 After applying redacted events, the client re-renders from the authoritative `view` that
 accompanies every state broadcast — events are for animation only, never for state derivation.
