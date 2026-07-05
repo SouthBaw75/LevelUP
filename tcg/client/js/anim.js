@@ -392,8 +392,9 @@ function fireShell(fromEl, toEl, duration = 260) {
   setTimeout(() => shell.remove(), duration + 40);
 }
 
-/** Bigger artillery-style explosion: bright core flash + flying shrapnel +
- *  lingering smoke puffs that drift upward, for combat impacts. */
+/** Bigger artillery-style explosion: bright core flash + an expanding
+ *  shockwave ring + flying shrapnel + lingering smoke puffs, for combat
+ *  impacts. Scaled up for a punchier, more satisfying hit. */
 function explosionBurst(el) {
   if (!el) return;
   const { x, y } = centerOf(el);
@@ -402,31 +403,40 @@ function explosionBurst(el) {
   flash.style.left = x + 'px';
   flash.style.top = y + 'px';
   fxLayer.appendChild(flash);
-  setTimeout(() => flash.remove(), 420);
-  for (let i = 0; i < 8; i++) {
+  setTimeout(() => flash.remove(), 480);
+  const ring = document.createElement('div');
+  ring.className = 'explosion-ring';
+  ring.style.left = x + 'px';
+  ring.style.top = y + 'px';
+  fxLayer.appendChild(ring);
+  setTimeout(() => ring.remove(), 460);
+  for (let i = 0; i < 11; i++) {
     const p = document.createElement('div');
     p.className = 'shrapnel';
-    const ang = (Math.PI * 2 * i) / 8 + (Math.random() * 0.4 - 0.2);
-    const dist = 34 + Math.random() * 28;
+    const ang = (Math.PI * 2 * i) / 11 + (Math.random() * 0.4 - 0.2);
+    const dist = 48 + Math.random() * 40;
+    const size = 6 + Math.random() * 4;
+    p.style.width = size + 'px';
+    p.style.height = size + 'px';
     p.style.left = x + 'px';
     p.style.top = y + 'px';
     p.style.setProperty('--dx', Math.cos(ang) * dist + 'px');
     p.style.setProperty('--dy', Math.sin(ang) * dist + 'px');
     fxLayer.appendChild(p);
-    setTimeout(() => p.remove(), 480);
+    setTimeout(() => p.remove(), 520);
   }
-  for (let i = 0; i < 2; i++) {
+  for (let i = 0; i < 4; i++) {
     const s = document.createElement('div');
     s.className = 'smoke-puff';
-    const size = 20 + Math.random() * 14;
+    const size = 30 + Math.random() * 22;
     s.style.width = size + 'px';
     s.style.height = size + 'px';
-    s.style.left = (x + Math.random() * 24 - 12) + 'px';
-    s.style.top = (y + Math.random() * 10 - 5) + 'px';
-    s.style.setProperty('--dx', (Math.random() * 16 - 8) + 'px');
-    s.style.animationDelay = (60 + i * 90) + 'ms';
+    s.style.left = (x + Math.random() * 40 - 20) + 'px';
+    s.style.top = (y + Math.random() * 16 - 8) + 'px';
+    s.style.setProperty('--dx', (Math.random() * 24 - 12) + 'px');
+    s.style.animationDelay = (60 + i * 70) + 'ms';
     fxLayer.appendChild(s);
-    setTimeout(() => s.remove(), 900);
+    setTimeout(() => s.remove(), 950);
   }
 }
 
@@ -761,8 +771,8 @@ async function playEvent(ev) {
           pulseClass(tgt, 'anim-white-flash', 160);
           pulseClass(tgt, up ? 'anim-knock-up' : 'anim-knock-down', 430);
           explosionBurst(tgt);
-          screenShake(heroHit ? 'medium' : 'small');
-          hitStop(70);
+          screenShake(heroHit ? 'heavy' : 'medium');
+          hitStop(90);
         }, 160);
       }
       await wait(445);
