@@ -188,6 +188,7 @@ function makeUnit(state, cardId, overrides = {}) {
     enteredTurn: state.turn,
     silenced: false,
     pendingDestroy: false,
+    killedBy: null, // §3d: player index that put this unit on a death path (last-writer-wins)
     ...overrides,
   };
 }
@@ -355,7 +356,13 @@ function dealDamage(state, ev, targetId, amount, source = {}) {
     }
     unit.health -= amount;
     ev.push(evBase);
-    if (source.unit && hasKw(source.unit, 'toxic')) unit.pendingDestroy = true;
+    // §3d kill attribution: record the causing player on any health reduction
+    // (and any TOXIC-set death), guarded to a real player index; last-writer-wins.
+    if (typeof source.player === 'number') unit.killedBy = source.player;
+    if (source.unit && hasKw(source.unit, 'toxic')) {
+      unit.pendingDestroy = true;
+      if (typeof source.player === 'number') unit.killedBy = source.player;
+    }
   }
   if (source.unit && hasKw(source.unit, 'siphon')) {
     healTarget(state, ev, 'hero' + source.player, amount);
@@ -441,6 +448,19 @@ function sweepDeaths(state, ev) {
           player: d.owner, sourceUnit: d.unit, target: null, position: d.index,
         });
       }
+    }
+    // §3d SEVERANCE: after parachutes, an ENEMY-caused death of a live-keyword
+    // (non-silenced) severance unit sues — 2 damage to the enemy CEO. Emit the
+    // `severance` event before its `damage`. Unit-sourced (no isSpell → not
+    // opDamageBonus-boosted). Lethal severance is caught by the next
+    // checkHeroes iteration of this guarded loop.
+    for (const d of dead) {
+      if (state.over) break;
+      if (d.unit.silenced || !hasKw(d.unit, 'severance')) continue;
+      if (d.unit.killedBy !== 1 - d.owner) continue;
+      const targetId = 'hero' + (1 - d.owner);
+      ev.push({ e: 'severance', unitId: d.unit.id, cardId: d.unit.cardId, player: d.owner, targetId });
+      dealDamage(state, ev, targetId, 2, { player: d.owner, id: d.unit.cardId });
     }
   }
 }
@@ -559,7 +579,10 @@ export const OPS = {
   destroy(state, ev, op, ctx) {
     for (const id of resolveTargets(state, ctx, op.to)) {
       const found = findUnit(state, id);
-      if (found) found.unit.pendingDestroy = true;
+      if (found) {
+        found.unit.pendingDestroy = true;
+        found.unit.killedBy = ctx.player; // §3d: attributed to the caster
+      }
     }
   },
   returnToHand(state, ev, op, ctx) {
@@ -639,6 +662,7 @@ function layoffUnit(state, ev, player, unit) {
   ev.push({ e: 'layoff', unitId: unit.id, cardId: unit.cardId, player });
   healTarget(state, ev, 'hero' + player, unit.health);
   unit.pendingDestroy = true;
+  unit.killedBy = player; // §3d: self-sacrifice — owner-caused, so severance must NOT fire
   sweepDeaths(state, ev);
 }
 
@@ -680,6 +704,7 @@ export const SPECIALS = {
     const found = ctx.target && findUnit(state, ctx.target);
     if (!found) return;
     found.unit.pendingDestroy = true;
+    found.unit.killedBy = ctx.player; // §3d: owner-caused sacrifice, no severance
     const cost = CARDS[found.unit.cardId].cost;
     if (cost > 0) OPS.addCapital(state, ev, { op: 'addCapital', amount: cost }, ctx);
   },

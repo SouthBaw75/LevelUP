@@ -366,8 +366,8 @@ O('ob_006', 'Aggressive Expansion', 'obsidian', 2, { rarity: 'rare',
   text: 'Gain 1 permanent maximum Capital.',
   flavor: 'Growth strategy: buy the strategy department of a growth company.',
   effects: { targeting: null, play: [{ op: 'addCapital', amount: 1, permanent: true }] } });
-A('ob_007', 'Departing Executive', 'obsidian', 3, 3, 2, {
-  text: 'GOLDEN PARACHUTE: Draw a card.',
+A('ob_007', 'Departing Executive', 'obsidian', 3, 3, 2, { keywords: ['severance'],
+  text: 'SEVERANCE. GOLDEN PARACHUTE: Draw a card.',
   flavor: 'Failed upward with such velocity he achieved orbit.',
   effects: { parachute: [{ op: 'draw', count: 1 }] } });
 A('ob_008', 'Shell Game Operator', 'obsidian', 4, 3, 3, { keywords: ['shielded'], rarity: 'rare',
@@ -450,7 +450,8 @@ A('ntr_009', 'Consultant', 'neutral', 3, 3, 4, {
   flavor: 'Borrowed your watch to bill you the time.' });
 A('ntr_010', 'HR Department', 'neutral', 3, 2, 5, {
   flavor: 'This conversation is confidential and already forwarded.' });
-A('ntr_011', 'Ambulance Chaser', 'neutral', 3, 4, 2, {
+A('ntr_011', 'Ambulance Chaser', 'neutral', 3, 4, 2, { keywords: ['severance'],
+  text: 'SEVERANCE.',
   flavor: 'Have YOU been injured by a rival conglomerate?' });
 A('ntr_012', 'Front Desk Barricade', 'neutral', 3, 1, 4, { keywords: ['firewall'],
   text: 'FIREWALL.',
@@ -460,8 +461,8 @@ A('ntr_013', 'Middle Management', 'neutral', 4, 4, 5, {
 A('ntr_014', 'Compliance Officer', 'neutral', 4, 2, 6, { keywords: ['firewall'],
   text: 'FIREWALL.',
   flavor: 'Fun is a reportable incident.' });
-A('ntr_015', 'Process Server', 'neutral', 4, 3, 3, {
-  text: 'ONBOARDING: Deal 1 damage to any target.',
+A('ntr_015', 'Process Server', 'neutral', 4, 3, 3, { keywords: ['severance'],
+  text: 'SEVERANCE. ONBOARDING: Deal 1 damage to any target.',
   flavor: 'You’ve been served. Literally and legally.',
   effects: { targeting: 'any', onboarding: [{ op: 'damage', amount: 1, to: 'target' }] } });
 A('ntr_016', 'Teamsters Rep', 'neutral', 5, 5, 6, {
@@ -524,6 +525,9 @@ O('ntr_033', 'Layoff Notice', 'neutral', 1, { rarity: 'rare',
   text: 'Destroy a friendly asset. Restore Integrity to your CEO equal to its Durability.',
   flavor: 'Your position has been consolidated into the CEO’s wellness plan.',
   effects: { targeting: 'friendlyUnit', play: [{ op: 'special', key: 'layoffTarget' }] } });
+A('ntr_034', 'Whistleblower', 'neutral', 3, 2, 4, { keywords: ['severance'], rarity: 'rare',
+  text: 'SEVERANCE.',
+  flavor: 'Retained counsel before HR retained a reason.' });
 
 // ---------------------------------------------------------------------------
 // CONTRACTS (§3b) — persistent corporate agreements, plus the two neutral

@@ -749,6 +749,9 @@ function logEvent(ev) {
     case 'layoff':
       logLine(`${card(ev.cardId)} was <span class="dmg">laid off</span>.`);
       break;
+    case 'severance':
+      logLine(`${card(ev.cardId)} filed a <span class="dmg">wrongful-termination suit</span>.`);
+      break;
     case 'buff':
       logLine(`<b>${escapeHtml(nameOfTarget(ev.unitId))}</b> gained +${ev.attack ?? 0}/+${ev.health ?? 0}.`);
       break;

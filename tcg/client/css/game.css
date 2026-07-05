@@ -1020,3 +1020,31 @@
   animation: wisp-flicker 0.24s ease-in-out infinite alternate;
 }
 @keyframes wisp-flicker { from { filter: brightness(1); } to { filter: brightness(1.55); } }
+
+/* ---------- severance event fx: lawsuit doc/gavel arc + "SERVED" verdict ---------- */
+/* legal-document + gavel ghost that arcs from a dying SEVERANCE unit to the
+   enemy CEO. left/top set once at spawn; the flight is an inline transform
+   transition (compositor-friendly), so only the drop-shadow is styled here. */
+.severance-doc {
+  position: absolute; z-index: 165; width: 40px; height: 40px; pointer-events: none;
+  filter: drop-shadow(0 4px 10px rgba(0, 0, 0, 0.6)) drop-shadow(0 0 8px rgba(230, 199, 102, 0.55));
+}
+.severance-doc svg { width: 100%; height: 100%; display: block; }
+/* gold "SERVED" verdict stamp slammed onto the enemy CEO as the suit lands */
+.severance-verdict {
+  position: absolute; z-index: 170; pointer-events: none;
+  transform: translate(-50%, -50%);
+  font: 900 12px/1 var(--mono); letter-spacing: 0.18em; white-space: nowrap;
+  padding: 4px 7px; border: 2.5px solid currentColor; border-radius: 3px;
+  color: #e6c766; background: rgba(38, 30, 8, 0.6);
+  box-shadow: 0 0 14px rgba(230, 199, 102, 0.5), inset 0 0 10px rgba(230, 199, 102, 0.22);
+  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.8);
+  animation: severance-verdict-slam 0.62s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+}
+@keyframes severance-verdict-slam {
+  0% { opacity: 0; transform: translate(-50%, -50%) scale(2) rotate(-8deg); }
+  24% { opacity: 1; transform: translate(-50%, -50%) scale(0.9) rotate(6deg); }
+  38% { transform: translate(-50%, -50%) scale(1.06) rotate(5deg); }
+  52%, 78% { opacity: 1; transform: translate(-50%, -50%) scale(1) rotate(5deg); }
+  100% { opacity: 0; transform: translate(-50%, -50%) scale(1) rotate(5deg); }
+}

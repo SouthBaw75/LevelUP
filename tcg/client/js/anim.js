@@ -501,6 +501,24 @@ function contractDocGhost() {
   return g;
 }
 
+/** Legal-document + gavel ghost lobbed from a dying SEVERANCE unit to the
+ *  enemy CEO — the wrongful-termination "lawsuit" motif (§3d). */
+function severanceDocGhost() {
+  const g = document.createElement('div');
+  g.className = 'severance-doc';
+  g.innerHTML = `<svg viewBox="0 0 44 44" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+    <path d="M4 3 h16 l7 7 v27 h-23 z" fill="#e8e0c6" stroke="#8a8266" stroke-width="1.3" stroke-linejoin="round"/>
+    <path d="M20 3 v7 h7" fill="#cfc6a6" stroke="#8a8266" stroke-width="1.3" stroke-linejoin="round"/>
+    <path d="M8 16 h15 M8 20 h15 M8 24 h10" stroke="#6b6450" stroke-width="1.3" stroke-opacity="0.75"/>
+    <g transform="rotate(40 30 30)">
+      <rect x="20" y="27.5" width="20" height="5" rx="1.6" fill="#c9a24a" stroke="#7a5c1e" stroke-width="1.1"/>
+      <rect x="28.5" y="17" width="4.5" height="18" rx="2" fill="#d9b45a" stroke="#7a5c1e" stroke-width="1.1"/>
+      <rect x="24" y="12" width="14" height="9" rx="2" fill="#e6c766" stroke="#7a5c1e" stroke-width="1.2"/>
+    </g>
+  </svg>`;
+  return g;
+}
+
 /** Nullified contract: the tile is cut into falling paper strips. */
 function shredBurst(el) {
   if (!el) return;
@@ -984,6 +1002,67 @@ async function playEvent(ev) {
         }
       }
       await wait(420);
+      break;
+    }
+    case 'severance': {
+      // §3d: a wrongful-termination lawsuit fired during the death sweep — a
+      // legal-document/gavel motif arcs from the dying unit's board position to
+      // the enemy CEO plate, landing on the `damage` event that IMMEDIATELY
+      // FOLLOWS in this same batch. That damage event owns the −2 float and the
+      // integrity-chip update; this beat renders NO number — only the arc plus
+      // an impact flash + red hurt beat that foreshadow the incoming hit.
+      audio.playSfx('sfx-severance', 'sfx-play'); // optional drop-in; falls back
+      const SEV_GOLD = '#e6c766'; // legal-parchment gold — distinct from cyan CEO-power beams
+      const target = hooks.resolveTarget(ev.targetId); // enemy CEO plate
+      // The dying unit may already be mid death-removal (or gone) from the DOM.
+      // Fall back to the owner's board-row center; if that too is missing, skip
+      // the origin entirely and just pulse the target.
+      const originEl = hooks.resolveTarget(ev.unitId);
+      const originRow = hooks.boardRow?.(ev.player);
+      const from = originEl ? centerOf(originEl)
+        : (originRow ? centerOf(originRow) : null);
+      if (target) {
+        const to = centerOf(target);
+        if (from) {
+          // gavel/document ghost arcs origin → enemy CEO (two-phase transform
+          // arc; left/top set once at spawn, all motion is transform-only)
+          const doc = severanceDocGhost();
+          doc.style.left = from.x + 'px';
+          doc.style.top = from.y + 'px';
+          doc.style.transform = 'translate(-50%,-50%) rotate(-10deg) scale(0.7)';
+          fxLayer.appendChild(doc);
+          void doc.offsetWidth;
+          const midX = (from.x + to.x) / 2, midY = Math.min(from.y, to.y) - 54;
+          doc.style.transition = 'transform 200ms ease-out';
+          doc.style.transform = `translate(-50%,-50%) translate(${midX - from.x}px, ${midY - from.y}px) rotate(6deg) scale(1)`;
+          fxTimeout(() => {
+            doc.style.transition = 'transform 200ms ease-in';
+            doc.style.transform = `translate(-50%,-50%) translate(${to.x - from.x}px, ${to.y - from.y}px) rotate(16deg) scale(0.82)`;
+          }, 200);
+          setTimeout(() => doc.remove(), 460);
+          // parchment-gold energy line reinforcing the suit's path — reuses the
+          // CEO-power beam primitive (beam A→B with a color). Only when the
+          // dying unit is still in the DOM (powerBeam needs both endpoints).
+          if (originEl) powerBeam(originEl, target, SEV_GOLD, 240);
+        }
+        // impact on the enemy CEO plate as the suit lands (~on the damage beat):
+        // gold "SERVED" verdict stamp + flash + red hurt vignette + a light
+        // shake to foreshadow the damage event that follows. NO number here.
+        fxTimeout(() => {
+          const stamp = document.createElement('div');
+          stamp.className = 'severance-verdict';
+          stamp.textContent = 'SERVED';
+          stamp.style.left = to.x + 'px';
+          stamp.style.top = to.y + 'px';
+          fxLayer.appendChild(stamp);
+          setTimeout(() => stamp.remove(), 640);
+          impactAt(target, 2);
+          pulseClass(target, 'anim-shake', 300);
+          heroHurtVignette();
+          screenShake('small');
+        }, from ? 380 : 40);
+      }
+      await wait(from ? 430 : 200);
       break;
     }
     case 'contractFiled': {
