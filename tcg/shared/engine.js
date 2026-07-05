@@ -58,7 +58,7 @@ const POWER_COST = 2;
 const MAX_CONTRACTS = 3;
 const PLAYABLE_TYPES = ['ASSET', 'OPERATION', 'CONTRACT'];
 const TARGETINGS = [null, 'any', 'anyUnit', 'enemyUnit', 'enemyUnitCost4', 'friendlyUnit',
-  'enemyHero', 'anyHero', 'enemyContract'];
+  'friendlyUnitNoFirewall', 'enemyHero', 'anyHero', 'enemyContract'];
 
 // ---------------------------------------------------------------------------
 // Seeded RNG (mulberry32 stepping state.rng)
@@ -234,6 +234,9 @@ function validTargets(state, player, targeting) {
         .filter((u) => !hasKw(u, 'stealth') && (CARDS[u.cardId]?.cost ?? 0) <= 4)
         .map((u) => u.id);
     case 'friendlyUnit': return friendlyUnits;
+    // friendly assets that don't already have FIREWALL (Firewall Upgrade)
+    case 'friendlyUnitNoFirewall':
+      return state.players[player].board.filter((u) => !hasKw(u, 'firewall')).map((u) => u.id);
     case 'enemyHero': return ['hero' + enemy];
     case 'anyHero': return ['hero' + player, 'hero' + enemy];
     case 'enemyContract': return state.players[enemy].contracts.map((c) => c.id);

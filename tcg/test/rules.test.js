@@ -1804,3 +1804,42 @@ test('ARMOR: an enemy Armor Plant never armors your assets', () => {
   assert.equal(r.ok, true);
   assert.equal(s.players[0].board[0].health, CARDS.ntr_013.health, 'no cross-board armor');
 });
+
+// ---------------------------------------------------------------------------
+// FIREWALL UPGRADE (ntr_036): grant FIREWALL to a friendly asset that lacks it.
+// ---------------------------------------------------------------------------
+test('FIREWALL UPGRADE: grants FIREWALL to a friendly asset', () => {
+  const s = newGame();
+  giveCapital(s, 0, 10);
+  const u = addUnit(s, 0, 'ntr_013'); // no firewall
+  const idx = putInHand(s, 0, 'ntr_036');
+  const r = applyAction(s, 0, { type: 'playCard', handIndex: idx, target: u.id, position: null });
+  assert.equal(r.ok, true);
+  assert.ok(u.keywords.includes('firewall'), 'asset now has FIREWALL');
+  assert.ok(find(r.events, 'keyword'), 'keyword grant event emitted');
+});
+
+test('FIREWALL UPGRADE: assets that already have FIREWALL are not legal targets', () => {
+  const s = newGame();
+  giveCapital(s, 0, 10);
+  const already = addUnit(s, 0, 'ntr_007'); // Security Guard — already FIREWALL
+  const fresh = addUnit(s, 0, 'ntr_013');   // no firewall
+  const idx = putInHand(s, 0, 'ntr_036');
+  const targets = legalActions(s, 0)
+    .filter((a) => a.type === 'playCard' && a.handIndex === idx)
+    .map((a) => a.target);
+  assert.ok(targets.includes(fresh.id), 'the non-firewall asset IS a target');
+  assert.ok(!targets.includes(already.id), 'the already-firewall asset is NOT');
+});
+
+test('FIREWALL UPGRADE: an enemy asset is never a legal target', () => {
+  const s = newGame();
+  giveCapital(s, 0, 10);
+  const enemy = addUnit(s, 1, 'ntr_013');
+  addUnit(s, 0, 'ntr_002'); // a friendly target so the card is playable
+  const idx = putInHand(s, 0, 'ntr_036');
+  const targets = legalActions(s, 0)
+    .filter((a) => a.type === 'playCard' && a.handIndex === idx)
+    .map((a) => a.target);
+  assert.ok(!targets.includes(enemy.id), 'cannot upgrade an enemy asset');
+});

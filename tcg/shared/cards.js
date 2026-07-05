@@ -584,6 +584,10 @@ O('ntr_035', 'The Nuclear Option', 'neutral', 9, { rarity: 'legendary',
   text: 'Destroy ALL assets.',
   flavor: 'When the board can’t be won, it is instead ended. Every party. No survivors. Full compliance.',
   effects: { targeting: null, play: [{ op: 'destroy', to: 'allUnits' }] } });
+O('ntr_036', 'Firewall Upgrade', 'neutral', 1, {
+  text: 'Give a friendly asset FIREWALL.',
+  flavor: 'Patched, hardened, and now legally a load-bearing wall.',
+  effects: { targeting: 'friendlyUnitNoFirewall', play: [{ op: 'grantKeyword', keyword: 'firewall', to: 'target' }] } });
 
 // ---------------------------------------------------------------------------
 // CONTRACTS (§3b) — persistent corporate agreements, plus the two neutral

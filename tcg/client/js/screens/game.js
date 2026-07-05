@@ -612,6 +612,9 @@ function highlightTargets(targeting) {
     case 'enemyUnitCost4':
       targets = oppTargetable.filter((el) => (getCard(el.dataset.cardId)?.cost ?? 0) <= 4); break;
     case 'friendlyUnit': targets = myUnits; break;
+    // Firewall Upgrade: only friendly assets that don't already have FIREWALL
+    case 'friendlyUnitNoFirewall':
+      targets = myUnits.filter((el) => !el.classList.contains('has-firewall')); break;
     case 'enemyHero': targets = [els['g-hero-opp']]; break;
     case 'anyHero': targets = [els['g-hero-me'], els['g-hero-opp']]; break;
     case 'enemyContract': targets = [...els['g-contracts-opp'].querySelectorAll('.contract-tile')]; break;
