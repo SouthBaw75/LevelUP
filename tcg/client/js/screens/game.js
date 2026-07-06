@@ -200,6 +200,7 @@ const hooks = {
   boardRow(player) { return player === youIdx ? els['g-row-me'] : els['g-row-opp']; },
   contractZone(player) { return player === youIdx ? els['g-contracts-me'] : els['g-contracts-opp']; },
   deckAnchor(player) { return player === youIdx ? els['g-deck-me'] : els['g-deck-opp']; },
+  capitalAnchor(player) { return player === youIdx ? els['g-cap-me'] : els['g-cap-opp']; },
   handAnchor(player) { return player === youIdx ? els['g-hand'] : els['g-opp-hand']; },
   tableEl() { return els['g-table']; },
   applyView(batch) {
@@ -781,6 +782,9 @@ function logEvent(ev) {
       break;
     case 'distract':
       if (ev.turns >= 3) logLine(`<b>${escapeHtml(nameOfTarget(ev.unitId))}</b> is <span class="dmg">distracted</span> — can’t attack for ${ev.turns} turns.`);
+      break;
+    case 'capitalRaid':
+      logLine(`${card(ev.cardId)} raided ${who(ev.targetPlayer)} — <span class="dmg">−1 Capital</span> next turn.`);
       break;
     case 'contractFiled': {
       const term = ev.contract && ev.contract.turnsLeft != null ? ` (term: ${ev.contract.turnsLeft})` : '';

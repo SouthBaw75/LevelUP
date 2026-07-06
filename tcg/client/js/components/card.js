@@ -22,6 +22,7 @@ const KEYWORD_FACE_GLOSS = {
   layoff: 'Sacrifice: CEO gains its Integrity.',
   severance: 'Destroyed by foe: draw a card.',
   bullish: 'Overkill carries to the enemy CEO.',
+  raid: 'Surviving an attack steals 1 enemy Capital.',
 };
 
 // Per-card keyword display label (flavor rename of a mechanic, e.g. Hedge Fund
@@ -428,6 +429,7 @@ const UNIT_KW_GLYPH = {
   layoff: '\u{1FA93}', // axe
   severance: '\u{1F4B0}', // money bag (payout)
   bullish: '\u{1F402}', // ox/bull — trample (and bull-market pun)
+  raid: '\u{1FA99}', // coin — capital steal
 };
 
 // ---- enlarged hover preview layer ----

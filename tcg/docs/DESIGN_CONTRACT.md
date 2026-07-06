@@ -68,6 +68,7 @@ battle for industry dominance. Tone: sleek corporate cyberpunk, dry satirical fl
 | `bullish`        | BULLISH             | Attacking an asset: Attack beyond the blocker's Integrity carries to the enemy CEO (Trample). Assigns lethal to the blocker + overflow to the CEO (the two sum to Attack, so siphon counts once). Tramples through FIREWALL. |
 | `layoff`         | LAYOFF              | Once, any time on your turn: sacrifice this asset for free; your CEO gains Integrity equal to its current Integrity (see §3c) |
 | `severance`      | SEVERANCE           | When destroyed by an ENEMY, its owner draws a card (compensation payout; see §3d) |
+| `raid`           | RAID                | An attack this unit survives (checked after damage/retaliation resolve, before the death sweep) banks a 1-Capital steal against the defender — applied once and cleared at the start of the defender's next turn |
 | Triggered abilities (not stand-alone keywords, defined per-card in effect data):          |
 | `onboarding`     | ONBOARDING          | Effect when played from hand (Battlecry)                        |
 | `parachute`      | GOLDEN PARACHUTE    | Effect when destroyed (Deathrattle)                             |
@@ -350,6 +351,7 @@ Every event: `{ "e": "<type>", ...fields }`. Types (fixed list):
 - `contractFiled {player, contract:{id, cardId, turnsLeft}}` · `contractVoided {contractId, cardId, reason}` (§3b)
 - `layoff {unitId, cardId, player}` (§3c — always followed by `heal` on the owner's hero, then `death`)
 - `severance {unitId, cardId, player}` (§3d — emitted during the death sweep, immediately before its `draw` for the owner)
+- `capitalRaid {unitId, cardId, player, targetPlayer}` (RAID — survived attack banks a 1-Capital steal, applied at the start of `targetPlayer`'s next turn; see §3)
 
 After applying redacted events, the client re-renders from the authoritative `view` that
 accompanies every state broadcast — events are for animation only, never for state derivation.

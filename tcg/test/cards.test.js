@@ -9,7 +9,7 @@ import {
 const FACTIONS = ['nexus', 'vulcan', 'helix', 'obsidian', 'neutral'];
 const PREFIX = { nexus: 'nx', vulcan: 'vx', helix: 'hx', obsidian: 'ob', neutral: 'ntr' };
 const KEYWORDS = ['firewall', 'fasttrack', 'stealth', 'shielded', 'overtime', 'toxic', 'siphon',
-  'layoff', 'severance', 'bullish'];
+  'layoff', 'severance', 'bullish', 'raid'];
 const TAG_VALUES = ['robotic', 'software', 'facility', 'organism', 'financial', 'personnel'];
 const RARITIES = ['common', 'rare', 'epic', 'legendary'];
 const TYPES = ['ASSET', 'OPERATION', 'CEO', 'POWER', 'CONTRACT'];

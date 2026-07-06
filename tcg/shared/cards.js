@@ -416,7 +416,8 @@ A('ob_007', 'Departing Executive', 'obsidian', 3, 3, 2, { keywords: ['severance'
 A('ob_008', 'Shell Game Operator', 'obsidian', 4, 3, 3, { keywords: ['shielded'], rarity: 'rare',
   text: 'PATENT PROTECTION.',
   flavor: 'Follow the money. You won’t.' });
-A('ob_009', 'Corporate Raider', 'obsidian', 4, 4, 5, {
+A('ob_009', 'Corporate Raider', 'obsidian', 4, 4, 5, { keywords: ['raid'],
+  text: 'RAID.',
   flavor: 'He circles distressed companies the way vultures circle, well, him.' });
 O('ob_010', 'Insider Trading', 'obsidian', 3, {
   text: 'Draw 2 cards. Deal 2 damage to your CEO.',

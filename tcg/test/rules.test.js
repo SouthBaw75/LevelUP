@@ -1920,6 +1920,74 @@ test('BULLISH + SIPHON (Gigafauna): overflow to the CEO also siphons', () => {
 });
 
 // ---------------------------------------------------------------------------
+// RAID (Corporate Raider ob_009): a survived attack banks a 1-Capital steal
+// against the defender, applied once at the start of their next turn.
+// ---------------------------------------------------------------------------
+test('RAID: attacking the enemy CEO directly and surviving banks a capital drain', () => {
+  const s = newGame();
+  const raider = addUnit(s, 0, 'ob_009');
+  const r = applyAction(s, 0, { type: 'attack', attackerId: raider.id, targetId: 'hero1' });
+  assert.equal(r.ok, true);
+  assert.equal(s.players[1].capitalDrain, 1);
+  const ev = find(r.events, 'capitalRaid');
+  assert.ok(ev, 'capitalRaid event emitted');
+  assert.equal(ev.player, 0);
+  assert.equal(ev.targetPlayer, 1);
+  assert.equal(ev.unitId, raider.id);
+  assert.equal(ev.cardId, 'ob_009');
+});
+
+test('RAID: the banked drain reduces the victim\'s capital exactly once, then clears', () => {
+  const s = newGame();
+  const raider = addUnit(s, 0, 'ob_009');
+  applyAction(s, 0, { type: 'attack', attackerId: raider.id, targetId: 'hero1' });
+  end(s); // -> player 1's turn: startTurn applies + clears the drain
+  assert.equal(s.players[1].maxCapital, 1);
+  assert.equal(s.players[1].capital, 0, 'drain knocked a full point off this turn only');
+  assert.equal(s.players[1].capitalDrain, 0, 'drain cleared after being applied');
+});
+
+test('RAID: killing a blocker while surviving still banks the drain', () => {
+  const s = newGame();
+  const raider = addUnit(s, 0, 'ob_009'); // 4/4/5
+  const weak = addUnit(s, 1, 'ntr_013', { attack: 2, health: 3, maxHealth: 3 });
+  const r = applyAction(s, 0, { type: 'attack', attackerId: raider.id, targetId: weak.id });
+  assert.equal(r.ok, true);
+  assert.equal(s.players[1].board.length, 0, 'blocker destroyed');
+  assert.equal(raider.health, 3, 'raider took 2 retaliation but survived');
+  assert.equal(s.players[1].capitalDrain, 1);
+});
+
+test('RAID: dying to retaliation does NOT bank a drain', () => {
+  const s = newGame();
+  const raider = addUnit(s, 0, 'ob_009'); // 4/4/5
+  const brawler = addUnit(s, 1, 'ntr_013', { attack: 6, health: 6, maxHealth: 6 });
+  const r = applyAction(s, 0, { type: 'attack', attackerId: raider.id, targetId: brawler.id });
+  assert.equal(r.ok, true);
+  assert.equal(s.players[0].board.length, 0, 'raider died to retaliation');
+  assert.equal(s.players[1].capitalDrain, 0, 'no drain — the raider did not survive');
+  assert.equal(find(r.events, 'capitalRaid'), undefined);
+});
+
+test('RAID: a non-RAID attacker never banks a drain', () => {
+  const s = newGame();
+  const norm = addUnit(s, 0, 'ntr_019');
+  const r = applyAction(s, 0, { type: 'attack', attackerId: norm.id, targetId: 'hero1' });
+  assert.equal(r.ok, true);
+  assert.equal(s.players[1].capitalDrain, 0);
+  assert.equal(find(r.events, 'capitalRaid'), undefined);
+});
+
+test('RAID: two survived raids before the victim\'s next turn stack the drain', () => {
+  const s = newGame();
+  const raider1 = addUnit(s, 0, 'ob_009');
+  const raider2 = addUnit(s, 0, 'ob_009');
+  applyAction(s, 0, { type: 'attack', attackerId: raider1.id, targetId: 'hero1' });
+  applyAction(s, 0, { type: 'attack', attackerId: raider2.id, targetId: 'hero1' });
+  assert.equal(s.players[1].capitalDrain, 2, 'both raids banked');
+});
+
+// ---------------------------------------------------------------------------
 // FLIRTY INTERN (ntr_037): distract an enemy asset — can't attack for 3 turns.
 // ---------------------------------------------------------------------------
 test('FLIRTY INTERN: charms an enemy asset for 3 turns', () => {

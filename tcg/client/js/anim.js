@@ -667,6 +667,17 @@ async function playEvent(ev) {
       await wait(640);
       break;
     }
+    case 'capitalRaid': {
+      // RAID: the raider survived combat and banked a 1-capital hit against
+      // the victim's next turn — flash the victim's hero + pip row now, since
+      // the actual deduction won't show until their next startTurn.
+      const hero = hooks.resolveTarget('hero' + ev.targetPlayer);
+      if (hero) { pulseClass(hero, 'anim-shake', 350); floatNum(hero, 'CAPITAL RAIDED −1', 'dmg', { size: 'med' }); }
+      const capRow = hooks.capitalAnchor?.(ev.targetPlayer);
+      if (capRow) pulseClass(capRow, 'anim-shake', 350);
+      await wait(420);
+      break;
+    }
     case 'cardPlayed': {
       audio.playSfx('sfx-play');
       // Reveal the played card center-screen, then hand off to whatever it

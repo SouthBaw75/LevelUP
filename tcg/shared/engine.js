@@ -129,6 +129,7 @@ export function createGame({ decks, names, seed }) {
       maxIntegrity: 30,
       capital: 0,
       maxCapital: 0,
+      capitalDrain: 0, // RAID (Corporate Raider): banked reduction applied to this turn's capital, then cleared
       deck: shuffle(state, deck.cards.slice()),
       hand: [],
       board: [],
@@ -847,7 +848,11 @@ function startTurn(state, player, ev) {
   state.activePlayer = player;
   const p = state.players[player];
   p.maxCapital = Math.min(MAX_CAPITAL, p.maxCapital + 1);
-  p.capital = p.maxCapital;
+  // RAID: a banked capitalDrain (from a Corporate Raider-style successful
+  // attack) reduces THIS turn's capital once, then clears — a one-turn hit,
+  // not a lasting maxCapital scar.
+  p.capital = Math.max(0, p.maxCapital - p.capitalDrain);
+  p.capitalDrain = 0;
   p.powerUsed = false;
   for (const u of p.board) u.attacksUsed = 0;
   ev.push({ e: 'turnStart', player, turn: state.turn });
@@ -1034,6 +1039,15 @@ function applyActionInner(state, playerIndex, action) {
             { unit: defender, player: 1 - playerIndex, id: defender.id });
         }
       }
+      // RAID (Corporate Raider): a successful attack that the raider survives
+      // (checked BEFORE the death sweep, so retaliation/toxic already count)
+      // banks a one-turn capital steal against the enemy — applied and cleared
+      // at the start of their very next turn (see startTurn).
+      if (hasKw(attacker, 'raid') && attacker.health > 0 && !attacker.pendingDestroy) {
+        const victim = 1 - playerIndex;
+        state.players[victim].capitalDrain += 1;
+        ev.push({ e: 'capitalRaid', unitId: attacker.id, cardId: attacker.cardId, player: playerIndex, targetPlayer: victim });
+      }
       sweepDeaths(state, ev);
       return { ok: true, events: ev };
     }
@@ -1200,6 +1214,7 @@ function playerView(state, i, { self }) {
     contracts: p.contracts.map((c) => ({ id: c.id, cardId: c.cardId, turnsLeft: c.turnsLeft })),
     deckCount: p.deck.length,
     fatigue: p.fatigue,
+    capitalDrain: p.capitalDrain, // RAID: pending capital reduction for this player's next turn
   };
   if (self) view.hand = p.hand.map((cardId) => handEntry(state, i, cardId, isActive));
   else view.handCount = p.hand.length;

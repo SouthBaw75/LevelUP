@@ -42,6 +42,7 @@ export const KEYWORD_NAMES = {
   layoff: 'LAYOFF',
   severance: 'SEVERANCE',
   bullish: 'BULLISH',
+  raid: 'RAID',
   onboarding: 'ONBOARDING',
   parachute: 'GOLDEN PARACHUTE',
 };
@@ -57,6 +58,7 @@ export const KEYWORD_HELP = {
   layoff: 'Sacrifice during your turn (free): your CEO gains Integrity equal to this asset’s Integrity.',
   severance: 'When destroyed by an enemy, draw a card.',
   bullish: 'Attack beyond a blocker’s Integrity carries over to the enemy CEO.',
+  raid: 'A successful attack it survives steals 1 Capital from the enemy’s next turn.',
   onboarding: 'Effect when played from hand.',
   parachute: 'Effect when destroyed.',
 };
