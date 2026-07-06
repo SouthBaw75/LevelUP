@@ -508,7 +508,7 @@ test('nexus power draws and self-damages; obsidian power summons a Shell Corp', 
   const r = applyAction(s, 0, { type: 'heroPower', target: null });
   assert.equal(r.ok, true);
   assert.equal(s.players[0].hand.length, hand + 1);
-  assert.equal(s.players[0].integrity, 28);
+  assert.equal(s.players[0].integrity, 29);
   end(s);
   giveCapital(s, 1, 2);
   const r2 = applyAction(s, 1, { type: 'heroPower', target: null });

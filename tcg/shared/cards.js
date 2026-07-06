@@ -102,9 +102,9 @@ C({ id: 'nx_ceo', name: 'Vera Lang', faction: 'nexus', type: 'CEO', cost: 0, hea
   powerId: 'nx_power', collectible: false, rarity: 'legendary',
   text: 'CEO of Nexus Dynamics.', flavor: 'She A/B tested her own personality. Variant B won.' });
 C({ id: 'nx_power', name: 'Crunch Time', faction: 'nexus', type: 'POWER', cost: 2,
-  collectible: false, text: 'Draw a card. Deal 2 damage to your CEO.',
+  collectible: false, text: 'Draw a card. Deal 1 damage to your CEO.',
   flavor: 'Sleep is technical debt.',
-  effects: { targeting: null, play: [{ op: 'draw', count: 1 }, { op: 'damage', amount: 2, to: 'friendlyHero' }] } });
+  effects: { targeting: null, play: [{ op: 'draw', count: 1 }, { op: 'damage', amount: 1, to: 'friendlyHero' }] } });
 
 C({ id: 'vx_ceo', name: 'Brock Hammond', faction: 'vulcan', type: 'CEO', cost: 0, health: 30,
   powerId: 'vx_power', collectible: false, rarity: 'legendary',
