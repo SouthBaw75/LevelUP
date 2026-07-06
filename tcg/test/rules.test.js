@@ -1874,6 +1874,62 @@ test('BIOREACTOR: an enemy Bioreactor never buffs your organisms', () => {
 });
 
 // ---------------------------------------------------------------------------
+// ADJACENCY BUFF (class-gated) — Compute Cluster (nx_020): +1/+1 to a SOFTWARE
+// asset placed immediately beside it. Same engine path as Bioreactor, just a
+// different class filter — this suite mainly guards the class-gate itself.
+// ---------------------------------------------------------------------------
+test('COMPUTE CLUSTER: a SOFTWARE asset deployed beside it gains +1/+1', () => {
+  const s = newGame();
+  giveCapital(s, 0, 10);
+  addUnit(s, 0, 'nx_020'); // Compute Cluster at index 0
+  const idx = putInHand(s, 0, 'nx_002'); // Web Crawler — software
+  const r = applyAction(s, 0, { type: 'playCard', handIndex: idx, target: null, position: 1 });
+  assert.equal(r.ok, true);
+  const placed = s.players[0].board[1];
+  assert.equal(placed.cardId, 'nx_002');
+  assert.equal(placed.attack, CARDS.nx_002.attack + 1);
+  assert.equal(placed.health, CARDS.nx_002.health + 1);
+  const buff = findAll(r.events, 'buff').find((e) => e.unitId === placed.id);
+  assert.ok(buff && buff.attack === 1 && buff.health === 1, 'a +1/+1 buff was emitted');
+});
+
+test('COMPUTE CLUSTER: a non-SOFTWARE asset deployed beside it gets nothing', () => {
+  const s = newGame();
+  giveCapital(s, 0, 10);
+  addUnit(s, 0, 'nx_020'); // Compute Cluster
+  const idx = putInHand(s, 0, 'ntr_013'); // personnel, not software
+  const r = applyAction(s, 0, { type: 'playCard', handIndex: idx, target: null, position: 1 });
+  assert.equal(r.ok, true);
+  const placed = s.players[0].board[1];
+  assert.equal(placed.attack, CARDS.ntr_013.attack, 'no bonus — wrong asset class');
+  assert.equal(placed.health, CARDS.ntr_013.health, 'no bonus — wrong asset class');
+  assert.equal(findAll(r.events, 'buff').length, 0);
+});
+
+test('COMPUTE CLUSTER: dropping it beside an existing SOFTWARE asset buffs both directions', () => {
+  const s = newGame();
+  giveCapital(s, 0, 10);
+  const soft = addUnit(s, 0, 'nx_002'); // Web Crawler, index 0
+  const idx = putInHand(s, 0, 'nx_020'); // Compute Cluster
+  const r = applyAction(s, 0, { type: 'playCard', handIndex: idx, target: null, position: 1 });
+  assert.equal(r.ok, true);
+  assert.equal(s.players[0].board[1].cardId, 'nx_020');
+  assert.equal(soft.attack, CARDS.nx_002.attack + 1, 'existing software neighbor buffed');
+  assert.equal(soft.health, CARDS.nx_002.health + 1, 'existing software neighbor buffed');
+});
+
+test('COMPUTE CLUSTER: an enemy Compute Cluster never buffs your software', () => {
+  const s = newGame();
+  addUnit(s, 1, 'nx_020'); // enemy Compute Cluster at their index 0
+  giveCapital(s, 0, 10);
+  const idx = putInHand(s, 0, 'nx_002'); // software, but on the other board
+  const r = applyAction(s, 0, { type: 'playCard', handIndex: idx, target: null, position: 0 });
+  assert.equal(r.ok, true);
+  assert.equal(s.players[0].board[0].attack, CARDS.nx_002.attack, 'no cross-board bonus');
+  assert.equal(s.players[0].board[0].health, CARDS.nx_002.health, 'no cross-board bonus');
+});
+
+// ---------------------------------------------------------------------------
 // FIREWALL UPGRADE (ntr_036): grant FIREWALL to a friendly asset that lacks it.
 // ---------------------------------------------------------------------------
 test('FIREWALL UPGRADE: grants FIREWALL to a friendly asset', () => {

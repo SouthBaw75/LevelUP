@@ -225,6 +225,8 @@ the buff to neighbors of that asset class; omitting `match` buffs any neighbor u
 - **v1 cards**: `vx_009` **Armor Plant** — unconditional, `{ health: 1 }` ("+1 Integrity to
   whatever's placed immediately beside it"). `hx_007` **Bioreactor** — class-gated,
   `{ attack: 1, health: 1, match: { tag: 'organism' } }` ("+1/+1 to an ORGANISM-class asset
+  placed immediately beside it"). `nx_020` **Compute Cluster** — class-gated,
+  `{ attack: 1, health: 1, match: { tag: 'software' } }` ("+1/+1 to a SOFTWARE-class asset
   placed immediately beside it").
 
 ### v1 contract set (12 faction + 2 neutral answers)

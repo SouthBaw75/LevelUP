@@ -224,7 +224,9 @@ O('nx_019', 'Telemetry', 'nexus', 1, {
   flavor: 'Anonymized, aggregated, and absolutely about you.',
   effects: { targeting: null, play: [{ op: 'draw', count: 1 }] } });
 A('nx_020', 'Compute Cluster', 'nexus', 5, 5, 6, {
-  flavor: 'Mines synergy at 4.2 exaflops.' });
+  text: 'Adjacent SOFTWARE assets gain +1/+1.',
+  flavor: 'Mines synergy at 4.2 exaflops.',
+  effects: { adjacencyBuff: { attack: 1, health: 1, match: { tag: 'software' } } } });
 A('nx_021', 'Zero-Day Agent', 'nexus', 6, 5, 5, { keywords: ['stealth'], rarity: 'epic',
   text: 'STEALTH MODE.',
   flavor: 'Disclosed responsibly, deployed irresponsibly.' });
