@@ -237,6 +237,31 @@ export function renderCard(defOrId, opts = {}) {
     el.appendChild(hp);
   }
 
+  // Granted-keyword badge: a keyword the LIVE unit carries but the card was
+  // NOT printed with (e.g. Mandatory Overtime granting OVERTIME) has no other
+  // home on this face — the kw-gloss block above only reads def.keywords, the
+  // card's static definition. Surface it as its own gold tag in the gap the
+  // stat chips leave at bottom-center, so a granted keyword is never invisible.
+  // A silenced unit takes the same slot instead — Gag Order wipes keywords to
+  // an empty array, so it never has a "granted" keyword to show, but it's just
+  // as invisible otherwise (the card would read as an ordinary vanilla body).
+  if (def.type === 'ASSET' && opts.silenced) {
+    const sb = document.createElement('div');
+    sb.className = 'granted-kw-badge silenced-badge';
+    sb.textContent = 'SILENCED';
+    sb.title = 'Silenced — stripped of all keywords and triggers.';
+    el.appendChild(sb);
+  } else if (def.type === 'ASSET' && Array.isArray(opts.keywords)) {
+    const granted = opts.keywords.filter((k) => !(def.keywords || []).includes(k));
+    if (granted.length) {
+      const gb = document.createElement('div');
+      gb.className = 'granted-kw-badge';
+      gb.textContent = granted.map((k) => kwName(def, k)).join(' · ');
+      gb.title = granted.map((k) => kwName(def, k) + ' — ' + (KEYWORD_HELP[k] || faceGloss(k))).join('\n');
+      el.appendChild(gb);
+    }
+  }
+
   // CONTRACT: fixed-term badge (bottom-center, where an asset's stat chips
   // would sit — contracts have no stats, so the slot is free)
   if (def.type === 'CONTRACT' && def.term != null) {
@@ -336,7 +361,10 @@ export function renderUnit(unit, opts = {}) {
   name.title = fullName;
   el.appendChild(name);
 
-  // keyword icons row
+  // keyword icons row — a silenced unit has no keywords to show (Gag Order
+  // wipes them), so that slot would just sit empty; repurpose it to flag the
+  // silence itself, since otherwise a silenced unit looks identical to one
+  // that was simply never printed with any keyword.
   const kws = unit.keywords || [];
   if (kws.length) {
     const row = document.createElement('div');
@@ -349,10 +377,20 @@ export function renderUnit(unit, opts = {}) {
       row.appendChild(ic);
     }
     el.appendChild(row);
+  } else if (unit.silenced) {
+    const row = document.createElement('div');
+    row.className = 'unit-kws';
+    const ic = document.createElement('span');
+    ic.className = 'unit-kw ukw-silenced';
+    ic.title = 'SILENCED — stripped of all keywords and triggers.';
+    ic.textContent = '\u{1F507}'; // muted-speaker glyph
+    row.appendChild(ic);
+    el.appendChild(row);
   }
   if (kws.includes('firewall')) el.classList.add('has-firewall');
   if (kws.includes('stealth')) el.classList.add('has-stealth');
   if (kws.includes('shielded')) el.classList.add('has-shield');
+  if (unit.silenced) el.classList.add('silenced');
 
   const atk = document.createElement('div');
   atk.className = 'stat-chip atk-chip';

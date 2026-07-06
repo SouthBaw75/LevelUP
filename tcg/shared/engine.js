@@ -1193,6 +1193,7 @@ function unitView(state, unit, canAct, owner) {
   };
   if (ctr.count) v.counters = ctr; // {atk, count, sources} — omitted when none
   if (unit.distracted > 0) v.distracted = unit.distracted; // Flirty Intern countdown
+  if (unit.silenced) v.silenced = true; // Gag Order: stripped of keywords/triggers
   return v;
 }
 

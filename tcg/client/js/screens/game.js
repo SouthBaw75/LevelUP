@@ -330,7 +330,7 @@ function renderBoard(row, board, enemy) {
     const el = renderUnit(u, { enemy });
     const def = getCard(u.cardId);
     if (def) {
-      attachPreview(el, def, { attack: u.attack, health: u.health, damaged: u.health < (u.maxHealth ?? u.health) });
+      attachPreview(el, def, { attack: u.attack, health: u.health, damaged: u.health < (u.maxHealth ?? u.health), keywords: u.keywords, silenced: u.silenced });
     }
     el.addEventListener('click', (ev) => { ev.stopPropagation(); onUnitClick(u, enemy, el); });
     row.appendChild(el);
