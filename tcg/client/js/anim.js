@@ -678,6 +678,16 @@ async function playEvent(ev) {
       await wait(420);
       break;
     }
+    case 'bigHit': {
+      // A single game-turn just did BIG_HIT_THRESHOLD+ damage to this hero —
+      // let the attacker's CEO gloat. Fire-and-forget like other one-shot sfx;
+      // the taunt shouldn't block the animation queue while it plays out.
+      audio.playCeoTaunt(hooks.factionOf(ev.attackerPlayer));
+      const hero = hooks.resolveTarget('hero' + ev.targetPlayer);
+      if (hero) floatNum(hero, 'BIG HIT!', 'dmg', { size: 'med' });
+      await wait(60);
+      break;
+    }
     case 'cardPlayed': {
       audio.playSfx('sfx-play');
       // Reveal the played card center-screen, then hand off to whatever it

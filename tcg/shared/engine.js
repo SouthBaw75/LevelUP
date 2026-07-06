@@ -56,6 +56,7 @@ const MAX_BOARD = 7;
 const MAX_CAPITAL = 10;
 const POWER_COST = 2;
 const MAX_CONTRACTS = 3;
+const BIG_HIT_THRESHOLD = 10; // cumulative enemy hero damage in one game-turn that fires a CEO taunt
 const PLAYABLE_TYPES = ['ASSET', 'OPERATION', 'CONTRACT'];
 const TARGETINGS = [null, 'any', 'anyUnit', 'enemyUnit', 'enemyUnitCost4', 'friendlyUnit',
   'friendlyUnitNoFirewall', 'enemyHero', 'anyHero', 'enemyContract'];
@@ -136,6 +137,8 @@ export function createGame({ decks, names, seed }) {
       contracts: [], // filed contracts, in filing order: { id, cardId, turnsLeft }
       fatigue: 0,
       powerUsed: false,
+      turnDamage: 0, // cumulative enemy-caused hero damage this game-turn (bigHit taunt trigger)
+      bigHitFired: false, // whether bigHit already fired for this player this game-turn
     });
   }
   // opening hands: first player 3, second player 4 + Government Subsidy
@@ -399,8 +402,21 @@ function dealDamage(state, ev, targetId, amount, source = {}) {
   const evBase = { e: 'damage', targetId, amount };
   if (source.id) evBase.source = source.id;
   if (isHeroId(targetId)) {
-    state.players[heroIndex(targetId)].integrity -= amount;
+    const hi = heroIndex(targetId);
+    const victim = state.players[hi];
+    victim.integrity -= amount;
     ev.push(evBase);
+    // bigHit taunt: cumulative ENEMY-caused damage to this hero this game-turn
+    // crossing the threshold fires the attacker's CEO taunt once per turn.
+    // Self-damage (own fatigue, own contract upkeep, own CEO power) never
+    // counts — there's no "enemy" to taunt.
+    if (typeof source.player === 'number' && source.player !== hi) {
+      victim.turnDamage += amount;
+      if (!victim.bigHitFired && victim.turnDamage >= BIG_HIT_THRESHOLD) {
+        victim.bigHitFired = true;
+        ev.push({ e: 'bigHit', targetPlayer: hi, attackerPlayer: source.player, amount: victim.turnDamage });
+      }
+    }
   } else {
     const found = findUnit(state, targetId);
     if (!found) return 0;
@@ -864,6 +880,10 @@ function runOps(state, ev, ops, ctx) {
 function startTurn(state, player, ev) {
   state.turn += 1;
   state.activePlayer = player;
+  // bigHit taunt tracking is scoped to "this game-turn" for BOTH players (a
+  // both-parties contract, for instance, can still hit the non-active player
+  // this turn) — reset before any of this turn's own damage effects run.
+  for (const pl of state.players) { pl.turnDamage = 0; pl.bigHitFired = false; }
   const p = state.players[player];
   p.maxCapital = Math.min(MAX_CAPITAL, p.maxCapital + 1);
   // RAID: a banked capitalDrain (from a Corporate Raider-style successful

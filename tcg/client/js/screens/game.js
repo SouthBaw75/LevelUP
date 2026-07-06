@@ -725,6 +725,10 @@ function logEvent(ev) {
   const you = youIdx;
   const who = (p) => (p === you ? '<b>You</b>' : '<b>' + escapeHtml(oppMeta.name || 'Opponent') + '</b>');
   const card = (id) => '<b>' + escapeHtml(getCard(id)?.name || 'a card') + '</b>';
+  const ceoName = (p) => {
+    const side = p === you ? view.you : view.opp;
+    return escapeHtml(side?.ceo?.name || factionMeta(side?.faction)?.name || 'The CEO');
+  };
   switch (ev.e) {
     case 'turnStart':
       logLine(`— ROUND ${ev.turn} · ${ev.player === you ? 'YOUR TURN' : 'OPPONENT TURN'} —`, 'turn-line');
@@ -793,6 +797,9 @@ function logEvent(ev) {
       break;
     case 'capitalRaid':
       logLine(`${card(ev.cardId)} raided ${who(ev.targetPlayer)} — <span class="dmg">−1 Capital</span> next turn.`);
+      break;
+    case 'bigHit':
+      logLine(`<span class="dmg">${ev.amount} damage in one turn</span> — ${ceoName(ev.attackerPlayer)} can't resist gloating.`);
       break;
     case 'contractFiled': {
       const term = ev.contract && ev.contract.turnsLeft != null ? ` (term: ${ev.contract.turnsLeft})` : '';

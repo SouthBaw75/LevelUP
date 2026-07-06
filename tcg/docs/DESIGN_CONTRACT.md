@@ -370,6 +370,7 @@ Every event: `{ "e": "<type>", ...fields }`. Types (fixed list):
 - `layoff {unitId, cardId, player}` (§3c — always followed by `heal` on the owner's hero, then `death`)
 - `severance {unitId, cardId, player}` (§3d — emitted during the death sweep, immediately before its `draw` for the owner)
 - `capitalRaid {unitId, cardId, player, targetPlayer}` (RAID — survived attack banks a 1-Capital steal, applied at the start of `targetPlayer`'s next turn; see §3)
+- `bigHit {targetPlayer, attackerPlayer, amount}` — cumulative ENEMY-caused damage to `targetPlayer`'s CEO within the current game-turn crossed `BIG_HIT_THRESHOLD` (10); fires once per turn. Client plays a random taunt for `attackerPlayer`'s CEO (`ceo-taunts/<faction>[-N].mp3`). Self-inflicted damage (own fatigue/contract/CEO-power) never counts.
 
 After applying redacted events, the client re-renders from the authoritative `view` that
 accompanies every state broadcast — events are for animation only, never for state derivation.

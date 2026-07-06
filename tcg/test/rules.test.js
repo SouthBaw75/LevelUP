@@ -2157,3 +2157,57 @@ test('FLIRTY INTERN: SILENCE (Gag Order) cleanses the distraction', () => {
   assert.equal(r.ok, true);
   assert.equal(foe.distracted, 0, 'silence removed the charm');
 });
+
+// ---------------------------------------------------------------------------
+// BIG HIT — cumulative ENEMY-caused damage to a hero within one game-turn
+// crossing BIG_HIT_THRESHOLD (10) fires a one-time `bigHit` event (client
+// plays the attacker's CEO taunt). Self-inflicted damage never counts.
+// ---------------------------------------------------------------------------
+test('BIG HIT: cumulative enemy damage crossing the threshold fires once, with correct fields', () => {
+  const s = newGame();
+  const a = addUnit(s, 0, 'ntr_019', { attack: 6 });
+  const b = addUnit(s, 0, 'ntr_020', { attack: 6 });
+  const r1 = applyAction(s, 0, { type: 'attack', attackerId: a.id, targetId: 'hero1' });
+  assert.equal(find(r1.events, 'bigHit'), undefined, 'first hit alone (6) is below the threshold');
+  const r2 = applyAction(s, 0, { type: 'attack', attackerId: b.id, targetId: 'hero1' });
+  const bh = find(r2.events, 'bigHit');
+  assert.ok(bh, 'cumulative 12 this turn crosses the threshold');
+  assert.equal(bh.targetPlayer, 1);
+  assert.equal(bh.attackerPlayer, 0);
+  assert.equal(bh.amount, 12);
+});
+
+test('BIG HIT: damage that never crosses the threshold does not fire', () => {
+  const s = newGame();
+  const a = addUnit(s, 0, 'ntr_019', { attack: 9 });
+  const r = applyAction(s, 0, { type: 'attack', attackerId: a.id, targetId: 'hero1' });
+  assert.equal(find(r.events, 'bigHit'), undefined);
+});
+
+test('BIG HIT: fires once per turn, then resets on a later turn', () => {
+  const s = newGame();
+  const a = addUnit(s, 0, 'ntr_019', { attack: 10 });
+  const b = addUnit(s, 0, 'ntr_020', { attack: 5 });
+  const c = addUnit(s, 0, 'ntr_006', { attack: 10 });
+  const r1 = applyAction(s, 0, { type: 'attack', attackerId: a.id, targetId: 'hero1' });
+  assert.ok(find(r1.events, 'bigHit'), 'crosses the threshold on the first hit');
+  const r2 = applyAction(s, 0, { type: 'attack', attackerId: b.id, targetId: 'hero1' });
+  assert.equal(find(r2.events, 'bigHit'), undefined, 'does not re-fire again this same turn');
+  end(s); end(s); // p1's turn, then back to p0 — resets tracking for the new turn
+  const r3 = applyAction(s, 0, { type: 'attack', attackerId: c.id, targetId: 'hero1' });
+  assert.ok(find(r3.events, 'bigHit'), 'fires again on a later turn');
+});
+
+test('BIG HIT: self-inflicted damage (fatigue) never fires it, even stacked past the threshold', () => {
+  const s = newGame();
+  s.players[0].deck = [];
+  s.players[0].integrity = 200; // survive enough empty draws to stack fatigue past 10
+  let r;
+  while (s.players[0].fatigue < 10) {
+    end(s); // p1's turn (their deck is untouched — no fatigue for them)
+    r = end(s); // back to p0 — draws from an empty deck, fatigues
+  }
+  assert.equal(s.players[0].fatigue, 10);
+  assert.equal(find(r.events, 'bigHit'), undefined, 'fatigue self-damage never fires bigHit');
+  assert.equal(s.players[0].bigHitFired, false);
+});
