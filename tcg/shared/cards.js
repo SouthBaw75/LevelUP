@@ -334,7 +334,7 @@ A('hx_006', 'Field Medics', 'helix', 3, 2, 4, {
   flavor: 'In-network, out of patience.',
   effects: { targeting: 'any', onboarding: [{ op: 'heal', amount: 2, to: 'target' }] } });
 A('hx_007', 'Bioreactor', 'helix', 3, 3, 4, {
-  text: 'When an ORGANISM asset is placed to the immediate left or right of this, it gains +1/+1.',
+  text: 'Adjacent ORGANISMS gain +1/+1.',
   flavor: 'Feed it grant money and it produces more grant applications.',
   effects: { adjacencyBuff: { attack: 1, health: 1, match: { tag: 'organism' } } } });
 A('hx_008', 'Designer Pathogen', 'helix', 2, 1, 1, { keywords: ['toxic', 'stealth'], rarity: 'epic',
