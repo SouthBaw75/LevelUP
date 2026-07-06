@@ -104,6 +104,7 @@ test('every referenced DSL op / special / token / keyword is implemented', () =>
         assert.ok(val && typeof val === 'object', `${card.id} adjacencyBuff object`);
         assert.ok(Number.isInteger(val.attack ?? 0) && Number.isInteger(val.health ?? 0),
           `${card.id} adjacencyBuff deltas`);
+        if (val.match) assert.ok(TAG_VALUES.includes(val.match.tag), `${card.id} adjacencyBuff match.tag`);
         continue;
       }
       assert.ok(TRIGGERS.includes(key), `${card.id} unknown trigger ${key}`);

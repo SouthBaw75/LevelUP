@@ -575,6 +575,13 @@ function summonUnit(state, ev, player, cardId, position = null, overrides = {}) 
   return unit;
 }
 
+// An adjacencyBuff with no `match` applies to any neighbor (Armor Plant); one
+// with `match: { tag }` (Bioreactor) only reaches neighbors carrying that tag.
+// Reuses auraMatches's tag check, just defaulting to "always matches" when
+// the buff itself carries no filter.
+function adjacencyMatches(buff, def) {
+  return !buff.match || auraMatches(buff.match, def);
+}
 // Placement-time adjacency buffs (Armor Plant: +1 Integrity to whatever sits
 // immediately left/right of it). Baked on deploy — persists even if the source
 // later leaves — matching "when placed beside it, gets a buff". Runs BOTH ways:
@@ -586,15 +593,14 @@ function applyAdjacencyBuffs(state, ev, player, pos) {
   // 1) a granter immediately beside the newly-placed unit buffs it
   for (const j of [pos - 1, pos + 1]) {
     const nb = board[j];
-    if (nb && CARDS[nb.cardId].effects.adjacencyBuff) {
-      grantStatBuff(ev, unit, CARDS[nb.cardId].effects.adjacencyBuff);
-    }
+    const buff = nb && CARDS[nb.cardId].effects.adjacencyBuff;
+    if (buff && adjacencyMatches(buff, CARDS[unit.cardId])) grantStatBuff(ev, unit, buff);
   }
   // 2) if the newly-placed unit is itself a granter, buff its existing neighbors
   const mine = CARDS[unit.cardId].effects.adjacencyBuff;
   if (mine) {
     for (const j of [pos - 1, pos + 1]) {
-      if (board[j]) grantStatBuff(ev, board[j], mine);
+      if (board[j] && adjacencyMatches(mine, CARDS[board[j].cardId])) grantStatBuff(ev, board[j], mine);
     }
   }
 }

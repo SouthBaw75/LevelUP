@@ -1806,6 +1806,74 @@ test('ARMOR: an enemy Armor Plant never armors your assets', () => {
 });
 
 // ---------------------------------------------------------------------------
+// ADJACENCY BUFF (class-gated) — Bioreactor (hx_007): +1/+1 to an ORGANISM
+// asset placed immediately beside it; unlike Armor Plant, non-organisms get
+// nothing. Same both-directions/baked-permanently engine path as Armor Plant.
+// ---------------------------------------------------------------------------
+test('BIOREACTOR: an ORGANISM asset deployed beside it gains +1/+1', () => {
+  const s = newGame();
+  giveCapital(s, 0, 10);
+  addUnit(s, 0, 'hx_007'); // Bioreactor at index 0
+  const idx = putInHand(s, 0, 'hx_001'); // Lab Culture — organism
+  const r = applyAction(s, 0, { type: 'playCard', handIndex: idx, target: null, position: 1 });
+  assert.equal(r.ok, true);
+  const placed = s.players[0].board[1];
+  assert.equal(placed.cardId, 'hx_001');
+  assert.equal(placed.attack, CARDS.hx_001.attack + 1);
+  assert.equal(placed.health, CARDS.hx_001.health + 1);
+  assert.equal(placed.maxHealth, CARDS.hx_001.health + 1);
+  const buff = findAll(r.events, 'buff').find((e) => e.unitId === placed.id);
+  assert.ok(buff && buff.attack === 1 && buff.health === 1, 'a +1/+1 buff was emitted');
+});
+
+test('BIOREACTOR: a non-ORGANISM asset deployed beside it gets nothing', () => {
+  const s = newGame();
+  giveCapital(s, 0, 10);
+  addUnit(s, 0, 'hx_007'); // Bioreactor
+  const idx = putInHand(s, 0, 'ntr_013'); // personnel, not organism
+  const r = applyAction(s, 0, { type: 'playCard', handIndex: idx, target: null, position: 1 });
+  assert.equal(r.ok, true);
+  const placed = s.players[0].board[1];
+  assert.equal(placed.attack, CARDS.ntr_013.attack, 'no bonus — wrong asset class');
+  assert.equal(placed.health, CARDS.ntr_013.health, 'no bonus — wrong asset class');
+  assert.equal(findAll(r.events, 'buff').length, 0);
+});
+
+test('BIOREACTOR: dropping it beside an existing ORGANISM buffs both directions', () => {
+  const s = newGame();
+  giveCapital(s, 0, 10);
+  const organism = addUnit(s, 0, 'hx_001'); // index 0
+  const idx = putInHand(s, 0, 'hx_007'); // Bioreactor
+  const r = applyAction(s, 0, { type: 'playCard', handIndex: idx, target: null, position: 1 }); // beside it
+  assert.equal(r.ok, true);
+  assert.equal(s.players[0].board[1].cardId, 'hx_007');
+  assert.equal(organism.attack, CARDS.hx_001.attack + 1, 'existing organism neighbor buffed');
+  assert.equal(organism.health, CARDS.hx_001.health + 1, 'existing organism neighbor buffed');
+});
+
+test('BIOREACTOR: dropping it beside an existing non-ORGANISM buffs nothing', () => {
+  const s = newGame();
+  giveCapital(s, 0, 10);
+  const personnel = addUnit(s, 0, 'ntr_013'); // index 0, not organism
+  const idx = putInHand(s, 0, 'hx_007'); // Bioreactor
+  const r = applyAction(s, 0, { type: 'playCard', handIndex: idx, target: null, position: 1 });
+  assert.equal(r.ok, true);
+  assert.equal(personnel.attack, CARDS.ntr_013.attack, 'wrong asset class — no buff');
+  assert.equal(personnel.health, CARDS.ntr_013.health, 'wrong asset class — no buff');
+});
+
+test('BIOREACTOR: an enemy Bioreactor never buffs your organisms', () => {
+  const s = newGame();
+  addUnit(s, 1, 'hx_007'); // enemy Bioreactor at their index 0
+  giveCapital(s, 0, 10);
+  const idx = putInHand(s, 0, 'hx_001'); // organism, but on the other board
+  const r = applyAction(s, 0, { type: 'playCard', handIndex: idx, target: null, position: 0 });
+  assert.equal(r.ok, true);
+  assert.equal(s.players[0].board[0].attack, CARDS.hx_001.attack, 'no cross-board bonus');
+  assert.equal(s.players[0].board[0].health, CARDS.hx_001.health, 'no cross-board bonus');
+});
+
+// ---------------------------------------------------------------------------
 // FIREWALL UPGRADE (ntr_036): grant FIREWALL to a friendly asset that lacks it.
 // ---------------------------------------------------------------------------
 test('FIREWALL UPGRADE: grants FIREWALL to a friendly asset', () => {

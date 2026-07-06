@@ -211,6 +211,22 @@ Stacking, live-computed stat modifiers that strengthen/weaken assets. Phase 1 de
   *"While in play, your ROBOTIC-class assets have +1 Attack."* (This makes Vulcan a 4-contract
   faction; deck/collectible counts adjust accordingly.)
 
+## 3f. Adjacency buffs (placement-time, optionally asset-class gated)
+
+An ASSET may carry `effects.adjacencyBuff = { attack?, health?, match?: { tag } }`. Whenever a
+unit lands in a board slot (play, token summon, copy, or steal — all funnel through
+`summonUnit`), `applyAdjacencyBuffs` checks both of its immediate left/right neighbors, runs
+BOTH directions (a unit dropped beside a granter, and a granter dropped beside existing units),
+and — unlike §3e's live auras — **bakes** the delta permanently onto the recipient's stats via
+the ordinary `buff` op/event, so it persists even if the granter is later destroyed or leaves.
+An optional `match: { tag }` (same shape as the §3e aura matcher, reusing `auraMatches`) gates
+the buff to neighbors of that asset class; omitting `match` buffs any neighbor unconditionally.
+
+- **v1 cards**: `vx_009` **Armor Plant** — unconditional, `{ health: 1 }` ("+1 Integrity to
+  whatever's placed immediately beside it"). `hx_007` **Bioreactor** — class-gated,
+  `{ attack: 1, health: 1, match: { tag: 'organism' } }` ("+1/+1 to an ORGANISM-class asset
+  placed immediately beside it").
+
 ### v1 contract set (12 faction + 2 neutral answers)
 
 | id | Name | Cost | Effect |
