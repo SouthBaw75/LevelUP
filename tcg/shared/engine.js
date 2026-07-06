@@ -42,7 +42,8 @@
 //   onboarding/parachute (unit-sourced), contract-trigger and fatigue damage
 //   are never boosted.
 // - Hand entries in the view report the LIVE effective cost (after
-//   opCostReduction) so client affordability display matches `playable`.
+//   opCostReduction / contractCostReduction) so client affordability display
+//   matches `playable`.
 // - `onOperationPlayed` fires after the operation's own effects fully resolve
 //   (deaths swept), for EVERY operation the owner plays — including Government
 //   Subsidy and Void Clause. CEO powers are not operations and never fire it.
@@ -273,6 +274,20 @@ function contractStatic(state, player, key) {
   return total;
 }
 
+// Sum a static modifier (contractCostReduction) over the player's board
+// ASSETS — mirrors contractStatic but sourced from units in play rather than
+// filed contracts (Corporate Lobbyist: a lobbyist discounts contracts, not
+// the other way around). Live, multiple copies stack, vanishes the instant
+// the source leaves the board.
+function assetStatic(state, player, key) {
+  let total = 0;
+  for (const u of state.players[player].board) {
+    const st = CARDS[u.cardId].effects.static;
+    if (st && st[key]) total += st[key];
+  }
+  return total;
+}
+
 // §counters — per-unit aura modifiers. Unlike the `buff` op (which bakes deltas
 // permanently onto a unit's stats), auras are computed LIVE from the owner's
 // filed contracts every time a stat is read. So they appear/vanish on their own
@@ -320,10 +335,13 @@ export function effectiveAttack(state, unit, owner) {
 
 // THE one cost helper: view display, playable calc, applyAction validation and
 // capital deduction all go through here. opCostReduction (nx_c01) applies to
-// the owner's OPERATIONs only, floored at 0.
+// the owner's OPERATIONs only; contractCostReduction (Corporate Lobbyist)
+// applies to the owner's CONTRACTs only. Both floored at 0.
 function effectiveCost(state, player, card) {
   if (card.type === 'OPERATION')
     return Math.max(0, card.cost - contractStatic(state, player, 'opCostReduction'));
+  if (card.type === 'CONTRACT')
+    return Math.max(0, card.cost - assetStatic(state, player, 'contractCostReduction'));
   return card.cost;
 }
 
@@ -1186,7 +1204,7 @@ function handEntry(state, playerIndex, cardId, isActive) {
   const card = CARDS[cardId];
   const p = state.players[playerIndex];
   const targeting = card.effects.targeting || null;
-  // live effective cost (opCostReduction) so display matches playable calc
+  // live effective cost (opCostReduction / contractCostReduction) so display matches playable calc
   const cost = effectiveCost(state, playerIndex, card);
   let playable = false;
   if (isActive && !state.over && PLAYABLE_TYPES.includes(card.type) && cost <= p.capital) {

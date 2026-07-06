@@ -15,7 +15,8 @@
 //                          //   is the ACTIVE player ("that player" in card text)
 //     onOperationPlayed: [ops],        // after the owner plays an OPERATION
 //     onFriendlyAssetDestroyed: [ops], // when a friendly asset dies (any cause)
-//     static: { opCostReduction?: N, opDamageBonus?: N },  // live modifiers, stack
+//     static: { opCostReduction?: N, opDamageBonus?: N },  // CONTRACT-only, live, stack
+//     static: { contractCostReduction?: N },  // ASSET-only, live, stack (Corporate Lobbyist)
 //   }
 //   CONTRACT cards may also carry a top-level `term: N` (expires after N of the
 //   owner's turns); no attack/health.
@@ -598,6 +599,10 @@ O('ntr_037', 'Flirty Intern', 'neutral', 2, { rarity: 'rare',
   text: 'Distract an enemy asset — it can’t attack for 3 of its turns.',
   flavor: 'Turns out “let’s circle back after lunch” is a load-bearing sentence.',
   effects: { targeting: 'enemyUnit', play: [{ op: 'distract', turns: 3, to: 'target' }] } });
+A('ntr_038', 'Corporate Lobbyist', 'neutral', 3, 2, 4, { rarity: 'rare',
+  text: 'While in play, your CONTRACTS cost (1) less.',
+  flavor: 'He didn’t write the loophole. He just made sure it was load-bearing.',
+  effects: { static: { contractCostReduction: 1 } } });
 
 // ---------------------------------------------------------------------------
 // CONTRACTS (§3b) — persistent corporate agreements, plus the two neutral

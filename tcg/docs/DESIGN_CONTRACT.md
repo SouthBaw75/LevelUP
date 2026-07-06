@@ -91,8 +91,13 @@ Persistent cards representing corporate agreements. Rules:
   decrement at the start of the owner's turn AFTER its trigger fires; at 0 → voided
   (reason `expired`).
 - Static modifiers (implemented at engine chokepoints, evaluated live):
-  - `opCostReduction`: reduces the owner's OPERATION costs (min 0).
-  - `opDamageBonus`: owner's non-combat damage (operations + CEO power) deals +N.
+  - `opCostReduction`: reduces the owner's OPERATION costs (min 0). CONTRACT-only source.
+  - `opDamageBonus`: owner's non-combat damage (operations + CEO power) deals +N. CONTRACT-only source.
+  - `contractCostReduction`: reduces the owner's CONTRACT costs (min 0). ASSET-only source
+    (`ntr_038` Corporate Lobbyist) — the inverse direction of the other two: an asset on the
+    board discounting contracts, rather than a contract discounting something else. Vanishes
+    the instant the source asset leaves the board (evaluated live off `assetStatic`, mirroring
+    `contractStatic`).
   Multiple copies stack.
 - New events (§5 list extended): `contractFiled {player, contract:{id, cardId, turnsLeft}}`
   and `contractVoided {contractId, cardId, reason: "nullified"|"expired"}`.
@@ -290,7 +295,7 @@ convention. The card data schema needs no art field.
 - `type: "CEO"` cards (one per faction, e.g. `nx_ceo`) define the hero: name, 40 health, `powerId`.
 - `type: "POWER"` cards define the CEO power: cost 2, `text`, effects.
 - Tokens (summoned units) are non-collectible ASSET cards in the same map.
-- **~120 collectible cards total**: ~22 per faction + ~30 neutral. Costs 0–10, all rarities.
+- **143 collectible cards total**: ~26 per faction + 40 neutral. Costs 0–10, all rarities.
 
 `STARTER_DECKS`: `{ nexus: {name, faction, cards:[40 ids]}, vulcan: {...}, helix: {...}, obsidian: {...} }`
 — four tuned, playable prebuilt decks.

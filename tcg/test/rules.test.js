@@ -2211,3 +2211,54 @@ test('BIG HIT: self-inflicted damage (fatigue) never fires it, even stacked past
   assert.equal(find(r.events, 'bigHit'), undefined, 'fatigue self-damage never fires bigHit');
   assert.equal(s.players[0].bigHitFired, false);
 });
+
+// ---------------------------------------------------------------------------
+// CORPORATE LOBBYIST (ntr_038): while in play, your CONTRACTS cost 1 less.
+// The inverse of nx_c01 (an ASSET discounting CONTRACTS, not a CONTRACT
+// discounting OPERATIONS) — same live/stacking/floor-at-0 behavior, mirrored
+// off assetStatic instead of contractStatic.
+// ---------------------------------------------------------------------------
+test('CORPORATE LOBBYIST: contracts cost 1 less (floor 0), stacks; non-contracts unaffected', () => {
+  const s = newGame(); // nexus vs vulcan
+  giveCapital(s, 0, 10);
+  addUnit(s, 0, 'ntr_038'); // Corporate Lobbyist (1 copy: -1)
+  const iC4 = putInHand(s, 0, 'nx_c02'); // CONTRACT, cost 4
+  const iC2 = putInHand(s, 0, 'nx_c03'); // CONTRACT, cost 2
+  const iOp = putInHand(s, 0, 'nx_015'); // OPERATION, cost 3
+  const iAsset = putInHand(s, 0, 'nx_004'); // ASSET, cost 2
+  let v = getView(s, 0);
+  assert.equal(v.you.hand[iC4].cost, 3, 'reduced by 1');
+  assert.equal(v.you.hand[iC2].cost, 1, 'reduced by 1');
+  assert.equal(v.you.hand[iOp].cost, 3, 'operation cost unchanged');
+  assert.equal(v.you.hand[iAsset].cost, 2, 'asset cost unchanged');
+  addUnit(s, 0, 'ntr_038'); // 2nd copy: -2
+  addUnit(s, 0, 'ntr_038'); // 3rd copy: -3, enough to floor the cost-2 contract
+  v = getView(s, 0);
+  assert.equal(v.you.hand[iC4].cost, 1, '4 − 3');
+  assert.equal(v.you.hand[iC2].cost, 0, '2 − 3 floored at 0, never negative');
+  // validation + deduction use the same effective cost
+  s.players[0].capital = 1;
+  assert.equal(getView(s, 0).you.hand[iC4].playable, true);
+  assert.ok(legalActions(s, 0).some((a) => a.type === 'playCard' && a.handIndex === iC4));
+  const r = applyAction(s, 0, { type: 'playCard', handIndex: iC4, target: null, position: null });
+  assert.equal(r.ok, true);
+  assert.equal(s.players[0].capital, 0, 'deducted the reduced cost');
+});
+
+test("CORPORATE LOBBYIST reduces only the owner's contracts", () => {
+  const s = newGame();
+  addUnit(s, 0, 'ntr_038');
+  end(s); // p1's turn
+  const idx = putInHand(s, 1, 'nx_c03'); // CONTRACT, cost 2, in p1's hand
+  assert.equal(getView(s, 1).you.hand[idx].cost, 2, 'opponent gets no discount');
+});
+
+test('CORPORATE LOBBYIST: discount is live — vanishes the instant it leaves the board', () => {
+  const s = newGame();
+  giveCapital(s, 0, 10);
+  const lob = addUnit(s, 0, 'ntr_038');
+  const idx = putInHand(s, 0, 'nx_c03'); // CONTRACT, cost 2
+  assert.equal(getView(s, 0).you.hand[idx].cost, 1, 'discounted while the lobbyist is in play');
+  s.players[0].board = s.players[0].board.filter((u) => u.id !== lob.id);
+  assert.equal(getView(s, 0).you.hand[idx].cost, 2, 'discount gone once the lobbyist leaves the board');
+});
