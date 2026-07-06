@@ -17,6 +17,8 @@
 //     onFriendlyAssetDestroyed: [ops], // when a friendly asset dies (any cause)
 //     static: { opCostReduction?: N, opDamageBonus?: N },  // CONTRACT-only, live, stack
 //     static: { contractCostReduction?: N },  // ASSET-only, live, stack (Corporate Lobbyist)
+//     static: { enemyCostIncrease?: N },  // CONTRACT-only, live, stack (Regulatory Capture);
+//                                         // raises the FILER's OPPONENT's costs, all types
 //   }
 //   CONTRACT cards may also carry a top-level `term: N` (expires after N of the
 //   owner's turns); no attack/health.
@@ -679,6 +681,10 @@ O('ntr_c02', 'Void Clause', 'neutral', 1, {
   text: 'Declare an enemy contract null & void.',
   flavor: 'This clause supersedes all prior clauses, including itself.',
   effects: { targeting: 'enemyContract', play: [{ op: 'nullify', to: 'target' }] } });
+K('ntr_c03', 'Regulatory Capture', 'neutral', 4, { rarity: 'epic',
+  text: 'While in play, your opponent’s cards cost (1) more.',
+  flavor: 'The agency meant to police the industry now takes minutes at its board meetings.',
+  effects: { static: { enemyCostIncrease: 1 } } });
 
 // ---------------------------------------------------------------------------
 // STARTER DECKS — 40 cards, max 2 copies, faction + neutral

@@ -15,7 +15,7 @@ const RARITIES = ['common', 'rare', 'epic', 'legendary'];
 const TYPES = ['ASSET', 'OPERATION', 'CEO', 'POWER', 'CONTRACT'];
 const TRIGGERS = ['onboarding', 'play', 'parachute', 'endOfTurn',
   'startOfTurn', 'onOperationPlayed', 'onFriendlyAssetDestroyed'];
-const STATIC_KEYS = ['opCostReduction', 'opDamageBonus', 'contractCostReduction'];
+const STATIC_KEYS = ['opCostReduction', 'opDamageBonus', 'contractCostReduction', 'enemyCostIncrease'];
 const ASSET_ONLY_STATIC_KEYS = ['contractCostReduction'];
 
 const all = Object.values(CARDS);
@@ -138,22 +138,24 @@ test('every referenced DSL op / special / token / keyword is implemented', () =>
   }
 });
 
-test('collectible counts match the contract (26 vulcan, 27 obsidian, 25 nexus/helix + 40 neutral = 143)', () => {
+test('collectible counts match the contract (26 vulcan, 27 obsidian, 25 nexus/helix + 41 neutral = 144)', () => {
   const byFaction = {};
   for (const c of collectible) byFaction[c.faction] = (byFaction[c.faction] || 0) + 1;
   assert.equal(byFaction.nexus, 25);
   assert.equal(byFaction.vulcan, 26); // + vx_c04 Retooling Order (counter aura)
   assert.equal(byFaction.helix, 25);
   assert.equal(byFaction.obsidian, 27); // + ob_023 Counter Offer; + ob_024 Hedge Fund
-  assert.equal(byFaction.neutral, 40); // + ntr_035 Nuclear Option; + ntr_036 Firewall Upgrade; + ntr_037 Flirty Intern; + ntr_038 Corporate Lobbyist
-  assert.equal(collectible.length, 143);
-  // CONTRACT cards: 3 per faction, plus vx_c04 (a 4th Vulcan, the counter card)
+  assert.equal(byFaction.neutral, 41); // + ntr_035 Nuclear Option; + ntr_036 Firewall Upgrade; + ntr_037 Flirty Intern; + ntr_038 Corporate Lobbyist; + ntr_c03 Regulatory Capture
+  assert.equal(collectible.length, 144);
+  // CONTRACT cards: 3 per faction, plus vx_c04 (a 4th Vulcan, the counter card), plus
+  // ntr_c03 Regulatory Capture (the first genuine NEUTRAL contract-type card)
   const contracts = collectible.filter((c) => c.type === 'CONTRACT');
-  assert.equal(contracts.length, 13);
+  assert.equal(contracts.length, 14);
   for (const f of ['nexus', 'helix', 'obsidian']) {
     assert.equal(contracts.filter((c) => c.faction === f).length, 3, f + ' contracts');
   }
   assert.equal(contracts.filter((c) => c.faction === 'vulcan').length, 4, 'vulcan contracts (+Retooling Order)');
+  assert.equal(contracts.filter((c) => c.faction === 'neutral').length, 1, 'neutral contracts (Regulatory Capture)');
 });
 
 test('tribal tags: every ASSET has ≥1 valid tag; non-assets untagged; spot checks', () => {

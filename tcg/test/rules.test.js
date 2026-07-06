@@ -2262,3 +2262,58 @@ test('CORPORATE LOBBYIST: discount is live — vanishes the instant it leaves th
   s.players[0].board = s.players[0].board.filter((u) => u.id !== lob.id);
   assert.equal(getView(s, 0).you.hand[idx].cost, 2, 'discount gone once the lobbyist leaves the board');
 });
+
+// ---------------------------------------------------------------------------
+// REGULATORY CAPTURE (ntr_c03): while in play, your OPPONENT's cards cost 1
+// more. The evil twin of Corporate Lobbyist — filed by the caster, but it's
+// the caster's OPPONENT who pays, on every card type (not just contracts).
+// ---------------------------------------------------------------------------
+test('REGULATORY CAPTURE: taxes the OPPONENT across every card type; casters own costs untouched', () => {
+  const s = newGame(); // nexus vs vulcan
+  fileContract(s, 0, 'ntr_c03'); // filed by p0
+  const iAsset = putInHand(s, 1, 'vx_002'); // ASSET
+  const iOp = putInHand(s, 1, 'vx_010'); // OPERATION
+  const iContract = putInHand(s, 1, 'vx_c01'); // CONTRACT
+  const baseAsset = CARDS.vx_002.cost, baseOp = CARDS.vx_010.cost, baseContract = CARDS.vx_c01.cost;
+  const v1 = getView(s, 1);
+  assert.equal(v1.you.hand[iAsset].cost, baseAsset + 1, 'enemy asset taxed');
+  assert.equal(v1.you.hand[iOp].cost, baseOp + 1, 'enemy operation taxed');
+  assert.equal(v1.you.hand[iContract].cost, baseContract + 1, 'enemy contract taxed');
+  // the CASTER's own costs are untouched by their own Regulatory Capture
+  const iMine = putInHand(s, 0, 'nx_004'); // ASSET, cost 2
+  assert.equal(getView(s, 0).you.hand[iMine].cost, CARDS.nx_004.cost, 'caster pays no tax on their own contract');
+});
+
+test('REGULATORY CAPTURE: stacks — two copies tax the opponent by 2', () => {
+  const s = newGame();
+  fileContract(s, 0, 'ntr_c03');
+  fileContract(s, 0, 'ntr_c03');
+  const idx = putInHand(s, 1, 'vx_002');
+  assert.equal(getView(s, 1).you.hand[idx].cost, CARDS.vx_002.cost + 2);
+});
+
+test('REGULATORY CAPTURE stacks additively with the taxed player\'s own opCostReduction', () => {
+  const s = newGame('vulcan', 'nexus'); // p1 is nexus, can field Terms of Service
+  fileContract(s, 0, 'ntr_c03'); // p0 taxes p1 by +1 on everything
+  fileContract(s, 1, 'nx_c01'); // p1's own -1 OPERATION discount
+  const iOp = putInHand(s, 1, 'nx_015'); // OPERATION, cost 3
+  const iAsset = putInHand(s, 1, 'nx_004'); // ASSET, cost 2
+  const v = getView(s, 1);
+  assert.equal(v.you.hand[iOp].cost, CARDS.nx_015.cost, 'own -1 op discount cancels the +1 tax on operations');
+  assert.equal(v.you.hand[iAsset].cost, CARDS.nx_004.cost + 1, 'assets still feel the full tax');
+});
+
+test('REGULATORY CAPTURE: live — the tax stops the instant the contract leaves play', () => {
+  const s = newGame();
+  fileContract(s, 0, 'ntr_c03');
+  const idx = putInHand(s, 1, 'vx_002');
+  assert.equal(getView(s, 1).you.hand[idx].cost, CARDS.vx_002.cost + 1, 'taxed while filed');
+  s.players[0].contracts = [];
+  assert.equal(getView(s, 1).you.hand[idx].cost, CARDS.vx_002.cost, 'tax gone once nullified/removed');
+});
+
+test('REGULATORY CAPTURE does not tax the CEO power (fixed cost, not effectiveCost-driven)', () => {
+  const s = newGame();
+  fileContract(s, 0, 'ntr_c03');
+  assert.equal(getView(s, 1).you.power.cost, 2, "CEO power cost is untouched by the enemy's tax");
+});

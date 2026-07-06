@@ -42,8 +42,8 @@
 //   onboarding/parachute (unit-sourced), contract-trigger and fatigue damage
 //   are never boosted.
 // - Hand entries in the view report the LIVE effective cost (after
-//   opCostReduction / contractCostReduction) so client affordability display
-//   matches `playable`.
+//   opCostReduction / contractCostReduction / enemyCostIncrease) so client
+//   affordability display matches `playable`.
 // - `onOperationPlayed` fires after the operation's own effects fully resolve
 //   (deaths swept), for EVERY operation the owner plays — including Government
 //   Subsidy and Void Clause. CEO powers are not operations and never fire it.
@@ -336,13 +336,18 @@ export function effectiveAttack(state, unit, owner) {
 // THE one cost helper: view display, playable calc, applyAction validation and
 // capital deduction all go through here. opCostReduction (nx_c01) applies to
 // the owner's OPERATIONs only; contractCostReduction (Corporate Lobbyist)
-// applies to the owner's CONTRACTs only. Both floored at 0.
+// applies to the owner's CONTRACTs only; enemyCostIncrease (Regulatory
+// Capture) applies to ALL of the OWNER's OPPONENT's card types — filed
+// against you, it raises what you pay, not what its filer pays. Every term
+// stacks additively before a single floor-at-0 (so e.g. your own
+// opCostReduction can offset an enemy's tax on operations specifically,
+// while your assets/contracts still feel the full tax).
 function effectiveCost(state, player, card) {
-  if (card.type === 'OPERATION')
-    return Math.max(0, card.cost - contractStatic(state, player, 'opCostReduction'));
-  if (card.type === 'CONTRACT')
-    return Math.max(0, card.cost - assetStatic(state, player, 'contractCostReduction'));
-  return card.cost;
+  let cost = card.cost;
+  if (card.type === 'OPERATION') cost -= contractStatic(state, player, 'opCostReduction');
+  else if (card.type === 'CONTRACT') cost -= assetStatic(state, player, 'contractCostReduction');
+  cost += contractStatic(state, 1 - player, 'enemyCostIncrease');
+  return Math.max(0, cost);
 }
 
 // Remove a filed contract from play (either owner) and emit contractVoided.

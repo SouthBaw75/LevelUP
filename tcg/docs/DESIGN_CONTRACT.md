@@ -98,6 +98,16 @@ Persistent cards representing corporate agreements. Rules:
     board discounting contracts, rather than a contract discounting something else. Vanishes
     the instant the source asset leaves the board (evaluated live off `assetStatic`, mirroring
     `contractStatic`).
+  - `enemyCostIncrease`: raises the FILER's OPPONENT's costs (min 0 after all modifiers),
+    across every playable card type — ASSET, OPERATION, and CONTRACT alike (`ntr_c03`
+    Regulatory Capture, the first genuine neutral CONTRACT card). CONTRACT-only source, but
+    unlike the other three, the beneficiary and the payer are different players: read via
+    `contractStatic(state, 1 - player, 'enemyCostIncrease')` when computing `player`'s own
+    cost. Stacks additively with that player's own `opCostReduction`/`contractCostReduction`
+    before the single floor-at-0, so e.g. a player's own Terms of Service can cancel out an
+    enemy Regulatory Capture on OPERATIONS specifically while their assets/contracts still
+    feel the full tax. Never touches CEO POWER cost (fixed at `POWER_COST`, not
+    `effectiveCost`-driven).
   Multiple copies stack.
 - New events (§5 list extended): `contractFiled {player, contract:{id, cardId, turnsLeft}}`
   and `contractVoided {contractId, cardId, reason: "nullified"|"expired"}`.
@@ -234,7 +244,7 @@ the buff to neighbors of that asset class; omitting `match` buffs any neighbor u
   `{ attack: 1, health: 1, match: { tag: 'software' } }` ("+1/+1 to a SOFTWARE-class asset
   placed immediately beside it").
 
-### v1 contract set (12 faction + 2 neutral answers)
+### v1 contract set (13 faction + 1 neutral contract + 2 neutral answers)
 
 | id | Name | Cost | Effect |
 |---|---|---|---|
@@ -244,20 +254,22 @@ the buff to neighbors of that asset class; omitting `match` buffs any neighbor u
 | `vx_c01` | Munitions Contract | 4 | Your operations and CEO power deal +1 damage. |
 | `vx_c02` | Overtime Mandate | 3 | At the end of your turn, deal 1 damage to the enemy CEO. |
 | `vx_c03` | Escalation Clause | 5 | **Both parties.** At the start of each player's turn, that player's CEO takes 1 damage. |
+| `vx_c04` | Retooling Order | 3 | Your ROBOTIC-class assets have +1 Attack (§3e counter aura). |
 | `hx_c01` | Corporate Wellness Program | 3 | At the end of your turn, restore 2 integrity to your CEO. |
 | `hx_c02` | Regeneration Rider | 4 | At the start of your turn, restore 1 durability to each friendly asset. |
 | `hx_c03` | Life Insurance Policy | 2 | Whenever a friendly asset is destroyed, restore 2 integrity to your CEO. |
 | `ob_c01` | Payday Lending Agreement | 2 | At the start of your turn, gain 1 Capital this turn only. **Fine print:** your CEO takes 1 damage each turn. |
 | `ob_c02` | Bridge Loan | 4 | **Term 2.** At the start of your turn, gain +1 permanent max Capital. |
 | `ob_c03` | Liquidation Rights | 3 | Whenever a friendly asset is destroyed, gain 1 Capital this turn only. |
+| `ntr_c03` | Regulatory Capture | 4 | Your opponent's cards cost (1) more (every type — see `enemyCostIncrease` above). |
 | `ntr_c01` | Contract Attorney | 3 | ASSET 2/3. ONBOARDING: declare an enemy contract null & void. |
 | `ntr_c02` | Void Clause | 1 | OPERATION. Declare an enemy contract null & void. |
 
 Flavor bar: every contract gets dry legal-satire flavor text ("fine print" energy).
-Rarity spread: commons/rares; `vx_c03` and `ob_c02` epic. Starter decks: each starter
-deck swaps in 1 of its faction's contracts (2 copies → no; ONE copy, cutting one
+Rarity spread: commons/rares; `vx_c03`, `ob_c02`, and `ntr_c03` epic. Starter decks: each
+starter deck swaps in 1 of its faction's contracts (2 copies → no; ONE copy, cutting one
 existing card) plus each deck gains one `ntr_c02` Void Clause (cutting one card),
-keeping exactly 40 and passing validateDeck.
+keeping exactly 40 and passing validateDeck. `ntr_c03` is not in any starter deck yet.
 
 ## 4. Card data schema (what client & server see)
 
@@ -295,7 +307,7 @@ convention. The card data schema needs no art field.
 - `type: "CEO"` cards (one per faction, e.g. `nx_ceo`) define the hero: name, 40 health, `powerId`.
 - `type: "POWER"` cards define the CEO power: cost 2, `text`, effects.
 - Tokens (summoned units) are non-collectible ASSET cards in the same map.
-- **143 collectible cards total**: ~26 per faction + 40 neutral. Costs 0–10, all rarities.
+- **144 collectible cards total**: ~26 per faction + 41 neutral. Costs 0–10, all rarities.
 
 `STARTER_DECKS`: `{ nexus: {name, faction, cards:[40 ids]}, vulcan: {...}, helix: {...}, obsidian: {...} }`
 — four tuned, playable prebuilt decks.
