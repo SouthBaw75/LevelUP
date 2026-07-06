@@ -85,8 +85,8 @@ function shuffle(state, arr) {
 export function validateDeck(deck) {
   if (!deck || typeof deck !== 'object') return { ok: false, error: 'deck must be an object' };
   if (!FACTIONS.includes(deck.faction)) return { ok: false, error: 'invalid faction' };
-  if (!Array.isArray(deck.cards) || deck.cards.length !== 30)
-    return { ok: false, error: 'deck must contain exactly 30 cards' };
+  if (!Array.isArray(deck.cards) || deck.cards.length !== 40)
+    return { ok: false, error: 'deck must contain exactly 40 cards' };
   const counts = new Map();
   for (const id of deck.cards) {
     const card = CARDS[id];
@@ -125,8 +125,8 @@ export function createGame({ decks, names, seed }) {
       faction,
       ceoCardId,
       powerCardId: CARDS[ceoCardId].powerId,
-      integrity: 30,
-      maxIntegrity: 30,
+      integrity: 40,
+      maxIntegrity: 40,
       capital: 0,
       maxCapital: 0,
       capitalDrain: 0, // RAID (Corporate Raider): banked reduction applied to this turn's capital, then cleared
@@ -433,7 +433,7 @@ function breakStealth(unit) {
 }
 
 // Healing is UNCAPPED: integrity and unit durability may exceed their base
-// values (a CEO at 30/30 healed for 2 goes to 32). maxIntegrity/maxHealth
+// values (a CEO at 40/40 healed for 2 goes to 42). maxIntegrity/maxHealth
 // remain the BASE stats used for display/damaged-styling, not a heal ceiling.
 function healTarget(state, ev, targetId, amount) {
   if (state.over || amount <= 0) return;
@@ -465,11 +465,13 @@ function endGame(state, ev, winner, reason) {
   ev.push({ e: 'gameOver', winner, reason });
 }
 
-// Remove dead units, fire parachutes, loop until stable. Ends the game
-// immediately if a CEO is at 0 between waves.
+// Remove dead units, fire parachutes, loop until stable. Each wave's own dead
+// units are always fully swept/resolved BEFORE the hero check, so a unit that
+// dies in the same action that also kills a CEO (e.g. BULLISH overflow) still
+// gets its death event/parachute/severance; the game then ends after that
+// wave rather than starting a new one.
 function sweepDeaths(state, ev) {
   for (let guard = 0; guard < 100; guard++) {
-    if (checkHeroes(state, ev)) return;
     const dead = [];
     for (let owner = 0; owner < 2; owner++) {
       const board = state.players[owner].board;
@@ -481,7 +483,13 @@ function sweepDeaths(state, ev) {
         }
       }
     }
-    if (dead.length === 0) return;
+    // Collect and remove THIS wave's dead units before checking heroes — a
+    // BULLISH overflow (or any single action) can knock out a blocker and the
+    // enemy CEO in the same breath, and the blocker's corpse must still be
+    // swept (death event, parachute, severance) even though the game is about
+    // to end. Checking heroes first would return before any of that ran,
+    // leaving a health<=0 unit sitting on the board in the final view.
+    if (dead.length === 0) { if (checkHeroes(state, ev)) return; return; }
     // deaths were collected per-board in reverse; report/resolve left-to-right
     dead.sort((a, b) => (a.owner - b.owner) || (a.index - b.index));
     for (const d of dead) ev.push({ e: 'death', unitId: d.unit.id, cardId: d.unit.cardId });
@@ -519,6 +527,10 @@ function sweepDeaths(state, ev) {
       ev.push({ e: 'severance', unitId: d.unit.id, cardId: d.unit.cardId, player: d.owner });
       drawCards(state, d.owner, 1, ev);
     }
+    // now that this wave's units are fully swept and resolved, see if any of
+    // it (or the reactions it triggered) was also lethal to a CEO — end here
+    // rather than starting a new wave.
+    if (checkHeroes(state, ev)) return;
   }
 }
 

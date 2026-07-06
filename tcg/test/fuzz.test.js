@@ -111,7 +111,7 @@ test('fuzz: 224 complete random games across all faction pairings', () => {
 });
 
 // Contract-stuffed decks: 2x every faction contract + 2x each neutral answer,
-// filled back to 30 from the faction's starter list. Contracts add both extra
+// filled back to 40 from the faction's starter list. Contracts add both extra
 // damage (vx_c02/vx_c03/ob_c01/nx_c03) and extra healing (hx_c01/hx_c02/hx_c03),
 // but healing is flat per turn while fatigue escalates without bound, so the
 // existing 10000-step cap still comfortably terminates every game — no cap
@@ -120,7 +120,7 @@ function contractDeck(faction) {
   const prefix = { nexus: 'nx', vulcan: 'vx', helix: 'hx', obsidian: 'ob' }[faction];
   const cards = [];
   const add = (id) => {
-    if (cards.length < 30 && cards.filter((x) => x === id).length < 2) cards.push(id);
+    if (cards.length < 40 && cards.filter((x) => x === id).length < 2) cards.push(id);
   };
   for (const n of [1, 2, 3]) { const id = `${prefix}_c0${n}`; add(id); add(id); }
   for (const id of ['ntr_c01', 'ntr_c01', 'ntr_c02', 'ntr_c02']) add(id);

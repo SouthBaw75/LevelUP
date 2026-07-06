@@ -45,7 +45,7 @@ test('every card conforms to the schema', () => {
       assert.ok(Number.isInteger(card.health) && card.health >= 1, card.id + ' health');
     }
     if (card.type === 'CEO') {
-      assert.equal(card.health, 30, card.id + ' CEO health');
+      assert.equal(card.health, 40, card.id + ' CEO health');
       assert.equal(CARDS[card.powerId]?.type, 'POWER', card.id + ' powerId');
       assert.equal(card.collectible, false);
     }
@@ -267,9 +267,9 @@ test('§3b contract set matches the spec table exactly', () => {
   assert.deepEqual(voidClause.effects.play, [{ op: 'nullify', to: 'target' }]);
 });
 
-test('starter decks each swapped in ONE faction contract + ONE Void Clause (still 30)', () => {
+test('starter decks each swapped in ONE faction contract + ONE Void Clause (still 40)', () => {
   for (const [key, deck] of Object.entries(STARTER_DECKS)) {
-    assert.equal(deck.cards.length, 30, key + ' is 30 cards');
+    assert.equal(deck.cards.length, 40, key + ' is 40 cards');
     assert.equal(deck.cards.filter((id) => id === 'ntr_c02').length, 1,
       key + ' has exactly one Void Clause');
     const contracts = deck.cards.filter((id) => CARDS[id].type === 'CONTRACT');

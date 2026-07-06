@@ -210,7 +210,7 @@ function render() {
       <span class="dr-swatch"></span>
       <span><span class="dr-name">${escapeHtml(c.name)}</span><br>
       <span class="dr-sub">${escapeHtml(m.name)} · ${c.starter ? 'STARTER' : 'CUSTOM'}</span></span>
-      <span class="dr-flag ${v.ok ? '' : 'invalid'}">${v.ok ? '30/30' : v.error.toUpperCase()}</span>
+      <span class="dr-flag ${v.ok ? '' : 'invalid'}">${v.ok ? '40/40' : v.error.toUpperCase()}</span>
     `;
     row.addEventListener('click', () => { setSelectedDeckId(c.selId); render(); });
     list.appendChild(row);

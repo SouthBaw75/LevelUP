@@ -98,7 +98,7 @@ const O = (id, name, faction, cost, extra = {}) =>
 // ---------------------------------------------------------------------------
 // CEOs & CEO POWERS (non-collectible)
 // ---------------------------------------------------------------------------
-C({ id: 'nx_ceo', name: 'Vera Lang', faction: 'nexus', type: 'CEO', cost: 0, health: 30,
+C({ id: 'nx_ceo', name: 'Vera Lang', faction: 'nexus', type: 'CEO', cost: 0, health: 40,
   powerId: 'nx_power', collectible: false, rarity: 'legendary',
   text: 'CEO of Nexus Dynamics.', flavor: 'She A/B tested her own personality. Variant B won.' });
 C({ id: 'nx_power', name: 'Crunch Time', faction: 'nexus', type: 'POWER', cost: 2,
@@ -106,7 +106,7 @@ C({ id: 'nx_power', name: 'Crunch Time', faction: 'nexus', type: 'POWER', cost: 
   flavor: 'Sleep is technical debt.',
   effects: { targeting: null, play: [{ op: 'draw', count: 1 }, { op: 'damage', amount: 1, to: 'friendlyHero' }] } });
 
-C({ id: 'vx_ceo', name: 'Brock Hammond', faction: 'vulcan', type: 'CEO', cost: 0, health: 30,
+C({ id: 'vx_ceo', name: 'Brock Hammond', faction: 'vulcan', type: 'CEO', cost: 0, health: 40,
   powerId: 'vx_power', collectible: false, rarity: 'legendary',
   text: 'CEO of Vulcan Heavy Industries.', flavor: 'His handshake has a recoil warning.' });
 C({ id: 'vx_power', name: 'Precision Strike', faction: 'vulcan', type: 'POWER', cost: 2,
@@ -114,7 +114,7 @@ C({ id: 'vx_power', name: 'Precision Strike', faction: 'vulcan', type: 'POWER', 
   flavor: 'Collateral is a line item.',
   effects: { targeting: 'any', play: [{ op: 'damage', amount: 1, to: 'target' }] } });
 
-C({ id: 'hx_ceo', name: 'Dr. Jin-Ho Park', faction: 'helix', type: 'CEO', cost: 0, health: 30,
+C({ id: 'hx_ceo', name: 'Dr. Jin-Ho Park', faction: 'helix', type: 'CEO', cost: 0, health: 40,
   powerId: 'hx_power', collectible: false, rarity: 'legendary',
   text: 'CEO of Helix Biosystems.', flavor: 'Technically he is his own emergency contact. Four times over.' });
 C({ id: 'hx_power', name: 'Gene Therapy', faction: 'helix', type: 'POWER', cost: 2,
@@ -122,7 +122,7 @@ C({ id: 'hx_power', name: 'Gene Therapy', faction: 'helix', type: 'POWER', cost:
   flavor: 'Side effects include quarterly growth.',
   effects: { targeting: 'any', play: [{ op: 'heal', amount: 2, to: 'target' }] } });
 
-C({ id: 'ob_ceo', name: 'Sterling Voss', faction: 'obsidian', type: 'CEO', cost: 0, health: 30,
+C({ id: 'ob_ceo', name: 'Sterling Voss', faction: 'obsidian', type: 'CEO', cost: 0, health: 40,
   powerId: 'ob_power', collectible: false, rarity: 'legendary',
   text: 'CEO of Obsidian Capital.', flavor: 'He shorted his own retirement party.' });
 C({ id: 'ob_power', name: 'Shell Company', faction: 'obsidian', type: 'POWER', cost: 2,
@@ -676,13 +676,13 @@ O('ntr_c02', 'Void Clause', 'neutral', 1, {
   effects: { targeting: 'enemyContract', play: [{ op: 'nullify', to: 'target' }] } });
 
 // ---------------------------------------------------------------------------
-// STARTER DECKS — 30 cards, max 2 copies, faction + neutral
+// STARTER DECKS — 40 cards, max 2 copies, faction + neutral
 // ---------------------------------------------------------------------------
 const pairs = (ids) => ids.flatMap((id) => [id, id]);
 
 // §3b: each starter deck swaps in ONE copy of one of its faction's contracts
 // plus ONE ntr_c02 Void Clause, cutting one copy each of two existing cards
-// (still exactly 30, still passes validateDeck).
+// (still exactly 40, still passes validateDeck).
 const withContracts = (baseIds, cuts, contractId) => {
   const cards = pairs(baseIds);
   for (const id of cuts) cards.splice(cards.indexOf(id), 1);
@@ -696,7 +696,8 @@ export const STARTER_DECKS = {
     name: 'Nexus Dynamics — Move Fast, Sue Things',
     faction: 'nexus',
     cards: withContracts(['nx_001', 'nx_002', 'nx_003', 'nx_004', 'nx_005', 'nx_007', 'nx_008',
-      'nx_009', 'nx_015', 'nx_016', 'nx_017', 'nx_020', 'nx_010', 'ntr_007', 'ntr_013'],
+      'nx_009', 'nx_015', 'nx_016', 'nx_017', 'nx_020', 'nx_010', 'ntr_007', 'ntr_013',
+      'nx_006', 'nx_011', 'nx_013', 'nx_014', 'nx_018'],
     ['nx_010', 'ntr_013'], 'nx_c01'),
   },
   vulcan: {
@@ -705,7 +706,8 @@ export const STARTER_DECKS = {
     name: 'Vulcan Heavy Industries — Q3 Shock & Awe',
     faction: 'vulcan',
     cards: withContracts(['vx_001', 'vx_002', 'vx_003', 'vx_004', 'vx_005', 'vx_006', 'vx_007',
-      'vx_008', 'vx_009', 'vx_011', 'vx_013', 'vx_014', 'vx_018', 'ntr_003', 'vx_c04'],
+      'vx_008', 'vx_009', 'vx_011', 'vx_013', 'vx_014', 'vx_018', 'ntr_003', 'vx_c04',
+      'vx_010', 'vx_015', 'vx_016', 'vx_019', 'vx_020'],
     ['ntr_003', 'vx_c04'], 'vx_c02'),
   },
   helix: {
@@ -713,7 +715,8 @@ export const STARTER_DECKS = {
     name: 'Helix Biosystems — Compound Growth',
     faction: 'helix',
     cards: withContracts(['hx_001', 'hx_002', 'hx_003', 'hx_004', 'hx_005', 'hx_006', 'hx_007',
-      'hx_009', 'hx_011', 'hx_012', 'hx_013', 'hx_014', 'hx_020', 'ntr_005', 'ntr_013'],
+      'hx_009', 'hx_011', 'hx_012', 'hx_013', 'hx_014', 'hx_020', 'ntr_005', 'ntr_013',
+      'hx_008', 'hx_010', 'hx_016', 'hx_018', 'hx_019'],
     ['ntr_005', 'ntr_013'], 'hx_c01'),
   },
   obsidian: {
@@ -724,7 +727,8 @@ export const STARTER_DECKS = {
     name: 'Obsidian Capital — Leveraged Everything',
     faction: 'obsidian',
     cards: withContracts(['ob_001', 'ob_003', 'ob_005', 'ob_006', 'ob_007', 'ob_008', 'ob_009',
-      'ob_010', 'ob_012', 'ob_013', 'ob_018', 'ob_019', 'ob_022', 'ob_024', 'ob_023', 'ntr_037'],
+      'ob_010', 'ob_012', 'ob_013', 'ob_018', 'ob_019', 'ob_022', 'ob_024', 'ob_023', 'ntr_037',
+      'ob_002', 'ob_011', 'ob_016', 'ob_017', 'ob_020'],
     ['ob_024', 'ob_023', 'ob_022', 'ntr_037'], 'ob_c03'),
   },
 };

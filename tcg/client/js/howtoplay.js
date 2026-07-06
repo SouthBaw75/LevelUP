@@ -8,8 +8,8 @@ const SECTIONS = [
   {
     id: 'objective', title: 'The Objective',
     body: `
-      <p>You are the <b>CEO</b> of a conglomerate with <b>30 INTEGRITY</b> (your health).
-      Your rival CEO has 30 too. Reduce theirs to <b>0</b> and you complete a
+      <p>You are the <b>CEO</b> of a conglomerate with <b>40 INTEGRITY</b> (your health).
+      Your rival CEO has 40 too. Reduce theirs to <b>0</b> and you complete a
       <b>hostile takeover</b> — you win. That's it.</p>`,
   },
   {
@@ -112,7 +112,7 @@ const SECTIONS = [
         for assets that are ready to attack.</li>
         <li>The collapsible transaction log on the game screen spells out
         exactly what just happened if an exchange moves fast.</li>
-        <li>Build a custom 30-card deck (max 2 copies of any card) in the
+        <li>Build a custom 40-card deck (max 2 copies of any card) in the
         Deck Builder before you queue up.</li>
       </ul>`,
   },

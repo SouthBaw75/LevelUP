@@ -1,5 +1,5 @@
 // screens/builder.js — full deck builder: collection browser with filters,
-// mana curve, 30-card list, save/rename/delete, randomize remainder.
+// mana curve, 40-card list, save/rename/delete, randomize remainder.
 
 import {
   factionMeta, getDb, getCard, loadCustomDecks, upsertCustomDeck,
@@ -231,7 +231,7 @@ function renderGrid() {
 function maxCopies(def) { return def.rarity === 'legendary' ? 2 : 2; } // contract: max 2 of any card
 
 function addCard(def) {
-  if (work.cards.length >= 30) { toast('Deck is full (30 cards).', 'warn'); return; }
+  if (work.cards.length >= 40) { toast('Deck is full (40 cards).', 'warn'); return; }
   if (countIn(def.id) >= maxCopies(def)) { toast('Maximum 2 copies of a card.', 'warn'); return; }
   work.cards.push(def.id);
   renderGrid();
@@ -250,8 +250,8 @@ function removeCard(id) {
 function renderDeckPane() {
   // count + validity
   const countEl = root.querySelector('#b-count');
-  countEl.textContent = work.cards.length + ' / 30';
-  countEl.classList.toggle('full', work.cards.length === 30);
+  countEl.textContent = work.cards.length + ' / 40';
+  countEl.classList.toggle('full', work.cards.length === 40);
   const v = deckValidity(work.faction, work.cards);
   const validEl = root.querySelector('#b-valid');
   validEl.textContent = v.ok ? 'TOURNAMENT LEGAL' : v.error.toUpperCase();
@@ -307,7 +307,7 @@ function renderDeckPane() {
 function randomizeRemainder() {
   const pool = poolCards();
   let guard = 800;
-  while (work.cards.length < 30 && guard-- > 0) {
+  while (work.cards.length < 40 && guard-- > 0) {
     const def = pool[Math.floor(Math.random() * pool.length)];
     if (countIn(def.id) < maxCopies(def)) work.cards.push(def.id);
   }

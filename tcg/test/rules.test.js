@@ -22,8 +22,8 @@ test('opening hands: 3+turn-draw going first, 4+subsidy going second', () => {
   assert.equal(s.players[0].hand.length, 4); // 3 + start-of-turn draw
   assert.equal(s.players[1].hand.length, 5); // 4 + subsidy
   assert.ok(s.players[1].hand.includes('ntr_subsidy'));
-  assert.equal(s.players[0].deck.length, 26);
-  assert.equal(s.players[1].deck.length, 26);
+  assert.equal(s.players[0].deck.length, 36);
+  assert.equal(s.players[1].deck.length, 36);
 });
 
 test('capital ramps +1 per own turn, caps at 10, refills at turn start', () => {
@@ -72,13 +72,13 @@ test('fatigue deals escalating damage on empty draws', () => {
   s.players[1].deck = [];
   end(s); // p1 draws: fatigue 1
   assert.equal(s.players[1].fatigue, 1);
-  assert.equal(s.players[1].integrity, 29);
+  assert.equal(s.players[1].integrity, 39);
   end(s); // p0 fatigue 1
   end(s); // p1 fatigue 2
   assert.equal(s.players[1].fatigue, 2);
-  assert.equal(s.players[1].integrity, 27);
+  assert.equal(s.players[1].integrity, 37);
   end(s); end(s); // p1 fatigue 3
-  assert.equal(s.players[1].integrity, 24);
+  assert.equal(s.players[1].integrity, 34);
 });
 
 test('fatigue eventually kills and ends the game', () => {
@@ -177,7 +177,7 @@ test('FAST-TRACK attacks the turn it is deployed', () => {
   const unit = s.players[0].board[0];
   const r = applyAction(s, 0, { type: 'attack', attackerId: unit.id, targetId: 'hero1' });
   assert.equal(r.ok, true);
-  assert.equal(s.players[1].integrity, 28);
+  assert.equal(s.players[1].integrity, 38);
 });
 
 test('OVERTIME allows exactly two attacks per turn', () => {
@@ -186,7 +186,7 @@ test('OVERTIME allows exactly two attacks per turn', () => {
   assert.equal(applyAction(s, 0, { type: 'attack', attackerId: u.id, targetId: 'hero1' }).ok, true);
   assert.equal(applyAction(s, 0, { type: 'attack', attackerId: u.id, targetId: 'hero1' }).ok, true);
   assert.equal(applyAction(s, 0, { type: 'attack', attackerId: u.id, targetId: 'hero1' }).ok, false);
-  assert.equal(s.players[1].integrity, 26);
+  assert.equal(s.players[1].integrity, 36);
   end(s); end(s);
   assert.equal(applyAction(s, 0, { type: 'attack', attackerId: u.id, targetId: 'hero1' }).ok, true);
 });
@@ -219,7 +219,7 @@ test('attacking the CEO: only the attacker deals damage', () => {
   const s = newGame();
   const a = addUnit(s, 0, 'ntr_006'); // 3/2
   applyAction(s, 0, { type: 'attack', attackerId: a.id, targetId: 'hero1' });
-  assert.equal(s.players[1].integrity, 27);
+  assert.equal(s.players[1].integrity, 37);
   assert.equal(a.health, 2, 'attacker untouched');
 });
 
@@ -480,7 +480,7 @@ test('CEO power: costs 2, once per turn, resets next turn (vulcan ping)', () => 
   giveCapital(s, 0, 5);
   const r = applyAction(s, 0, { type: 'heroPower', target: 'hero1' });
   assert.equal(r.ok, true);
-  assert.equal(s.players[1].integrity, 29);
+  assert.equal(s.players[1].integrity, 39);
   assert.equal(s.players[0].capital, 3);
   assert.ok(find(r.events, 'heroPower'));
   assert.equal(applyAction(s, 0, { type: 'heroPower', target: 'hero1' }).ok, false, 'once per turn');
@@ -508,7 +508,7 @@ test('nexus power draws and self-damages; obsidian power summons a Shell Corp', 
   const r = applyAction(s, 0, { type: 'heroPower', target: null });
   assert.equal(r.ok, true);
   assert.equal(s.players[0].hand.length, hand + 1);
-  assert.equal(s.players[0].integrity, 29);
+  assert.equal(s.players[0].integrity, 39);
   end(s);
   giveCapital(s, 1, 2);
   const r2 = applyAction(s, 1, { type: 'heroPower', target: null });
@@ -812,7 +812,7 @@ test('getView matches the contract shape and hides the opponent hand', () => {
   assert.equal(v.turn, s.turn);
   assert.equal(v.you.index, 0);
   assert.equal(typeof v.you.integrity, 'number');
-  assert.equal(v.you.maxIntegrity, 30);
+  assert.equal(v.you.maxIntegrity, 40);
   assert.deepEqual(Object.keys(v.you.hand[0]).sort(),
     ['cardId', 'cost', 'playable', 'targeting', 'validPositions'].sort());
   const bu = v.you.board[0];
@@ -849,7 +849,7 @@ test('cloneState is a deep, independent copy', () => {
   c.players[0].integrity = 5;
   c.players[0].hand.push('ntr_001');
   addUnit(c, 0, 'ntr_002');
-  assert.equal(s.players[0].integrity, 30);
+  assert.equal(s.players[0].integrity, 40);
   assert.notEqual(s.players[0].hand.length, c.players[0].hand.length);
   assert.equal(s.players[0].board.length, 0);
 });
@@ -1087,15 +1087,15 @@ test('vx_c01: +1 damage on operations and CEO power, NOT combat; stacks', () => 
   assert.equal(enemy.health, 2);
   // CEO power: Precision Strike 1 -> 2
   applyAction(s, 0, { type: 'heroPower', target: 'hero1' });
-  assert.equal(s.players[1].integrity, 28);
+  assert.equal(s.players[1].integrity, 38);
   // combat damage NOT boosted
   const mine = addUnit(s, 0, 'ntr_006'); // 3/2
   applyAction(s, 0, { type: 'attack', attackerId: mine.id, targetId: 'hero1' });
-  assert.equal(s.players[1].integrity, 25, '3 combat damage, no bonus');
+  assert.equal(s.players[1].integrity, 35, '3 combat damage, no bonus');
   // unit-sourced onboarding damage NOT boosted (vx_004: 1 to enemy CEO)
   const i2 = putInHand(s, 0, 'vx_004');
   applyAction(s, 0, { type: 'playCard', handIndex: i2, target: null, position: null });
-  assert.equal(s.players[1].integrity, 24, 'onboarding damage unaffected');
+  assert.equal(s.players[1].integrity, 34, 'onboarding damage unaffected');
   // stacking: second copy -> Shrapnel Burst deals 4
   fileContract(s, 0, 'vx_c01');
   const i3 = putInHand(s, 0, 'vx_003');
@@ -1108,7 +1108,7 @@ test('vx_c01 does not boost contract-trigger damage (vx_c02 still deals 1)', () 
   fileContract(s, 0, 'vx_c01');
   fileContract(s, 0, 'vx_c02');
   end(s);
-  assert.equal(s.players[1].integrity, 29, 'end-of-turn contract damage not boosted');
+  assert.equal(s.players[1].integrity, 39, 'end-of-turn contract damage not boosted');
 });
 
 // ---------------------------------------------------------------------------
@@ -1121,22 +1121,22 @@ test('nx_c03 fires per operation, after the op resolves; hero power does not tri
   // op #1: Telemetry (draw) -> trigger 1 damage, after the draw
   const i1 = putInHand(s, 0, 'nx_019');
   const r1 = applyAction(s, 0, { type: 'playCard', handIndex: i1, target: null, position: null });
-  assert.equal(s.players[1].integrity, 29);
+  assert.equal(s.players[1].integrity, 39);
   const types = r1.events.map((e) => e.e);
   assert.ok(types.indexOf('draw') < types.indexOf('damage'),
     'operation effects resolve before the trigger');
   // op #2: Ping the enemy CEO -> 1 (op) + 1 (trigger)
   const i2 = putInHand(s, 0, 'nx_013');
   applyAction(s, 0, { type: 'playCard', handIndex: i2, target: 'hero1', position: null });
-  assert.equal(s.players[1].integrity, 27);
+  assert.equal(s.players[1].integrity, 37);
   // hero power is not an operation
   applyAction(s, 0, { type: 'heroPower', target: null });
-  assert.equal(s.players[1].integrity, 27);
+  assert.equal(s.players[1].integrity, 37);
   // stacks: two copies -> 2 per operation
   fileContract(s, 0, 'nx_c03');
   const i3 = putInHand(s, 0, 'nx_019');
   applyAction(s, 0, { type: 'playCard', handIndex: i3, target: null, position: null });
-  assert.equal(s.players[1].integrity, 25);
+  assert.equal(s.players[1].integrity, 35);
 });
 
 test('end-of-turn contracts (vx_c02, hx_c01) fire at owner turn end, before opponent turnStart', () => {
@@ -1145,14 +1145,14 @@ test('end-of-turn contracts (vx_c02, hx_c01) fire at owner turn end, before oppo
   fileContract(s, 0, 'hx_c01');
   s.players[0].integrity = 20;
   const r = end(s);
-  assert.equal(s.players[1].integrity, 29, 'vx_c02 hit the enemy CEO');
+  assert.equal(s.players[1].integrity, 39, 'vx_c02 hit the enemy CEO');
   assert.equal(s.players[0].integrity, 22, 'hx_c01 healed the owner');
   const types = r.events.map((e) => e.e);
   assert.ok(types.indexOf('damage') < types.indexOf('turnStart'), 'before opponent turnStart');
   assert.ok(types.indexOf('heal') < types.indexOf('turnStart'));
   // not on the opponent's turn end
   end(s);
-  assert.equal(s.players[1].integrity, 29);
+  assert.equal(s.players[1].integrity, 39);
   assert.equal(s.players[0].integrity, 22);
 });
 
@@ -1160,35 +1160,35 @@ test('hx_c01 overheals the CEO past base integrity (healing uncapped)', () => {
   const s = newGame();
   fileContract(s, 0, 'hx_c01');
   end(s);
-  assert.equal(s.players[0].integrity, 32);
-  assert.equal(s.players[0].maxIntegrity, 30);
+  assert.equal(s.players[0].integrity, 42);
+  assert.equal(s.players[0].maxIntegrity, 40);
 });
 
 test('vx_c03 both parties: the ACTIVE player takes 1 at the start of each turn', () => {
   const s = newGame();
   fileContract(s, 0, 'vx_c03');
   end(s); // p1's turn starts -> p1 takes 1 (owner's contract, opponent's turn)
-  assert.equal(s.players[1].integrity, 29);
-  assert.equal(s.players[0].integrity, 30);
+  assert.equal(s.players[1].integrity, 39);
+  assert.equal(s.players[0].integrity, 40);
   end(s); // p0's turn starts -> p0 takes 1 (own turn)
-  assert.equal(s.players[0].integrity, 29);
-  assert.equal(s.players[1].integrity, 29);
+  assert.equal(s.players[0].integrity, 39);
+  assert.equal(s.players[1].integrity, 39);
 });
 
 test('ob_c01 Payday: +1 temp capital and 1 self-damage at own turn start only', () => {
   const s = newGame();
   fileContract(s, 0, 'ob_c01');
   end(s); // p1's turn: nothing (not both-parties)
-  assert.equal(s.players[0].integrity, 30);
-  assert.equal(s.players[1].integrity, 30);
+  assert.equal(s.players[0].integrity, 40);
+  assert.equal(s.players[1].integrity, 40);
   end(s); // p0 turn 2: maxCapital 2, +1 temp -> 3; CEO takes 1
   assert.equal(s.players[0].maxCapital, 2);
   assert.equal(s.players[0].capital, 3);
-  assert.equal(s.players[0].integrity, 29);
+  assert.equal(s.players[0].integrity, 39);
   end(s); end(s); // p0 turn 3: temp capital did not persist into max
   assert.equal(s.players[0].maxCapital, 3);
   assert.equal(s.players[0].capital, 4);
-  assert.equal(s.players[0].integrity, 28);
+  assert.equal(s.players[0].integrity, 38);
 });
 
 test('lethal payday: ob_c01 self-damage can lose the game', () => {
@@ -1360,7 +1360,7 @@ test('layoff illegal: no keyword / enemy unit / off-turn / unknown id', () => {
   assert.equal(applyAction(s, 0, { type: 'layoff', unitId: 'u999' }).ok, false);
   assert.equal(s.players[0].board.length + s.players[1].board.length, 2,
     'nothing was destroyed');
-  assert.equal(s.players[0].integrity, 30);
+  assert.equal(s.players[0].integrity, 40);
 });
 
 test('silence strips LAYOFF: action rejected and no longer enumerated', () => {
@@ -1374,12 +1374,12 @@ test('silence strips LAYOFF: action rejected and no longer enumerated', () => {
   assert.ok(!legalActions(s, 0).some((a) => a.type === 'layoff'));
 });
 
-test('layoff heal is uncapped: pushes integrity past 30', () => {
+test('layoff heal is uncapped: pushes integrity past 40', () => {
   const s = newGame();
   const u = addUnit(s, 0, 'ob_017'); // 1/3 at full health
-  assert.equal(s.players[0].integrity, 30);
+  assert.equal(s.players[0].integrity, 40);
   applyAction(s, 0, { type: 'layoff', unitId: u.id });
-  assert.equal(s.players[0].integrity, 33);
+  assert.equal(s.players[0].integrity, 43);
 });
 
 test('layoff fires GOLDEN PARACHUTE (Spore Pod summons a Spore)', () => {

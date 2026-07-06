@@ -12,16 +12,16 @@ battle for industry dominance. Tone: sleek corporate cyberpunk, dry satirical fl
 
 ## 1. Core rules (Hearthstone-style turn structure — no priority stack)
 
-- 2 players. Each player is a **CEO** of a conglomerate with **30 INTEGRITY** (health).
+- 2 players. Each player is a **CEO** of a conglomerate with **40 INTEGRITY** (health).
   Reduce the enemy CEO to 0 integrity → you win (a "hostile takeover").
 - **Healing is uncapped**: effects that restore integrity/durability (SIPHON, heal
   ops, CEO powers) always add their full amount, even past the base value — a CEO
-  at 30/30 healed for 2 goes to 32; a full-health asset can be healed above its
+  at 40/40 healed for 2 goes to 42; a full-health asset can be healed above its
   printed durability. `maxIntegrity`/`maxHealth` are the *base* stats used for
   display and damaged-styling, not a ceiling.
 - Resource: **CAPITAL**. Player's max capital starts at 1 on their first turn, grows +1 each
   of their turns (cap **10**), and refills to max at the start of their turn.
-- Deck: exactly **30 cards**, max **2 copies** of any card, from **one faction + NEUTRAL** cards.
+- Deck: exactly **40 cards**, max **2 copies** of any card, from **one faction + NEUTRAL** cards.
 - Going first: 3 opening cards. Going second: 4 opening cards **plus** the bonus card
   `ntr_subsidy` ("Government Subsidy": Operation, cost 0, "Gain 1 Capital this turn only").
 - No mulligan in v1.
@@ -99,7 +99,7 @@ Persistent cards representing corporate agreements. Rules:
 - View (§5) gains `contracts: [{id, cardId, turnsLeft}]` on BOTH `you` and `opp`
   (contracts are public). Targeting enum gains `"enemyContract"`. `playCard`'s `target`
   may be a `"c<N>"` id for null-&-void effects. Board limit 7 is unaffected.
-- Deck rules unchanged: contracts are collectible, count in the 30, max 2 copies.
+- Deck rules unchanged: contracts are collectible, count in the 40, max 2 copies.
 
 ## 3c. LAYOFF (v1)
 
@@ -252,7 +252,7 @@ Flavor bar: every contract gets dry legal-satire flavor text ("fine print" energ
 Rarity spread: commons/rares; `vx_c03` and `ob_c02` epic. Starter decks: each starter
 deck swaps in 1 of its faction's contracts (2 copies → no; ONE copy, cutting one
 existing card) plus each deck gains one `ntr_c02` Void Clause (cutting one card),
-keeping exactly 30 and passing validateDeck.
+keeping exactly 40 and passing validateDeck.
 
 ## 4. Card data schema (what client & server see)
 
@@ -267,7 +267,7 @@ The server exposes them to the client as JSON via `GET /api/cards`.
   "type": "ASSET",             // ASSET | OPERATION | CEO | POWER
   "cost": 4,
   "attack": 4,                 // ASSET only
-  "health": 3,                 // ASSET only (CEO uses health: 30)
+  "health": 3,                 // ASSET only (CEO uses health: 40)
   "keywords": ["fasttrack"],  // stand-alone keywords only (section 3)
   "text": "FAST-TRACK. Onboarding: deal 1 damage to the enemy CEO.",
   "flavor": "Quarterly targets are not a suggestion.",
@@ -287,12 +287,12 @@ card. If present, it fills the card's art frame (recommended source ratio ~4:3 l
 "ART PENDING" watermark treatment). `client/assets/card-art/README.md` documents the
 convention. The card data schema needs no art field.
 
-- `type: "CEO"` cards (one per faction, e.g. `nx_ceo`) define the hero: name, 30 health, `powerId`.
+- `type: "CEO"` cards (one per faction, e.g. `nx_ceo`) define the hero: name, 40 health, `powerId`.
 - `type: "POWER"` cards define the CEO power: cost 2, `text`, effects.
 - Tokens (summoned units) are non-collectible ASSET cards in the same map.
 - **~120 collectible cards total**: ~22 per faction + ~30 neutral. Costs 0–10, all rarities.
 
-`STARTER_DECKS`: `{ nexus: {name, faction, cards:[30 ids]}, vulcan: {...}, helix: {...}, obsidian: {...} }`
+`STARTER_DECKS`: `{ nexus: {name, faction, cards:[40 ids]}, vulcan: {...}, helix: {...}, obsidian: {...} }`
 — four tuned, playable prebuilt decks.
 
 ## 5. Engine API (`shared/engine.js`, ESM)
@@ -304,7 +304,7 @@ The server holds one `state` per game room and is the only writer.
 import { createGame, applyAction, legalActions, getView, redactEvents, cloneState, validateDeck, CARDS } from './engine.js'
 
 // createGame({ decks: [deck0, deck1], names: ["Alice","Bob"], seed: 12345 }) -> state
-//   deck: { faction: "nexus", cards: [30 card ids] }   (player 0 goes first)
+//   deck: { faction: "nexus", cards: [40 card ids] }   (player 0 goes first)
 // validateDeck(deck) -> { ok: true } | { ok: false, error: "reason" }
 // applyAction(state, playerIndex, action) -> { ok: true, events: [...] } | { ok: false, error: "msg" }
 //   MUTATES state. Rejects out-of-turn / illegal actions with ok:false (never throws on bad input).
@@ -341,7 +341,7 @@ import { createGame, applyAction, legalActions, getView, redactEvents, cloneStat
   "activePlayer": 0,
   "you": {
     "index": 0, "name": "Alice", "faction": "nexus",
-    "integrity": 27, "maxIntegrity": 30,
+    "integrity": 37, "maxIntegrity": 40,
     "capital": 4, "maxCapital": 4,
     "ceo": { "cardId": "nx_ceo", "name": "..." },
     "power": { "cardId": "nx_power", "cost": 2, "used": false, "targeting": null },

@@ -100,7 +100,7 @@ function buildSkeleton() {
             <span class="hero-corp" id="g-corp-opp"></span>
             <div class="capital-row" id="g-cap-opp"></div>
           </div>
-          <div class="integrity" id="g-int-opp">30</div>
+          <div class="integrity" id="g-int-opp">40</div>
         </div>
         <div class="deck-pill" id="g-deck-opp" title="Opponent deck">${deckIcon()}<span id="g-deckn-opp">0</span></div>
         <div class="opp-hand" id="g-opp-hand"></div>
@@ -121,7 +121,7 @@ function buildSkeleton() {
             <span class="hero-corp" id="g-corp-me"></span>
             <div class="capital-row" id="g-cap-me"></div>
           </div>
-          <div class="integrity" id="g-int-me">30</div>
+          <div class="integrity" id="g-int-me">40</div>
         </div>
         <button class="power-btn" id="g-power" title="CEO Power"></button>
         <div class="deck-pill" id="g-deck-me" title="Your deck">${deckIcon()}<span id="g-deckn-me">0</span></div>
@@ -137,8 +137,8 @@ function buildSkeleton() {
       <button class="end-turn-btn" id="g-endturn">END TURN</button>
       <div class="rail-stats">
         <div class="rail-stat"><span>ROUND</span><span class="v" id="g-round">1</span></div>
-        <div class="rail-stat"><span>YOUR DECK</span><span class="v" id="g-rs-deck-me">30</span></div>
-        <div class="rail-stat"><span>ENEMY DECK</span><span class="v" id="g-rs-deck-opp">30</span></div>
+        <div class="rail-stat"><span>YOUR DECK</span><span class="v" id="g-rs-deck-me">40</span></div>
+        <div class="rail-stat"><span>ENEMY DECK</span><span class="v" id="g-rs-deck-opp">40</span></div>
       </div>
       <div class="log-panel" id="g-log">
         <div class="log-head" id="g-log-head"><span class="tag">Transaction Log</span><span class="tag" id="g-log-toggle">▾</span></div>

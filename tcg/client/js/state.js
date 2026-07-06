@@ -165,7 +165,7 @@ export function resolveDeck(selId) {
 
 export function deckValidity(faction, cards) {
   if (!Array.isArray(cards)) return { ok: false, error: 'No cards' };
-  if (cards.length !== 30) return { ok: false, error: `${cards.length}/30 cards` };
+  if (cards.length !== 40) return { ok: false, error: `${cards.length}/40 cards` };
   const counts = {};
   for (const id of cards) {
     const def = getCard(id);
