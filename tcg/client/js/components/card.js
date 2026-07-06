@@ -237,28 +237,62 @@ export function renderCard(defOrId, opts = {}) {
     el.appendChild(hp);
   }
 
-  // Granted-keyword badge: a keyword the LIVE unit carries but the card was
-  // NOT printed with (e.g. Mandatory Overtime granting OVERTIME) has no other
-  // home on this face — the kw-gloss block above only reads def.keywords, the
-  // card's static definition. Surface it as its own gold tag in the gap the
-  // stat chips leave at bottom-center, so a granted keyword is never invisible.
-  // A silenced unit takes the same slot instead — Gag Order wipes keywords to
-  // an empty array, so it never has a "granted" keyword to show, but it's just
-  // as invisible otherwise (the card would read as an ordinary vanilla body).
-  if (def.type === 'ASSET' && opts.silenced) {
-    const sb = document.createElement('div');
-    sb.className = 'granted-kw-badge silenced-badge';
-    sb.textContent = 'SILENCED';
-    sb.title = 'Silenced — stripped of all keywords and triggers.';
-    el.appendChild(sb);
-  } else if (def.type === 'ASSET' && Array.isArray(opts.keywords)) {
-    const granted = opts.keywords.filter((k) => !(def.keywords || []).includes(k));
-    if (granted.length) {
-      const gb = document.createElement('div');
-      gb.className = 'granted-kw-badge';
-      gb.textContent = granted.map((k) => kwName(def, k)).join(' · ');
-      gb.title = granted.map((k) => kwName(def, k) + ' — ' + (KEYWORD_HELP[k] || faceGloss(k))).join('\n');
-      el.appendChild(gb);
+  // Status-tag stack (bottom-center, the gap the stat chips leave free):
+  // anything true of this LIVE unit that the card's printed def can't show.
+  // Each source has no other home on this face — the kw-gloss block above
+  // only reads def.keywords (the static definition), and none of these are
+  // "attack/health" numbers the stat chips already cover. Stacked (not just
+  // one-or-the-other) because a unit can carry more than one at once — e.g.
+  // a granted keyword AND a Flirty Intern distraction simultaneously.
+  if (def.type === 'ASSET') {
+    const tags = [];
+    if (opts.silenced) {
+      // Silence wipes keywords to [], so it always wins over "granted" below —
+      // there's nothing left to report a grant on top of.
+      tags.push({ cls: 'silenced-badge', text: 'SILENCED', title: 'Silenced — stripped of all keywords and triggers.' });
+    } else if (Array.isArray(opts.keywords)) {
+      const granted = opts.keywords.filter((k) => !(def.keywords || []).includes(k));
+      if (granted.length) {
+        tags.push({
+          cls: '', text: granted.map((k) => kwName(def, k)).join(' · '),
+          title: granted.map((k) => kwName(def, k) + ' — ' + (KEYWORD_HELP[k] || faceGloss(k))).join('\n'),
+        });
+      }
+    }
+    // FLIRTY INTERN: can't attack for N more turns — shown as a rose pip on
+    // the compact board card, but the enlarged preview had no equivalent.
+    if (opts.distracted > 0) {
+      const n = opts.distracted;
+      tags.push({
+        cls: 'distracted-badge', text: `DISTRACTED ${n}`,
+        title: `Distracted — can't attack for ${n} more turn${n === 1 ? '' : 's'}.`,
+      });
+    }
+    // Asset-class aura (contract, e.g. Retooling Order): the atk chip above
+    // already shows the boosted number via .buffed, but not WHY — same gap
+    // the compact board card's gold aura pip already fills.
+    if (opts.counters && opts.counters.count) {
+      const atkBonus = opts.counters.atk || 0;
+      const lines = (opts.counters.sources || []).map((sc) => {
+        const nm = getCard(sc.cardId)?.name || sc.cardId;
+        return `${nm}: ${sc.atk > 0 ? '+' : ''}${sc.atk} Attack`;
+      });
+      tags.push({
+        cls: 'counter-tag-badge', text: `${atkBonus > 0 ? '+' : ''}${atkBonus} ATK (${lines.length})`,
+        title: 'Asset-class bonus — ' + lines.join(' · '),
+      });
+    }
+    if (tags.length) {
+      const stack = document.createElement('div');
+      stack.className = 'status-tag-stack';
+      for (const t of tags) {
+        const b = document.createElement('div');
+        b.className = 'granted-kw-badge status-tag' + (t.cls ? ' ' + t.cls : '');
+        b.textContent = t.text;
+        b.title = t.title;
+        stack.appendChild(b);
+      }
+      el.appendChild(stack);
     }
   }
 

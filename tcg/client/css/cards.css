@@ -169,12 +169,18 @@
 .stat-chip.buffed { color: #d9ffe6; box-shadow: 0 0 9px rgba(74, 222, 128, 0.75), 0 2px 6px rgba(0,0,0,0.6); }
 .atk-chip::before { content: none; }
 
-/* granted-keyword badge — bottom-center, same free slot an ASSET's stat chips
-   leave between them. Same gold-pill treatment as .term-badge below (a
+/* status-tag stack — bottom-center, same free slot an ASSET's stat chips
+   leave between them. Holds any number of runtime-status tags (granted
+   keyword / silenced / distracted / aura bonus), stacked upward so they
+   never overlap the chips even when more than one applies at once. */
+.status-tag-stack {
+  position: absolute; bottom: calc(var(--cw) * -0.045); left: 50%; transform: translateX(-50%); z-index: 4;
+  display: flex; flex-direction: column-reverse; align-items: center; gap: calc(var(--cw) * 0.02);
+}
+/* granted-keyword tag — gold-pill treatment matching .term-badge below (a
    keyword that wasn't printed on the card deserves the same "look here"
    weight as a contract's term). */
 .granted-kw-badge {
-  position: absolute; bottom: calc(var(--cw) * -0.045); left: 50%; transform: translateX(-50%); z-index: 4;
   font: 800 calc(var(--cw) * 0.062)/1 var(--mono); letter-spacing: 0.09em; color: #071019;
   padding: calc(var(--cw) * 0.028) calc(var(--cw) * 0.055);
   background: radial-gradient(circle at 32% 28%, #ffe9b8, var(--gold) 62%, #9c7226);
@@ -182,13 +188,30 @@
   box-shadow: 0 2px 6px rgba(0,0,0,0.6), 0 0 8px rgba(232,180,90,0.35);
   white-space: nowrap;
 }
-/* silenced override — same slot/shape as the gold grant badge, but muted
-   gray/red: this is a debuff (stripped), not a bonus (granted). */
+/* silenced override — same shape as the gold grant tag, but muted gray:
+   this is a debuff (stripped), not a bonus (granted). */
 .silenced-badge {
   color: #d8dde5;
   background: radial-gradient(circle at 32% 28%, #6b7684, #384352 62%, #1c232c);
   border-color: #4a5566;
   box-shadow: 0 2px 6px rgba(0,0,0,0.6), 0 0 8px rgba(120,130,145,0.3);
+}
+/* distracted override — rose, matching the compact board card's Flirty
+   Intern pip. */
+.distracted-badge {
+  color: #fff;
+  background: linear-gradient(160deg, #ff8fc4, #d61f75);
+  border-color: #ffd0e6;
+  box-shadow: 0 2px 6px rgba(0,0,0,0.6), 0 0 8px rgba(214,31,117,0.4);
+}
+/* asset-class aura override — cyan-leaning gold, distinct from a granted
+   keyword tag so "this is a live number bonus" reads differently from
+   "this card now has an ability it didn't print with". */
+.counter-tag-badge {
+  color: #06121a;
+  background: radial-gradient(circle at 32% 28%, #d8ffe2, #4ade80 62%, #1f7a42);
+  border-color: #b7f7ce;
+  box-shadow: 0 2px 6px rgba(0,0,0,0.6), 0 0 8px rgba(74,222,128,0.35);
 }
 
 /* ---------- CONTRACT card face ---------- */
