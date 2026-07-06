@@ -114,6 +114,19 @@ export function stopMusic() {
   if (musicEl) fadeTo(0);
 }
 
+// How long the quick pre-taunt duck takes — kept short so the taunt lands
+// almost immediately, not a slow "fade to black".
+export const TAUNT_DUCK_MS = 280;
+
+/** Quickly fade the current music toward silence — used right before a CEO
+ *  taunt plays so the taunt is actually audible over it. Unlike stopMusic(),
+ *  this leaves wantMusic/currentMusic alone: a later playMusic() call (e.g.
+ *  resuming "music-game" for a rematch, or switching to "music-lobby") sees
+ *  the element paused and restarts/crossfades normally. */
+export function duckMusic(ms = TAUNT_DUCK_MS) {
+  fadeTo(0, ms);
+}
+
 /** Play a one-shot sound effect by name, optionally falling back to another
  *  name if the first has no files at all. No-op if SFX are disabled or no
  *  file exists. If multiple numbered variants exist for the name (e.g.

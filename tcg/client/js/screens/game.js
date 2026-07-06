@@ -32,6 +32,7 @@ const unitNames = new Map(); // unitId -> display name (survives death for the l
 export function mount(el) { root = el; }
 
 export function enter(params) {
+  const rematchReentry = active; // already true = came from a rematch, no exit() in between
   active = true;
   over = false;
   pendingGameOver = null;
@@ -39,10 +40,14 @@ export function enter(params) {
   session.inGame = true;
   unitNames.clear();
   // Re-entering without exit() (e.g. rematch gameStart while already on this
-  // screen): clear last game's terminal overlay and stale UI references.
+  // screen): clear last game's terminal overlay and stale UI references. The
+  // screen router only replays music on an actual screen change, so a rematch
+  // never re-triggers it — resume it ourselves (it was ducked for the last
+  // match's CEO taunt and may still be silent/faded).
   document.querySelector('.gameover-veil')?.remove();
   rematchOfferPending = false;
   emoteWheel = null;
+  if (rematchReentry) audio.playMusic('music-game');
 
   if (params && params.view) {
     youIdx = params.you ?? params.view.you?.index ?? 0;
@@ -874,12 +879,17 @@ function showGameOver(msg) {
     const wf = msg.winner === youIdx ? view.you?.faction : view.opp?.faction;
     if (wf) {
       const fname = factionMeta(wf)?.name || wf;
-      audio.playCeoTaunt(wf).then((r) => {
-        if (!r || r.status === 'played') return;
-        if (r.status === 'muted') toast(`🔇 ${fname} CEO taunt is ready but SFX is muted — enable it in ⚙.`, 'warn', 6000);
-        else if (r.status === 'no-file') toast(`🔊 No taunt audio for ${fname} — add ${r.expected}`, 'warn', 7000);
-        else if (r.status === 'blocked') toast(`🔊 ${fname} CEO taunt was blocked by the browser.`, 'warn', 6000);
-      });
+      // Duck the match music out of the way first — otherwise it's still at
+      // full volume right under the taunt and drowns it out.
+      audio.duckMusic();
+      setTimeout(() => {
+        audio.playCeoTaunt(wf).then((r) => {
+          if (!r || r.status === 'played') return;
+          if (r.status === 'muted') toast(`🔇 ${fname} CEO taunt is ready but SFX is muted — enable it in ⚙.`, 'warn', 6000);
+          else if (r.status === 'no-file') toast(`🔊 No taunt audio for ${fname} — add ${r.expected}`, 'warn', 7000);
+          else if (r.status === 'blocked') toast(`🔊 ${fname} CEO taunt was blocked by the browser.`, 'warn', 6000);
+        });
+      }, audio.TAUNT_DUCK_MS);
     }
   }
   const reasons = {
