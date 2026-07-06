@@ -88,16 +88,23 @@ function fadeTo(target, ms = 600) {
   }, ms / steps);
 }
 
-/** Loop a background music track by name (e.g. "music-lobby"). No-op if music
- *  is disabled or the file is absent. Crossfades from any current track. */
-export async function playMusic(name) {
-  wantMusic = name;
+/** Loop a background music track by name (e.g. "music-lobby"), optionally
+ *  falling back to another name if the first has no file at all (e.g. a
+ *  faction-specific track that hasn't been dropped in yet). No-op if music
+ *  is disabled or neither file is present. Crossfades from any current track.
+ *  Resolves `wantMusic` to whichever name actually played, so a later bare
+ *  playMusic(wantMusic) call (settings toggle, autoplay-gesture retry) targets
+ *  the track that's really in use instead of re-probing the missing one. */
+export async function playMusic(name, fallback) {
+  let resolved = name;
+  if (fallback && !(await findAudio(name))) resolved = fallback;
+  wantMusic = resolved;
   if (!musicOn) return;
-  const url = await findAudio(name);
+  const url = await findAudio(resolved);
   if (!url) { currentMusic = null; return; }
-  if (currentMusic === name && musicEl && !musicEl.paused) return;
+  if (currentMusic === resolved && musicEl && !musicEl.paused) return;
   if (!musicEl) { musicEl = new Audio(); musicEl.loop = true; }
-  currentMusic = name;
+  currentMusic = resolved;
   musicEl.src = url;
   musicEl.volume = 0;
   try {

@@ -27,7 +27,15 @@ export function showScreen(name, params) {
   requestAnimationFrame(() => requestAnimationFrame(() => el.classList.add('shown')));
   current.enter?.(params);
   // in-match music on the board, lobby music everywhere else
-  audio.playMusic(name === 'game' ? 'music-game' : 'music-lobby');
+  if (name === 'game') playGameMusic(params?.view?.you?.faction);
+  else audio.playMusic('music-lobby');
+}
+
+/** In-match music keyed to the LOCAL player's own faction (not whichever CEO's
+ *  turn it is) — assets/audio/music-<faction>.mp3, falling back to the
+ *  generic music-game.mp3 if that faction's track hasn't been dropped in. */
+export function playGameMusic(faction) {
+  audio.playMusic(faction ? 'music-' + faction : 'music-game', 'music-game');
 }
 
 export function activeScreenName() { return currentName; }

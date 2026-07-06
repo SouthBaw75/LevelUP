@@ -3,7 +3,7 @@
 
 import { getCard, factionMeta, session, EMOTES, KEYWORD_NAMES, KEYWORD_HELP } from '../state.js';
 import * as net from '../net.js';
-import { showScreen, toast } from '../main.js';
+import { showScreen, toast, playGameMusic } from '../main.js';
 import { renderCard, renderUnit, renderCardBack, renderContractTile, attachPreview, hidePreview } from '../components/card.js';
 import { mountCeoPortrait, artSvg } from '../art.js';
 import { initAnim, stopAnim, queueBatch, isAnimating, fxRoot, showBanner } from '../anim.js';
@@ -47,7 +47,10 @@ export function enter(params) {
   document.querySelector('.gameover-veil')?.remove();
   rematchOfferPending = false;
   emoteWheel = null;
-  if (rematchReentry) audio.playMusic('music-game');
+  // read the faction straight off the incoming params, not the (still stale,
+  // about-to-be-overwritten) module-level `view` — a rematch can be a
+  // different faction than the match that just ended.
+  if (rematchReentry) playGameMusic(params?.view?.you?.faction);
 
   if (params && params.view) {
     youIdx = params.you ?? params.view.you?.index ?? 0;
