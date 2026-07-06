@@ -276,6 +276,14 @@ export function findFactionIcon(faction) {
   return p;
 }
 
+// assets/splash-screen/logo.(png|jpg|webp) — full title+tagline lockup shown
+// on the home/enter-name screen in place of the plain text wordmark.
+let splashLogoPromise = null;
+export function findSplashLogo() {
+  if (!splashLogoPromise) splashLogoPromise = probe('assets/splash-screen', 'logo', 0, ART_EXTS);
+  return splashLogoPromise;
+}
+
 // Probe <dir>/<name>.<ext> across the given extensions; resolve the first URL
 // that loads, or null. Results are cached by the callers above so a screen
 // re-render never re-probes the same missing files.

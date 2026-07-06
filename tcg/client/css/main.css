@@ -133,7 +133,10 @@ button {
 
 .home-inner { display: flex; flex-direction: column; align-items: center; gap: 0; }
 
+.home-brand { display: flex; flex-direction: column; align-items: center; }
 .home-logo { width: min(760px, 84vw); filter: drop-shadow(0 0 34px rgba(34,211,238,0.25)); }
+/* drop-in full logo (assets/splash-screen/logo.*) replaces the SVG wordmark + tagline */
+.home-logo-img { width: min(620px, 78vw); height: auto; filter: drop-shadow(0 0 34px rgba(34,211,238,0.2)); }
 
 .home-tagline {
   margin-top: 10px; font: 500 13px/1 var(--mono); letter-spacing: 0.42em;

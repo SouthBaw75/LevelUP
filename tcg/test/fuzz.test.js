@@ -13,7 +13,7 @@ const EVENT_TYPES = new Set([
   'turnStart', 'capital', 'draw', 'mill', 'fatigue', 'cardPlayed', 'summon',
   'attack', 'damage', 'heal', 'shieldBreak', 'death', 'buff', 'keyword',
   'heroPower', 'returnToHand', 'silence', 'transform', 'gameOver',
-  'contractFiled', 'contractVoided', 'layoff', 'severance',
+  'contractFiled', 'contractVoided', 'layoff', 'severance', 'distract',
 ]);
 
 // independent PRNG for action choice (not the engine's)

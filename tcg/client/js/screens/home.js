@@ -3,6 +3,7 @@
 import { getName, setName, session } from '../state.js';
 import * as net from '../net.js';
 import { showScreen, toast } from '../main.js';
+import { findSplashLogo } from '../art.js';
 
 let root = null;
 let nameInput = null;
@@ -52,8 +53,10 @@ export function mount(el) {
     .join('');
   el.innerHTML = `
     <div class="home-inner">
-      ${LOGO_SVG}
-      <div class="home-tagline">MARKET DOMINANCE IS <b>NOT NEGOTIABLE</b></div>
+      <div class="home-brand">
+        ${LOGO_SVG}
+        <div class="home-tagline">MARKET DOMINANCE IS <b>NOT NEGOTIABLE</b></div>
+      </div>
       <div class="home-entry">
         <input id="home-name" class="input" maxlength="20" placeholder="EXECUTIVE NAME" autocomplete="off" spellcheck="false">
         <button id="home-connect" class="btn primary">ENTER THE MARKET</button>
@@ -72,6 +75,16 @@ export function mount(el) {
   statusEl = el.querySelector('#home-net-status');
   nameInput.value = getName();
   connectBtn.addEventListener('click', submit);
+
+  // Drop-in full logo lockup: assets/splash-screen/logo.(png|jpg|webp). When
+  // present, it replaces BOTH the text wordmark SVG and the tagline line
+  // (the image is expected to already contain the title + slogan). Falls
+  // back to the SVG+tagline exactly as before when no file is dropped in.
+  findSplashLogo().then((url) => {
+    const brand = el.querySelector('.home-brand');
+    if (!url || !brand) return;
+    brand.innerHTML = `<img class="home-logo-img" src="${url}" alt="HOSTILE TAKEOVER">`;
+  });
 }
 
 export function enter() {
