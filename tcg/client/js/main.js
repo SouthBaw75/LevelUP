@@ -7,8 +7,9 @@ import * as home from './screens/home.js';
 import * as lobby from './screens/lobby.js';
 import * as builder from './screens/builder.js';
 import * as game from './screens/game.js';
+import * as watch from './screens/watch.js';
 
-const SCREENS = { home, lobby, builder, game };
+const SCREENS = { home, lobby, builder, game, watch };
 let current = null;
 let currentName = null;
 
@@ -26,8 +27,10 @@ export function showScreen(name, params) {
   el.classList.add('active');
   requestAnimationFrame(() => requestAnimationFrame(() => el.classList.add('shown')));
   current.enter?.(params);
-  // in-match music on the board, lobby music everywhere else
+  // in-match music on the board, generic game music while spectating, lobby
+  // music everywhere else
   if (name === 'game') playGameMusic(params?.view?.you?.faction);
+  else if (name === 'watch') playGameMusic(null);
   else audio.playMusic('music-lobby');
 }
 

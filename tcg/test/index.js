@@ -5,3 +5,4 @@ import './cards.test.js';
 import './deck.test.js';
 import './rules.test.js';
 import './fuzz.test.js';
+import './watch.test.js';

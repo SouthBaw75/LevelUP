@@ -7,6 +7,7 @@ import { validateDeck } from '../shared/engine.js';
 import { STARTER_DECKS } from '../shared/cards.js';
 import { Room } from './room.js';
 import { BOT_NAMES } from './bot.js';
+import { WatchRoom, isFaction } from './watchroom.js';
 
 const RATE_LIMIT_MSGS_PER_SEC = 20;
 const PRIVATE_LOBBY_TTL_MS = 10 * 60 * 1000;
@@ -37,6 +38,8 @@ export class Lobby {
     this.privates = new Map();
     /** live Room set */
     this.rooms = new Set();
+    /** live WatchRoom set (AI-vs-AI spectator sims) */
+    this.watchRooms = new Set();
     this.heartbeat = setInterval(() => this.reapDeadSockets(), HEARTBEAT_INTERVAL_MS);
     if (this.heartbeat.unref) this.heartbeat.unref();
   }
@@ -53,6 +56,10 @@ export class Lobby {
     this.rooms.delete(room);
   }
 
+  removeWatchRoom(room) {
+    this.watchRooms.delete(room);
+  }
+
   // ------------------------------------------------------------- connection
 
   /** New WebSocket. pidHint comes from the ?pid= query param (may be null). */
@@ -65,6 +72,7 @@ export class Lobby {
       helloed: false,
       deck: null,
       room: null,
+      watchRoom: null,
       privateCode: null,
       alive: true,
       rl: { windowStart: 0, count: 0 },
@@ -189,6 +197,15 @@ export class Lobby {
         break;
       case 'playBot':
         this.handlePlayBot(client, msg.deck, msg.difficulty);
+        break;
+      case 'watchBots':
+        this.handleWatchBots(client, msg);
+        break;
+      case 'watchSpeed':
+        if (client.watchRoom) client.watchRoom.setSpeed(Number(msg.speed));
+        break;
+      case 'watchStop':
+        if (client.watchRoom) client.watchRoom.destroy();
         break;
       case 'action':
         if (client.room) client.room.handleAction(client.pid, msg.action);
@@ -436,6 +453,30 @@ export class Lobby {
     room.start();
   }
 
+  // ------------------------------------------------------ AI-vs-AI watch mode
+
+  handleWatchBots(client, msg) {
+    if (client.room || client.watchRoom) {
+      this.sendError(client, 'Already in a game');
+      return;
+    }
+    const factionA = msg.factionA;
+    const factionB = msg.factionB;
+    if (!isFaction(factionA) || !isFaction(factionB)) {
+      this.sendError(client, 'Pick two valid factions');
+      return;
+    }
+    const room = new WatchRoom(this, client, {
+      factionA,
+      factionB,
+      matches: Number(msg.matches),
+      speed: Number(msg.speed),
+      difficulty: msg.difficulty === 'normal' ? 'normal' : 'hard',
+    });
+    this.watchRooms.add(room);
+    room.start();
+  }
+
   // ------------------------------------------------------------- disconnect
 
   handleClose(client) {
@@ -449,6 +490,12 @@ export class Lobby {
       client.room = null;
       room.handleDisconnect(client.pid);
     }
+    if (client.watchRoom) {
+      // A watch spectator dropped — no reconnect grace for a passive observer.
+      const wr = client.watchRoom;
+      client.watchRoom = null;
+      wr.handleSpectatorGone();
+    }
     client.helloed = false;
   }
 
@@ -457,6 +504,7 @@ export class Lobby {
   shutdown() {
     clearInterval(this.heartbeat);
     for (const room of [...this.rooms]) room.destroy();
+    for (const room of [...this.watchRooms]) room.destroy();
     for (const entry of this.privates.values()) clearTimeout(entry.timer);
     this.privates.clear();
     for (const client of this.clients.values()) {

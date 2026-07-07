@@ -164,6 +164,7 @@ function render() {
             <button class="btn" id="btn-bot-normal">VS BOT · NORMAL</button>
             <button class="btn" id="btn-bot-hard">VS BOT · HARD</button>
           </div>
+          <button class="btn" id="btn-watch">▸ WATCH AI vs AI <span class="sub">playtest — two bots, auto-run</span></button>
         </div>
       </div>
     </div>
@@ -241,6 +242,10 @@ function render() {
   });
   root.querySelector('#btn-bot-normal').addEventListener('click', () => startBot('normal'));
   root.querySelector('#btn-bot-hard').addEventListener('click', () => startBot('hard'));
+  root.querySelector('#btn-watch').addEventListener('click', () => {
+    if (!ensureConnected()) return;
+    openWatchSetup();
+  });
 }
 
 function ensureConnected() {
@@ -257,6 +262,80 @@ function startBot(difficulty) {
   if (!deck) return;
   if (!ensureConnected()) return;
   net.send({ t: 'playBot', deck, difficulty });
+}
+
+// ---------- AI-vs-AI watch setup ----------
+const WATCH_FACTIONS = ['nexus', 'vulcan', 'helix', 'obsidian'];
+const watchPick = { a: 'nexus', b: 'obsidian', matches: 5 };
+
+function openWatchSetup() {
+  closeModal(false);
+  modalMode = 'watchSetup';
+  modal = document.createElement('div');
+  modal.className = 'modal-veil';
+  const box = document.createElement('div');
+  box.className = 'modal watch-setup';
+  box.innerHTML = `
+    <h3>WATCH AI vs AI</h3>
+    <div class="modal-sub">Two bots play their faction starter decks. Auto-runs your chosen number of matches, alternating who goes first, and records a downloadable play log.</div>
+    <div class="ws-sides">
+      <div class="ws-side">
+        <div class="ws-label">SIDE A</div>
+        <div class="ws-factions" id="ws-a"></div>
+      </div>
+      <div class="ws-vs">vs</div>
+      <div class="ws-side">
+        <div class="ws-label">SIDE B</div>
+        <div class="ws-factions" id="ws-b"></div>
+      </div>
+    </div>
+    <div class="ws-matches">
+      <label for="ws-count">MATCHES</label>
+      <input class="input" id="ws-count" type="number" min="1" max="50" value="${watchPick.matches}" inputmode="numeric">
+      <span class="ws-hint">1–50</span>
+    </div>
+    <div style="display:flex;gap:10px;margin-top:4px">
+      <button class="btn ghost" id="modal-cancel">BACK</button>
+      <button class="btn primary" id="ws-start">START SIMULATION</button>
+    </div>
+  `;
+  modal.appendChild(box);
+
+  for (const key of ['a', 'b']) {
+    const wrap = box.querySelector('#ws-' + key);
+    for (const f of WATCH_FACTIONS) {
+      const m = factionMeta(f);
+      const chip = document.createElement('button');
+      chip.className = 'ws-chip' + (watchPick[key] === f ? ' selected' : '');
+      chip.style.setProperty('--fc', m.color);
+      chip.textContent = m.name;
+      chip.addEventListener('click', () => {
+        watchPick[key] = f;
+        for (const c of wrap.querySelectorAll('.ws-chip')) c.classList.remove('selected');
+        chip.classList.add('selected');
+      });
+      wrap.appendChild(chip);
+    }
+  }
+
+  box.querySelector('#modal-cancel').addEventListener('click', cancelModalAction);
+  box.querySelector('#ws-start').addEventListener('click', () => {
+    const count = Math.max(1, Math.min(50, parseInt(box.querySelector('#ws-count').value, 10) || 5));
+    watchPick.matches = count;
+    if (!ensureConnected()) return;
+    net.send({
+      t: 'watchBots',
+      factionA: watchPick.a,
+      factionB: watchPick.b,
+      matches: count,
+      speed: 0.5, // default 2×; adjustable live in the watch screen
+      difficulty: 'hard',
+    });
+    closeModal(false);
+  });
+
+  modal.addEventListener('mousedown', (ev) => { if (ev.target === modal) cancelModalAction(); });
+  document.body.appendChild(modal);
 }
 
 // ---------- modals ----------

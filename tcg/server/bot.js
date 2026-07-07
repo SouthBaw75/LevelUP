@@ -143,14 +143,23 @@ export function chooseAction(state, me, difficulty) {
  * timer / game-over machinery runs.
  */
 export class BotController {
-  constructor(room, seatIndex, difficulty) {
+  // speedScale multiplies the between-move delay: 1 = normal human-watchable
+  // pace, 0.5 = 2x, 0.25 = 4x, ~0 = as fast as the event loop allows (used by
+  // AI-vs-AI watch mode to blitz through many matches). Clamped so a bot always
+  // yields to the event loop between moves.
+  constructor(room, seatIndex, difficulty, speedScale = 1) {
     this.room = room;
     this.seatIndex = seatIndex;
     this.difficulty = difficulty === 'hard' ? 'hard' : 'normal';
+    this.speedScale = Math.max(0, speedScale);
     this.timer = null;
     this.actionsThisTurn = 0;
     this.turnKey = null;
     this.stopped = false;
+  }
+
+  setSpeed(speedScale) {
+    this.speedScale = Math.max(0, speedScale);
   }
 
   onStateChanged() {
@@ -167,7 +176,8 @@ export class BotController {
       this.turnKey = key;
       this.actionsThisTurn = 0;
     }
-    const delay = MIN_DELAY_MS + crypto.randomInt(0, MAX_DELAY_MS - MIN_DELAY_MS + 1);
+    const base = MIN_DELAY_MS + crypto.randomInt(0, MAX_DELAY_MS - MIN_DELAY_MS + 1);
+    const delay = Math.max(4, Math.round(base * this.speedScale));
     this.timer = setTimeout(() => {
       this.timer = null;
       this.step();
