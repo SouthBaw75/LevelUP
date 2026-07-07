@@ -454,9 +454,32 @@ function tryEndTurn() {
   net.sendAction({ type: 'endTurn' });
 }
 
+// Explain WHY a card can't be played right now — the old catch-all always
+// blamed capital, which misleads when the real block is a missing target,
+// a full board/contract zone, or an un-activated War Chest reserve.
+function unplayableReason(hc) {
+  const me = view.you;
+  const def = getCard(hc.cardId);
+  const type = def?.type;
+  // budget mirrors the engine's spendingBudget: the reserve bonus only pays for ASSETS
+  const budget = (me.capital || 0) + (type === 'ASSET' ? (me.assetCapitalBonus || 0) : 0);
+  if (hc.cost > budget) {
+    if (type === 'ASSET' && !(me.assetCapitalBonus > 0)) {
+      const banked = (me.contracts || []).reduce((n, c) => n + (typeof c.banked === 'number' ? c.banked : 0), 0);
+      if (banked > 0 && hc.cost <= (me.capital || 0) + banked)
+        return 'Not enough Capital — click your War Chest to spend its reserve on Assets.';
+    }
+    return 'Not enough Capital.';
+  }
+  if (type === 'ASSET' && (me.board || []).length >= 7) return 'Your board is full (7 assets).';
+  if (type === 'CONTRACT' && (me.contracts || []).length >= 3) return 'Your contract zone is full (3).';
+  if (hc.targeting) return 'No valid target for this card right now.';
+  return 'Can’t play that right now.';
+}
+
 function onHandClick(hc, index) {
   if (over || !view || view.activePlayer !== youIdx) return;
-  if (!hc.playable) { toast('Insufficient capital or no legal play.', 'warn', 1600); return; }
+  if (!hc.playable) { toast(unplayableReason(hc), 'warn', 1800); return; }
   cancelMode(true);
   const def = getCard(hc.cardId);
   const isAsset = def?.type === 'ASSET';
