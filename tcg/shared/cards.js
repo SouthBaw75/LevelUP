@@ -137,14 +137,14 @@ C({ id: 'ob_ceo', name: 'Sterling Voss', faction: 'obsidian', type: 'CEO', cost:
   powerId: 'ob_power', collectible: false, rarity: 'legendary',
   text: 'CEO of Obsidian Capital.', flavor: 'He shorted his own retirement party.' });
 C({ id: 'ob_power', name: 'Shell Company', faction: 'obsidian', type: 'POWER', cost: 2,
-  collectible: false, text: 'Summon a 1/1 Shell Corp.',
+  collectible: false, text: 'Summon a 1/2 Shell Corp.',
   flavor: 'Registered in a jurisdiction that is technically a boat.',
   effects: { targeting: null, play: [{ op: 'summon', cardId: 'ob_t_shell' }] } });
 
 // ---------------------------------------------------------------------------
 // Tokens (non-collectible)
 // ---------------------------------------------------------------------------
-A('ob_t_shell', 'Shell Corp', 'obsidian', 1, 1, 1, { collectible: false, keywords: ['firewall'],
+A('ob_t_shell', 'Shell Corp', 'obsidian', 1, 1, 2, { collectible: false, keywords: ['firewall'],
   text: 'FIREWALL.',
   flavor: 'One employee, zero products, immaculate paperwork, and a wall of liability nobody wants to touch first.' });
 A('vx_t_scrapbot', 'Scrap Bot', 'vulcan', 1, 2, 1, { collectible: false,
