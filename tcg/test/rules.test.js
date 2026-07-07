@@ -248,6 +248,61 @@ test('a stealthed FIREWALL cannot be attacked and does not force', () => {
 });
 
 // ---------------------------------------------------------------------------
+// PRECISION STRIKE (vx_power): `anyRespectFirewall` targeting — identical to
+// `any`, except the enemy hero drops out of the legal target list while the
+// enemy has a live (non-stealth) FIREWALL asset, reusing the same
+// forcedTargets check the `attack` action already applies.
+// ---------------------------------------------------------------------------
+test('PRECISION STRIKE: cannot target the enemy hero while the enemy has a live FIREWALL asset', () => {
+  const s = newGame('vulcan', 'helix');
+  giveCapital(s, 0, 10);
+  const wall = addUnit(s, 1, 'ntr_007'); // 2/2 firewall
+  const r = applyAction(s, 0, { type: 'heroPower', target: 'hero1' });
+  assert.equal(r.ok, false, 'enemy hero is not a legal target while a firewall stands');
+  const acts = legalActions(s, 0).filter((a) => a.type === 'heroPower');
+  assert.ok(!acts.some((a) => a.target === 'hero1'), 'hero1 excluded from legalActions');
+  assert.ok(acts.some((a) => a.target === wall.id), 'the firewall unit itself is still a legal target');
+});
+
+test('PRECISION STRIKE: can still hit the FIREWALL asset itself', () => {
+  const s = newGame('vulcan', 'helix');
+  giveCapital(s, 0, 10);
+  const wall = addUnit(s, 1, 'ntr_007');
+  const r = applyAction(s, 0, { type: 'heroPower', target: wall.id });
+  assert.equal(r.ok, true);
+  assert.equal(wall.health, CARDS.ntr_007.health - 1);
+});
+
+test('PRECISION STRIKE: enemy hero is targetable again once the FIREWALL is destroyed', () => {
+  const s = newGame('vulcan', 'helix');
+  giveCapital(s, 0, 10);
+  addUnit(s, 1, 'ntr_007', { health: 1 }); // one hit kills it
+  const wall = s.players[1].board[0];
+  applyAction(s, 0, { type: 'heroPower', target: wall.id }); // kills the wall
+  assert.equal(s.players[1].board.length, 0, 'the firewall is dead');
+  end(s); giveCapital(s, 0, 10); end(s); // back to p0's turn, power resets
+  const r = applyAction(s, 0, { type: 'heroPower', target: 'hero1' });
+  assert.equal(r.ok, true, 'no firewall left — the enemy hero is targetable again');
+});
+
+test('PRECISION STRIKE: a stealthed FIREWALL does not block the enemy hero', () => {
+  const s = newGame('vulcan', 'helix');
+  giveCapital(s, 0, 10);
+  const wall = addUnit(s, 1, 'ntr_007');
+  wall.keywords.push('stealth');
+  const r = applyAction(s, 0, { type: 'heroPower', target: 'hero1' });
+  assert.equal(r.ok, true, 'a stealthed firewall does not force — same rule as the attack action');
+});
+
+test('PRECISION STRIKE: enemy hero is a normal target when there is no FIREWALL at all', () => {
+  const s = newGame('vulcan', 'helix');
+  giveCapital(s, 0, 10);
+  const r = applyAction(s, 0, { type: 'heroPower', target: 'hero1' });
+  assert.equal(r.ok, true);
+  assert.equal(s.players[1].integrity, 39);
+});
+
+// ---------------------------------------------------------------------------
 // STEALTH
 // ---------------------------------------------------------------------------
 test('STEALTH: unattackable and untargetable by the enemy until it deals damage', () => {
@@ -494,7 +549,7 @@ test('CEO power rejected without capital; targeting exposed in view', () => {
   const s = newGame('vulcan', 'helix');
   assert.equal(s.players[0].capital, 1);
   assert.equal(applyAction(s, 0, { type: 'heroPower', target: 'hero1' }).ok, false);
-  assert.equal(getView(s, 0).you.power.targeting, 'any');
+  assert.equal(getView(s, 0).you.power.targeting, 'anyRespectFirewall'); // vulcan Precision Strike
   assert.equal(getView(s, 1).you.power.targeting, 'any'); // helix heal
   const s2 = newGame('nexus', 'obsidian');
   assert.equal(getView(s2, 0).you.power.targeting, null);

@@ -59,8 +59,8 @@ const POWER_COST = 2;
 const MAX_CONTRACTS = 3;
 const BIG_HIT_THRESHOLD = 10; // cumulative enemy hero damage in one game-turn that fires a CEO taunt
 const PLAYABLE_TYPES = ['ASSET', 'OPERATION', 'CONTRACT'];
-const TARGETINGS = [null, 'any', 'anyUnit', 'enemyUnit', 'enemyUnitCost4', 'friendlyUnit',
-  'friendlyUnitNoFirewall', 'facilityUnit', 'enemyHero', 'anyHero', 'enemyContract'];
+const TARGETINGS = [null, 'any', 'anyRespectFirewall', 'anyUnit', 'enemyUnit', 'enemyUnitCost4',
+  'friendlyUnit', 'friendlyUnitNoFirewall', 'facilityUnit', 'enemyHero', 'anyHero', 'enemyContract'];
 
 // ---------------------------------------------------------------------------
 // Seeded RNG (mulberry32 stepping state.rng)
@@ -234,6 +234,14 @@ function validTargets(state, player, targeting) {
   const friendlyUnits = state.players[player].board.map((u) => u.id);
   switch (targeting) {
     case 'any': return [...friendlyUnits, ...enemyUnits, 'hero' + player, 'hero' + enemy];
+    // like 'any', but the enemy hero is off the table while the enemy has a
+    // live (non-stealth) FIREWALL asset — same forcedTargets check the
+    // `attack` action uses, extended to a targeted effect (Precision Strike).
+    // The firewall unit itself is still a legal target via enemyUnits.
+    case 'anyRespectFirewall': {
+      const heroBlocked = forcedTargets(state, enemy).length > 0;
+      return [...friendlyUnits, ...enemyUnits, 'hero' + player, ...(heroBlocked ? [] : ['hero' + enemy])];
+    }
     case 'anyUnit': return [...friendlyUnits, ...enemyUnits];
     case 'enemyUnit': return enemyUnits;
     // enemy assets printed cost ≤ 4 — for Counter Offer's outbid-poach (§Counter Offer).

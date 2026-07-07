@@ -673,6 +673,13 @@ function highlightTargets(targeting) {
   let targets = [];
   switch (targeting) {
     case 'any': targets = [...myUnits, ...oppTargetable, els['g-hero-me'], els['g-hero-opp']]; break;
+    // Precision Strike: like 'any', but the enemy hero doesn't light up while
+    // the enemy has a live FIREWALL asset — must hit the firewall first.
+    case 'anyRespectFirewall': {
+      const oppFirewall = oppTargetable.some((el) => el.classList.contains('has-firewall'));
+      targets = [...myUnits, ...oppTargetable, els['g-hero-me'], ...(oppFirewall ? [] : [els['g-hero-opp']])];
+      break;
+    }
     case 'anyUnit': targets = [...myUnits, ...oppTargetable]; break;
     case 'enemyUnit': targets = oppTargetable; break;
     // Counter Offer: only enemy assets whose printed cost is 4 or less light up.

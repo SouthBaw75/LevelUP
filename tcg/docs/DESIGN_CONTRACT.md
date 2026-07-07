@@ -37,7 +37,10 @@ battle for industry dominance. Tone: sleek corporate cyberpunk, dry satirical fl
     Summoning sickness: cannot attack the turn it's deployed unless it has FAST-TRACK.
     Assets attack once per turn (twice with OVERTIME). Attackers can target enemy assets
     or the enemy CEO — but must attack a FIREWALL asset if any exists (STEALTH ignores nothing;
-    firewall rule applies to attackers regardless).
+    firewall rule applies to attackers regardless). FIREWALL otherwise only gates the `attack`
+    action — targeted damage effects ignore it by default (`any`) UNLESS a card opts into the
+    `anyRespectFirewall` targeting (currently only `vx_power` Precision Strike), which applies
+    the identical "hero blocked while a live firewall stands" rule to a targeted effect too.
   - **OPERATION** — a spell. One-time effect, then discarded.
   - **CONTRACT** — a persistent card filed to the owner's contract zone (see §3b).
 - Each faction's CEO has a **CEO POWER**: cost 2, usable once per turn (defined in card data).
@@ -454,12 +457,17 @@ import { createGame, applyAction, legalActions, getView, redactEvents, cloneStat
 
 - Unit instance ids: `"u<N>"` unique per game. CEO target ids: `"hero0"`, `"hero1"` (by player index).
 - `target` is required by cards whose effect needs a target (`targeting` field in view hand cards
-  tells the client: `null | "any" | "anyUnit" | "enemyUnit" | "enemyUnitCost4" | "friendlyUnit" | "friendlyUnitNoFirewall" | "facilityUnit" | "enemyHero" | "anyHero" | "enemyContract"`).
+  tells the client: `null | "any" | "anyRespectFirewall" | "anyUnit" | "enemyUnit" | "enemyUnitCost4" | "friendlyUnit" | "friendlyUnitNoFirewall" | "facilityUnit" | "enemyHero" | "anyHero" | "enemyContract"`).
   `enemyUnitCost4` = enemy assets whose printed cost is ≤ 4 (Counter Offer's outbid-poach);
   `friendlyUnitNoFirewall` = friendly assets that don't already have FIREWALL (Firewall Upgrade);
   `facilityUnit` = any FACILITY-class asset on EITHER board, enemy stealth excluded (Franchise's
   copy — it reaches across the table). Both the engine `validTargets` and the client highlighter
   apply the same filter (the client reads `tags` from the card payload, which is not stripped).
+  `anyRespectFirewall` = identical to `any`, except the enemy hero is removed from the legal
+  target list while the enemy has a live (non-stealth) FIREWALL asset — reuses the same
+  `forcedTargets` check the `attack` action already applies, extended to a targeted effect. The
+  firewall unit itself remains targetable (it's just an ordinary enemy unit in the list); only the
+  enemy hero is gated. `vx_power` **Precision Strike** is the only user (§3 keyword table).
 
 ### View shape (getView result — this exact shape goes over the wire)
 

@@ -121,9 +121,9 @@ C({ id: 'vx_ceo', name: 'Brock Hammond', faction: 'vulcan', type: 'CEO', cost: 0
   powerId: 'vx_power', collectible: false, rarity: 'legendary',
   text: 'CEO of Vulcan Heavy Industries.', flavor: 'His handshake has a recoil warning.' });
 C({ id: 'vx_power', name: 'Precision Strike', faction: 'vulcan', type: 'POWER', cost: 2,
-  collectible: false, text: 'Deal 1 damage to any target.',
+  collectible: false, text: 'Deal 1 damage to any target. Must target a FIREWALL asset first if the enemy has one.',
   flavor: 'Collateral is a line item.',
-  effects: { targeting: 'any', play: [{ op: 'damage', amount: 1, to: 'target' }] } });
+  effects: { targeting: 'anyRespectFirewall', play: [{ op: 'damage', amount: 1, to: 'target' }] } });
 
 C({ id: 'hx_ceo', name: 'Dr. Jin-Ho Park', faction: 'helix', type: 'CEO', cost: 0, health: 40,
   powerId: 'hx_power', collectible: false, rarity: 'legendary',
