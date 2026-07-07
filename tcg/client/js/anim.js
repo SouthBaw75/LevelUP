@@ -235,41 +235,79 @@ function dustBurst(el) {
   setTimeout(() => inner.remove(), 340);
 }
 
-/** Death: unit cracks into faction-tinted shards that fly out and fall, plus
- *  dark smoke motes drifting up. Fired just after the white-out flash. */
+/** Death: a proper detonation — concussion flash + shockwave ring, a radial
+ *  spray of faction-tinted debris shards, bright embers, and rising smoke, with
+ *  a small screen-kick. Layered so it reads as an explosion, not a fade-out.
+ *  All fx clear well under 1s; fired just after the unit's white-out flash. */
 function deathBurst(el) {
   if (!el) return;
   const r = el.getBoundingClientRect();
   const x = r.left + r.width / 2, y = r.top + r.height / 2;
   const fc = getComputedStyle(el).getPropertyValue('--fc').trim() || '#94a3b8';
-  for (let i = 0; i < 3; i++) {
-    const s = document.createElement('div');
-    s.className = 'death-shard';
-    s.style.left = x + 'px';
-    s.style.top = y + 'px';
-    s.style.setProperty('--fc', fc);
-    s.style.width = (r.width * (0.26 + Math.random() * 0.14)) + 'px';
-    s.style.height = (r.height * (0.22 + Math.random() * 0.14)) + 'px';
-    s.style.setProperty('--dx', ((i - 1) * 36 + (Math.random() * 16 - 8)) + 'px');
-    s.style.setProperty('--dy', (-(16 + Math.random() * 18)) + 'px');
-    s.style.setProperty('--rr', ((Math.random() * 150 - 75) | 0) + 'deg');
-    fxLayer.appendChild(s);
-    setTimeout(() => s.remove(), 620);
+  const rad = Math.min(r.width, r.height); // blast scale keyed to the unit size
+
+  const place = (node, cls, life) => {
+    node.className = cls;
+    node.style.left = x + 'px';
+    node.style.top = y + 'px';
+    node.style.setProperty('--fc', fc);
+    fxLayer.appendChild(node);
+    setTimeout(() => node.remove(), life);
+    return node;
+  };
+
+  // 1. concussion flash — a hot white-cored bloom that punches out and dies fast
+  place(document.createElement('div'), 'death-flash', 240)
+    .style.setProperty('--r', rad * 1.4 + 'px');
+
+  // 2. shockwave ring — a thin blast wave expanding past the unit's footprint
+  place(document.createElement('div'), 'death-ring', 480)
+    .style.setProperty('--r', rad * 2.2 + 'px');
+
+  // 3. debris shards — omnidirectional, chunky, spinning, gravity-fed. Radial
+  //    angle + jitter so they scatter in a full ring instead of a fan.
+  const SHARDS = 9;
+  for (let i = 0; i < SHARDS; i++) {
+    const ang = (i / SHARDS) * Math.PI * 2 + (Math.random() * 0.7 - 0.35);
+    const dist = rad * (0.5 + Math.random() * 0.7);
+    const s = place(document.createElement('div'), 'death-shard', 640);
+    s.style.width = (r.width * (0.2 + Math.random() * 0.16)) + 'px';
+    s.style.height = (r.height * (0.16 + Math.random() * 0.16)) + 'px';
+    s.style.setProperty('--dx', (Math.cos(ang) * dist) + 'px');
+    s.style.setProperty('--dy', (Math.sin(ang) * dist - rad * 0.3) + 'px'); // slight upward bias before gravity
+    s.style.setProperty('--rr', ((Math.random() * 320 - 160) | 0) + 'deg');
   }
-  for (let i = 0; i < 4; i++) {
-    const m = document.createElement('div');
-    m.className = 'smoke-mote';
-    const size = 8 + Math.random() * 8;
+
+  // 4. embers — small bright faction-colored sparks flung out fast, fading quick
+  const SPARKS = 12;
+  for (let i = 0; i < SPARKS; i++) {
+    const ang = Math.random() * Math.PI * 2;
+    const dist = rad * (0.8 + Math.random() * 1.1);
+    const sp = place(document.createElement('div'), 'death-spark', 520);
+    const size = 2 + Math.random() * 3;
+    sp.style.width = size + 'px';
+    sp.style.height = size + 'px';
+    sp.style.setProperty('--dx', (Math.cos(ang) * dist) + 'px');
+    sp.style.setProperty('--dy', (Math.sin(ang) * dist) + 'px');
+    sp.style.animationDelay = (Math.random() * 40) + 'ms';
+  }
+
+  // 5. smoke — a few dark puffs rising and spreading in the blast's wake
+  for (let i = 0; i < 5; i++) {
+    const m = place(document.createElement('div'), 'smoke-mote', 940);
+    const size = 9 + Math.random() * 10;
     m.style.width = size + 'px';
     m.style.height = size + 'px';
-    m.style.left = (x + Math.random() * r.width * 0.6 - r.width * 0.3) + 'px';
+    m.style.left = (x + Math.random() * r.width * 0.7 - r.width * 0.35) + 'px';
     m.style.top = (y + Math.random() * 16 - 8) + 'px';
-    m.style.setProperty('--dy', (-(26 + Math.random() * 22)) + 'px');
-    m.style.setProperty('--dx', (Math.random() * 20 - 10) + 'px');
-    m.style.animationDelay = (i * 45) + 'ms';
-    fxLayer.appendChild(m);
-    setTimeout(() => m.remove(), 900);
+    m.style.setProperty('--dy', (-(28 + Math.random() * 26)) + 'px');
+    m.style.setProperty('--dx', (Math.random() * 26 - 13) + 'px');
+    m.style.animationDelay = (i * 40) + 'ms';
   }
+
+  // 6. a small screen kick to sell the concussion (deaths play sequentially, so
+  //    an AoE wave reads as a string of thumps rather than one long quake)
+  screenShake('small');
 }
 
 /** Heal: soft radial bloom + 2-3 rising green plus-glyphs. */

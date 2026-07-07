@@ -405,19 +405,61 @@
   to { transform: translate(-50%, -50%) scale(2.3); opacity: 0; }
 }
 
-/* ---------- death: crack-apart shards + rising smoke ---------- */
+/* ---------- death: detonation (flash + shockwave + debris + embers + smoke) ---------- */
+/* 1. concussion flash — hot white core, faction-tinted rim, punches out fast */
+.death-flash {
+  position: absolute; z-index: 154; pointer-events: none; border-radius: 50%;
+  width: var(--r, 60px); height: var(--r, 60px);
+  background: radial-gradient(circle,
+    #fff 0%, color-mix(in srgb, var(--fc, #94a3b8) 70%, #fff) 32%,
+    color-mix(in srgb, var(--fc, #94a3b8) 60%, transparent) 60%, transparent 72%);
+  animation: death-flash 0.24s cubic-bezier(0.2, 0, 0.5, 1) forwards;
+}
+@keyframes death-flash {
+  0% { transform: translate(-50%, -50%) scale(0.2); opacity: 0; }
+  22% { opacity: 1; }
+  100% { transform: translate(-50%, -50%) scale(1.25); opacity: 0; }
+}
+/* 2. shockwave ring — thin blast wave, expands past the footprint and fades */
+.death-ring {
+  position: absolute; z-index: 153; pointer-events: none; border-radius: 50%;
+  width: var(--r, 90px); height: var(--r, 90px);
+  border: 2.5px solid color-mix(in srgb, var(--fc, #94a3b8) 75%, #fff);
+  box-shadow: 0 0 14px color-mix(in srgb, var(--fc, #94a3b8) 55%, transparent),
+    inset 0 0 10px color-mix(in srgb, var(--fc, #94a3b8) 40%, transparent);
+  animation: death-ring 0.46s cubic-bezier(0.15, 0.6, 0.3, 1) forwards;
+}
+@keyframes death-ring {
+  0% { transform: translate(-50%, -50%) scale(0.15); opacity: 0; }
+  18% { opacity: 0.95; border-width: 3px; }
+  100% { transform: translate(-50%, -50%) scale(1); opacity: 0; border-width: 0.5px; }
+}
+/* 3. debris shards — chunky, spinning, flung out radially then dragged down */
 .death-shard {
   position: absolute; z-index: 152; pointer-events: none; border-radius: 3px;
-  background: linear-gradient(150deg, color-mix(in srgb, var(--fc, #94a3b8) 45%, #1a2334), #0a0f18 80%);
-  border: 1px solid color-mix(in srgb, var(--fc, #94a3b8) 55%, #2b3a52);
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.7);
+  background: linear-gradient(150deg, color-mix(in srgb, var(--fc, #94a3b8) 55%, #1a2334), #0a0f18 82%);
+  border: 1px solid color-mix(in srgb, var(--fc, #94a3b8) 60%, #2b3a52);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.7), 0 0 6px color-mix(in srgb, var(--fc, #94a3b8) 30%, transparent);
   clip-path: polygon(12% 0, 100% 8%, 88% 100%, 0 84%);
-  animation: shard-fall 0.58s cubic-bezier(0.3, 0, 0.7, 1) forwards;
+  animation: shard-fall 0.64s cubic-bezier(0.25, 0.5, 0.6, 1) forwards;
 }
 @keyframes shard-fall {
-  0% { transform: translate(-50%, -50%) translate(0, 0) rotate(0deg); opacity: 1; }
-  40% { transform: translate(-50%, -50%) translate(var(--dx), var(--dy)) rotate(calc(var(--rr, 60deg) * 0.55)); opacity: 1; }
-  100% { transform: translate(-50%, -50%) translate(calc(var(--dx) * 1.35), 58px) rotate(var(--rr, 60deg)); opacity: 0; }
+  0% { transform: translate(-50%, -50%) translate(0, 0) scale(1.15) rotate(0deg); opacity: 1; }
+  12% { transform: translate(-50%, -50%) translate(calc(var(--dx) * 0.5), calc(var(--dy) * 0.5)) rotate(calc(var(--rr, 60deg) * 0.3)); opacity: 1; }
+  55% { transform: translate(-50%, -50%) translate(var(--dx), var(--dy)) scale(1) rotate(calc(var(--rr, 60deg) * 0.7)); opacity: 1; }
+  100% { transform: translate(-50%, -50%) translate(calc(var(--dx) * 1.25), calc(var(--dy) * 0.35 + 78px)) scale(0.9) rotate(var(--rr, 60deg)); opacity: 0; }
+}
+/* 4. embers — tiny bright sparks shooting out fast, quick decay with a glow */
+.death-spark {
+  position: absolute; z-index: 153; pointer-events: none; border-radius: 50%;
+  background: radial-gradient(circle, #fff, color-mix(in srgb, var(--fc, #94a3b8) 80%, #fff) 55%, transparent 75%);
+  box-shadow: 0 0 6px color-mix(in srgb, var(--fc, #94a3b8) 70%, #fff);
+  animation: spark-fly 0.5s cubic-bezier(0.15, 0.55, 0.35, 1) forwards;
+}
+@keyframes spark-fly {
+  0% { transform: translate(-50%, -50%) translate(0, 0) scale(1.3); opacity: 0; }
+  15% { opacity: 1; }
+  100% { transform: translate(-50%, -50%) translate(var(--dx), calc(var(--dy) + 22px)) scale(0.4); opacity: 0; }
 }
 .smoke-mote {
   position: absolute; z-index: 151; border-radius: 50%; pointer-events: none;
@@ -639,13 +681,16 @@
   background-position: 130% 0;
   animation: card-sheen 0.7s cubic-bezier(0.4, 0, 0.2, 1) 0.2s forwards;
 }
-/* death: white-out flash → crack + collapse in place (shards fly via fx layer) */
-.unit.anim-death { animation: unit-death 0.55s cubic-bezier(0.3, 0, 0.7, 1) forwards; pointer-events: none; }
+/* death: white-out flash → a quick over-pressure swell → blown apart (the
+   debris/flash/ring fly via the fx layer). The unit punches slightly bigger at
+   the flash peak, as if lit from within, then is torn away fast. */
+.unit.anim-death { animation: unit-death 0.55s cubic-bezier(0.32, 0, 0.68, 1) forwards; pointer-events: none; }
 @keyframes unit-death {
   0% { filter: brightness(1); }
-  10% { filter: brightness(3.4) saturate(0); }
-  20% { filter: brightness(1.6) saturate(0.3); transform: scale(1.03); }
-  100% { opacity: 0; transform: translateY(8px) scale(0.68) rotate(2deg); filter: brightness(0.25) blur(3px); }
+  9% { filter: brightness(3.8) saturate(0) contrast(1.2); transform: scale(1.09); }
+  20% { filter: brightness(1.7) saturate(0.3); transform: scale(1.12); }
+  46% { opacity: 1; }
+  100% { opacity: 0; transform: translateY(10px) scale(0.55) rotate(3deg); filter: brightness(0.2) blur(4px); }
 }
 /* attack anticipation: pull back away from the target with a slight tilt */
 .unit.anim-windup-up { animation: windup-up 0.13s cubic-bezier(0.5, 0, 1, 0.5) both; z-index: 40; }
