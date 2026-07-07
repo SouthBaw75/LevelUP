@@ -56,9 +56,16 @@ both hands revealed) instead of the redacted `you`/`opp` shape.
 | `{t:"watchState", view, events, turnDeadline}` | after every bot action |
 | `{t:"watchGameOver", view, winnerSeat, winnerFaction, reason, match, matches, tally, done}` | one match ended; `done` true on the last |
 | `{t:"watchComplete", tally, log}` | whole run finished; `log` is the downloadable play log (per-match action stream + summaries) |
+| `{t:"watchResume", view, match, matches, factions, tally, turnDeadline}` | sent instead of `watchStart` when a dropped connection reattaches mid-run (see below) — catches the client up to the live state |
 
 First player alternates each match (fair-alternation via `createGame`'s `firstPlayer`), so
 neither faction keeps the coin-flip edge; the win `tally` is keyed by faction (mirror-safe).
+
+The simulation never pauses for the spectator — bots keep playing through a dropped socket
+(sends are just no-ops with nobody listening). A disconnect gets a 30s reconnect grace
+(mirroring the PvP `Room` grace): reconnecting with the same `pid` within that window resends
+either `watchResume` (mid-run) or `watchComplete` again (if the whole run already finished
+while disconnected). No grace hit within 30s reaps the room — nobody's watching, no work lost.
 
 `turnDeadline`: epoch ms when the active player's turn auto-ends (90s timer). Server sends a
 fresh `state` (with a `turnStart` event) when it force-ends a turn.

@@ -131,3 +131,91 @@ test('WatchRoom supports a mirror match (same faction both sides)', async () => 
   assert.equal(complete.log.games.length, 2);
   room.destroy();
 });
+
+// --- spectator disconnect / reconnect grace ---------------------------------
+// A dropped WebSocket must NOT kill a running simulation outright — bots keep
+// playing through the gap, and a reconnect within the grace window picks the
+// client's screen back up from the live state instead of leaving it stuck.
+
+function fakeLobbyMulti() {
+  const sent = []; // { client, msg }
+  const lobby = {
+    sendTo(client, msg) { sent.push({ client, msg }); },
+    removeWatchRoom() {},
+  };
+  return { lobby, sent };
+}
+
+test('disconnect: simulation is NOT destroyed immediately, keeps a grace timer', () => {
+  const { lobby } = fakeLobbyMulti();
+  const spectator = { pid: 'spec-1', watchRoom: null };
+  const room = new WatchRoom(lobby, spectator, { factionA: 'nexus', factionB: 'vulcan', matches: 1, speed: 0.02 });
+  room.start();
+
+  room.handleSpectatorGone();
+  assert.equal(room.destroyed, false, 'still running — bots keep playing');
+  assert.equal(room.spectator, null, 'spectator cleared');
+  assert.ok(room.graceTimer, 'a grace timer is pending');
+
+  room.destroy(); // cleanup: don't leave a live timer/bots after the test
+});
+
+test('reconnect within the grace window resumes with the live state', () => {
+  const { lobby, sent } = fakeLobbyMulti();
+  const spectator = { pid: 'spec-2', watchRoom: null };
+  const room = new WatchRoom(lobby, spectator, { factionA: 'nexus', factionB: 'vulcan', matches: 5, speed: 0.02 });
+  room.start();
+  room.handleSpectatorGone();
+
+  const newClient = { pid: 'spec-2', watchRoom: null }; // same pid, new socket/object
+  const ok = room.handleReconnect(newClient);
+  assert.equal(ok, true);
+  assert.equal(room.spectator, newClient, 'reattached to the new client');
+  assert.equal(newClient.watchRoom, room);
+  assert.equal(room.graceTimer, null, 'grace timer cleared');
+
+  const resume = sent.find((s) => s.client === newClient && s.msg.t === 'watchResume');
+  assert.ok(resume, 'a watchResume message was sent to the reconnecting client');
+  assert.equal(resume.msg.matches, 5);
+  assert.ok(resume.msg.view, 'carries the current live view');
+  assert.ok(resume.msg.tally, 'carries the current tally');
+
+  room.destroy();
+});
+
+test('reconnect with a mismatched pid is rejected (does not steal another spectator\'s room)', () => {
+  const { lobby } = fakeLobbyMulti();
+  const spectator = { pid: 'spec-3', watchRoom: null };
+  const room = new WatchRoom(lobby, spectator, { factionA: 'nexus', factionB: 'vulcan', matches: 1, speed: 0.02 });
+  room.start();
+  room.handleSpectatorGone();
+
+  const stranger = { pid: 'someone-else', watchRoom: null };
+  const ok = room.handleReconnect(stranger);
+  assert.equal(ok, false);
+  assert.equal(room.spectator, null, 'room is still awaiting its real spectator');
+  assert.equal(stranger.watchRoom, null);
+
+  room.destroy();
+});
+
+test('reconnect after the whole run has already finished resends watchComplete, not watchResume', async () => {
+  const { room, complete } = await runWatch({
+    factionA: 'nexus', factionB: 'obsidian', matches: 1, speed: 0.02, difficulty: 'hard',
+  });
+  assert.ok(complete); // the run is over; room deliberately stays alive for downloads
+
+  const { lobby, sent } = fakeLobbyMulti();
+  room.lobby = lobby; // swap in a lobby we can inspect sends on
+  room.handleSpectatorGone();
+  assert.equal(room.destroyed, false, 'a finished room still gets a grace window');
+
+  const newClient = { pid: room.spectatorPid, watchRoom: null };
+  const ok = room.handleReconnect(newClient);
+  assert.equal(ok, true);
+  const msg = sent.find((s) => s.client === newClient);
+  assert.equal(msg.msg.t, 'watchComplete', 'terminal state resends the completion payload, not a mid-run resume');
+  assert.ok(msg.msg.log, 'download log is included again');
+
+  room.destroy();
+});

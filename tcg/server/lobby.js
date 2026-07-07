@@ -263,6 +263,11 @@ export class Lobby {
     for (const room of this.rooms) {
       if (room.seatIndexOf(pid) !== -1 && room.handleReconnect(pid, client)) break;
     }
+    // Reconnect: if a watch-mode simulation is waiting on this pid (grace
+    // window after a spectator disconnect), reattach and resume pushing state.
+    for (const wr of this.watchRooms) {
+      if (wr.handleReconnect(client)) break;
+    }
   }
 
   // ------------------------------------------------------------ deck checks
@@ -491,7 +496,9 @@ export class Lobby {
       room.handleDisconnect(client.pid);
     }
     if (client.watchRoom) {
-      // A watch spectator dropped — no reconnect grace for a passive observer.
+      // A watch spectator dropped — the simulation keeps running; give it a
+      // reconnect grace (see WatchRoom.handleSpectatorGone) rather than
+      // tearing the whole run down over a network blip.
       const wr = client.watchRoom;
       client.watchRoom = null;
       wr.handleSpectatorGone();

@@ -6,8 +6,16 @@
 // to cancel first-player bias, keeps a per-faction win tally, and records a full
 // play log the spectator can download for balance analysis.
 //
-// Unlike the PvP Room this has no grace/rematch/emote/reconnect machinery — the
-// spectator is a passive observer. Reuses the engine + BotController only.
+// The simulation itself never depends on the spectator being connected —
+// sendSpectator() is a no-op while `this.spectator` is null, so bots keep
+// playing uninterrupted through a disconnect. A dropped WebSocket (network
+// blip, backgrounded tab, host idle-timeout) gets a GRACE_MS reconnect grace
+// (mirroring Room's PvP grace) rather than tearing the whole run down —
+// reattaching resends the current live state so the client picks up where it
+// left off instead of sitting on a stale screen forever with no explanation.
+//
+// Unlike the PvP Room this has no rematch/emote machinery — the spectator
+// has no seat to act from. Reuses the engine + BotController only.
 
 import crypto from 'node:crypto';
 import { createGame, applyAction, getSpectatorView } from '../shared/engine.js';
@@ -17,6 +25,7 @@ import { BotController } from './bot.js';
 const TURN_MS = 90_000;          // safety net; fast bots never reach it
 const BETWEEN_GAMES_MS = 2600;   // pause on the game-over screen before the next match
 const ACTION_CAP_PER_GAME = 4000; // hard backstop against a wedged simulation
+const GRACE_MS = 30_000;         // spectator reconnect grace (mirrors Room's PvP grace)
 const FACTIONS = ['nexus', 'vulcan', 'helix', 'obsidian'];
 
 let nextId = 1;
@@ -29,7 +38,9 @@ export class WatchRoom {
     this.id = `watch${nextId++}`;
     this.lobby = lobby;
     this.spectator = spectator;
+    this.spectatorPid = spectator.pid; // kept across a disconnect so a reconnect can be matched
     this.destroyed = false;
+    this.graceTimer = null;
 
     this.state = null;
     this.turnTimer = null;
@@ -281,17 +292,58 @@ export class WatchRoom {
     for (const b of this.bots) b.setSpeed(this.speed);
   }
 
-  // ---------------------------------------------------------------- teardown
+  // --------------------------------------------------- disconnect/reconnect
 
+  /**
+   * Socket died. The simulation itself doesn't pause — bots keep playing
+   * (sendSpectator() is just a no-op with no spectator listening) — but if
+   * nobody reconnects within GRACE_MS, nobody will ever see the rest of the
+   * run, so it's reaped rather than left running forever unwatched.
+   */
   handleSpectatorGone() {
-    // Nobody left to watch — reap the simulation.
-    this.destroy();
+    if (this.destroyed) return;
+    this.spectator = null;
+    this.clearGrace();
+    this.graceTimer = setTimeout(() => {
+      this.graceTimer = null;
+      this.destroy();
+    }, GRACE_MS);
   }
+
+  /** A socket with this watch room's spectator pid came back within the grace window. */
+  handleReconnect(client) {
+    if (this.destroyed || client.pid !== this.spectatorPid) return false;
+    this.clearGrace();
+    this.spectator = client;
+    client.watchRoom = this;
+    const allDone = this.matchIndex + 1 >= this.matchesTarget && !!(this.state && this.state.over);
+    if (allDone) {
+      this.sendSpectator({ t: 'watchComplete', log: this.buildLog(), tally: this.publicTally() });
+    } else {
+      this.sendSpectator({
+        t: 'watchResume',
+        view: this.safeSpectatorView(),
+        match: this.matchIndex + 1,
+        matches: this.matchesTarget,
+        factions: this.factions,
+        tally: this.publicTally(),
+        turnDeadline: this.turnDeadline,
+      });
+    }
+    return true;
+  }
+
+  clearGrace() {
+    if (this.graceTimer) { clearTimeout(this.graceTimer); this.graceTimer = null; }
+  }
+
+  // ---------------------------------------------------------------- teardown
 
   destroy() {
     if (this.destroyed) return;
     this.destroyed = true;
     this.clearTurnTimer();
+    this.clearGrace();
     if (this.betweenTimer) { clearTimeout(this.betweenTimer); this.betweenTimer = null; }
     for (const b of this.bots) b.stop();
     this.bots = [];

@@ -386,6 +386,23 @@ net.on('watchStart', (msg) => {
   renderView();
 });
 
+// Sent when a dropped connection reattaches within the server's grace window
+// (see WatchRoom.handleReconnect) — the simulation kept running the whole
+// time, this just catches the client's screen up to the live state instead of
+// leaving it stuck on whatever was last rendered before the disconnect.
+net.on('watchResume', (msg) => {
+  if (!active) { showScreen('watch', { ...msg, speedIdx }); return; }
+  factions = msg.factions || factions;
+  matchNo = msg.match; matchesTotal = msg.matches;
+  tally = msg.tally;
+  view = msg.view;
+  document.querySelector('.watch-overlay')?.remove();
+  els['w-match'].textContent = `MATCH ${matchNo} / ${matchesTotal}`;
+  renderScoreboard();
+  logLine('<b>Reconnected</b> — resuming simulation.', 'turn-line');
+  renderView();
+});
+
 net.on('watchState', (msg) => {
   if (!active) return;
   view = msg.view;
