@@ -34,7 +34,7 @@ export const FACTIONS = {
 export const KEYWORD_NAMES = {
   firewall: 'FIREWALL',
   fasttrack: 'FAST-TRACK',
-  stealth: 'STEALTH MODE',
+  stealth: 'CORPORATE VEIL',
   shielded: 'PATENT PROTECTION',
   overtime: 'OVERTIME',
   toxic: 'TOXIC ASSET',

@@ -25,10 +25,11 @@ const KEYWORD_FACE_GLOSS = {
   raid: 'Surviving an attack steals 1 enemy Capital.',
 };
 
-// Per-card keyword display label (flavor rename of a mechanic, e.g. Hedge Fund
-// shows STEALTH as "CORPORATE VEIL"). Mechanics still key off the real keyword id.
-function kwName(def, k) {
-  return (def && def.keywordLabels && def.keywordLabels[k]) || KEYWORD_NAMES[k] || k.toUpperCase();
+// Keyword display name: uniform across every card and faction — no per-card
+// overrides. The same mechanic must always read as the same name so a player's
+// knowledge of a keyword transfers between factions instead of resetting.
+function kwName(k) {
+  return KEYWORD_NAMES[k] || k.toUpperCase();
 }
 
 // Remove bare "<KEYWORD>." sentences from rules text (e.g. "FIREWALL. SIPHON.")
@@ -184,7 +185,7 @@ export function renderCard(defOrId, opts = {}) {
   // are stripped from the ability text first so nothing is said twice.
   const glossKws = def.keywords || [];
   const bodyText = stripKeywordSentences(def.text || '', glossKws);
-  const glossLen = glossKws.reduce((n, k) => n + faceGloss(k).length + kwName(def, k).length + 2, 0);
+  const glossLen = glossKws.reduce((n, k) => n + faceGloss(k).length + kwName(k).length + 2, 0);
 
   // Text + flavor share one vertical budget below the name plate — shrink
   // together once they'd otherwise overflow the body and get clipped.
@@ -202,7 +203,7 @@ export function renderCard(defOrId, opts = {}) {
       row.className = 'kwg-row';
       const nm = document.createElement('div');
       nm.className = 'kwg-name';
-      nm.textContent = kwName(def, k);
+      nm.textContent = kwName(k);
       const dc = document.createElement('div');
       dc.className = 'kwg-desc';
       dc.textContent = faceGloss(k);
@@ -263,8 +264,8 @@ export function renderCard(defOrId, opts = {}) {
       const granted = opts.keywords.filter((k) => !(def.keywords || []).includes(k));
       if (granted.length) {
         tags.push({
-          cls: '', text: granted.map((k) => kwName(def, k)).join(' · '),
-          title: granted.map((k) => kwName(def, k) + ' — ' + (KEYWORD_HELP[k] || faceGloss(k))).join('\n'),
+          cls: '', text: granted.map((k) => kwName(k)).join(' · '),
+          title: granted.map((k) => kwName(k) + ' — ' + (KEYWORD_HELP[k] || faceGloss(k))).join('\n'),
         });
       }
     }
@@ -456,7 +457,7 @@ export function renderUnit(unit, opts = {}) {
     for (const k of kws) {
       const ic = document.createElement('span');
       ic.className = 'unit-kw ukw-' + k;
-      ic.title = kwName(def, k) + ' — ' + (KEYWORD_HELP[k] || '');
+      ic.title = kwName(k) + ' — ' + (KEYWORD_HELP[k] || '');
       ic.textContent = UNIT_KW_GLYPH[k] || '•';
       row.appendChild(ic);
     }

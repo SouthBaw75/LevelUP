@@ -36,7 +36,7 @@ battle for industry dominance. Tone: sleek corporate cyberpunk, dry satirical fl
     `maxIntegrity` on players — an implementation detail, invisible to players).
     Summoning sickness: cannot attack the turn it's deployed unless it has FAST-TRACK.
     Assets attack once per turn (twice with OVERTIME). Attackers can target enemy assets
-    or the enemy CEO — but must attack a FIREWALL asset if any exists (STEALTH ignores nothing;
+    or the enemy CEO — but must attack a FIREWALL asset if any exists (CORPORATE VEIL ignores nothing;
     firewall rule applies to attackers regardless). FIREWALL otherwise only gates the `attack`
     action — targeted damage effects ignore it by default (`any`) UNLESS a card opts into the
     `anyRespectFirewall` targeting (currently only `vx_power` Precision Strike), which applies
@@ -63,7 +63,7 @@ battle for industry dominance. Tone: sleek corporate cyberpunk, dry satirical fl
 |------------------|---------------------|-----------------------------------------------------------------|
 | `firewall`       | FIREWALL            | Enemies must attack this asset first (Taunt)                    |
 | `fasttrack`      | FAST-TRACK          | Can attack the turn it's deployed (Charge)                      |
-| `stealth`        | STEALTH MODE        | Can't be targeted/attacked until it deals damage (Stealth)      |
+| `stealth`        | CORPORATE VEIL      | Can't be targeted/attacked until it deals damage (Stealth). Uniform name across every faction — no per-card flavor rename. |
 | `shielded`       | PATENT PROTECTION   | Ignores the first damage it would take (Divine Shield)          |
 | `overtime`       | OVERTIME            | Can attack twice per turn (Windfury)                            |
 | `toxic`          | TOXIC ASSET         | Destroys any asset it damages (Poisonous)                       |

@@ -173,7 +173,7 @@ A('nx_002', 'Web Crawler', 'nexus', 2, 1, 1, {
   flavor: 'It respects robots.txt the way lawyers respect loopholes.',
   effects: { onboarding: [{ op: 'draw', count: 1 }] } });
 A('nx_003', 'Spyware Agent', 'nexus', 2, 2, 1, { keywords: ['stealth'],
-  text: 'STEALTH MODE.',
+  text: 'CORPORATE VEIL.',
   flavor: 'You agreed to this in section 47(b) of the EULA.' });
 A('nx_004', 'QA Analyst', 'nexus', 2, 2, 3, {
   flavor: 'Finds every bug except the one in production.' });
@@ -182,7 +182,7 @@ A('nx_005', 'Scrum Master', 'nexus', 3, 2, 3, { rarity: 'rare',
   flavor: 'Turns one meeting into three, and three cards into four.',
   effects: { onboarding: [{ op: 'draw', count: 1 }] } });
 A('nx_006', 'Silent Daemon', 'nexus', 3, 4, 2, { keywords: ['stealth'], rarity: 'rare',
-  text: 'STEALTH MODE.',
+  text: 'CORPORATE VEIL.',
   flavor: 'Runs in the background. Bills in the foreground.' });
 A('nx_007', 'Firewall Node', 'nexus', 3, 1, 6, { keywords: ['firewall'],
   text: 'FIREWALL.',
@@ -239,7 +239,7 @@ A('nx_020', 'Compute Cluster', 'nexus', 5, 5, 6, {
   flavor: 'Mines synergy at 4.2 exaflops.',
   effects: { adjacencyBuff: { attack: 1, health: 1, match: { tag: 'software' } } } });
 A('nx_021', 'Zero-Day Agent', 'nexus', 6, 5, 5, { keywords: ['stealth'], rarity: 'epic',
-  text: 'STEALTH MODE.',
+  text: 'CORPORATE VEIL.',
   flavor: 'Disclosed responsibly, deployed irresponsibly.' });
 O('nx_022', 'Mass Recall', 'nexus', 7, { rarity: 'epic',
   text: 'Return all enemy assets to their owner’s hand.',
@@ -351,7 +351,7 @@ A('hx_007', 'Bioreactor', 'helix', 3, 3, 4, {
   flavor: 'Feed it grant money and it produces more grant applications.',
   effects: { adjacencyBuff: { attack: 1, health: 1, match: { tag: 'organism' } } } });
 A('hx_008', 'Designer Pathogen', 'helix', 2, 1, 1, { keywords: ['toxic', 'stealth'], rarity: 'epic',
-  text: 'TOXIC ASSET. STEALTH MODE.',
+  text: 'TOXIC ASSET. CORPORATE VEIL.',
   flavor: 'Bespoke. Artisanal. Airborne.' });
 A('hx_009', 'Containment Unit', 'helix', 4, 2, 6, { keywords: ['firewall'],
   text: 'FIREWALL.',
@@ -489,7 +489,6 @@ O('ob_023', 'Counter Offer', 'obsidian', 5, { rarity: 'epic',
   flavor: 'Name your price. They already did. We doubled it and kept the receipt.',
   effects: { targeting: 'enemyUnitCost4', play: [{ op: 'special', key: 'stealUnit' }] } });
 A('ob_024', 'Hedge Fund', 'obsidian', 5, 0, 5, { keywords: ['stealth'], rarity: 'epic',
-  keywordLabels: { stealth: 'CORPORATE VEIL' },
   text: 'This asset’s Attack always equals your current Capital.',
   flavor: 'It is long on everything and accountable for nothing.',
   effects: { dynamicAttack: 'capital' } });
@@ -578,7 +577,7 @@ A('ntr_020', 'Patent Troll', 'neutral', 2, 1, 1, { keywords: ['toxic'], rarity: 
   text: 'TOXIC ASSET.',
   flavor: 'Owns the patent on rounded corners and, somehow, grief.' });
 A('ntr_021', 'Corporate Spy', 'neutral', 3, 3, 2, { keywords: ['stealth'], rarity: 'rare',
-  text: 'STEALTH MODE.',
+  text: 'CORPORATE VEIL.',
   flavor: 'The janitor with the Harvard MBA.' });
 A('ntr_022', 'Picket Line', 'neutral', 4, 3, 5, { keywords: ['firewall'],
   text: 'FIREWALL.',

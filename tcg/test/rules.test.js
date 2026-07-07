@@ -1833,7 +1833,7 @@ test('DYNAMIC attack: at 0 Capital, attack is 0 and it cannot attack', () => {
     'a 0-attack Hedge Fund has no attack action');
 });
 
-test('DYNAMIC attack: Hedge Fund carries STEALTH (corporate veil) — untargetable until it attacks', () => {
+test('DYNAMIC attack: Hedge Fund carries STEALTH (CORPORATE VEIL) — untargetable until it attacks', () => {
   const s = newGame(); // p0 nexus, p1 vulcan
   const hf = addUnit(s, 1, 'ob_024');   // owned by p1, stealthed
   const other = addUnit(s, 1, 'ntr_013'); // non-stealth enemy, for contrast
