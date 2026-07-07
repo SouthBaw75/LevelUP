@@ -46,6 +46,10 @@ let pendingPowerCaster = null;
 // re-render then shows the persistent tuck (see components/card.js).
 const ATTACHMENT_CARD_IDS = new Set(['ntr_037']); // Flirty Intern
 let pendingAttachGhost = null;
+// True while animating a batch that also ends the game — the bigHit case uses
+// it to SKIP its CEO taunt so it doesn't collide with the victory taunt that
+// showGameOver plays a beat later (a lethal 10+ hit would otherwise fire both).
+let batchHasGameOver = false;
 function clearAttachGhost() {
   if (pendingAttachGhost) { pendingAttachGhost.remove(); pendingAttachGhost = null; }
 }
@@ -92,6 +96,7 @@ async function drain() {
   while (queue.length && g === gen) {
     const batch = queue.shift();
     const events = Array.isArray(batch.events) ? batch.events : [];
+    batchHasGameOver = events.some((e) => e && e.e === 'gameOver');
     for (const ev of events) {
       if (cancelled || g !== gen) break;
       try { hooks.logEvent(ev); } catch (err) { console.error(err); }
@@ -694,7 +699,9 @@ async function playEvent(ev) {
       // A single game-turn just did BIG_HIT_THRESHOLD+ damage to this hero —
       // let the attacker's CEO gloat. Fire-and-forget like other one-shot sfx;
       // the taunt shouldn't block the animation queue while it plays out.
-      audio.playCeoTaunt(hooks.factionOf(ev.attackerPlayer));
+      // EXCEPT when this same hit ends the game: skip it so it doesn't stack on
+      // top of the victory taunt showGameOver plays a moment later.
+      if (!batchHasGameOver) audio.playCeoTaunt(hooks.factionOf(ev.attackerPlayer));
       const hero = hooks.resolveTarget('hero' + ev.targetPlayer);
       if (hero) floatNum(hero, 'BIG HIT!', 'dmg', { size: 'med' });
       await wait(60);
