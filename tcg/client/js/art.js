@@ -237,8 +237,12 @@ export function artSvg(cardId, faction, type) {
 // ---- drop-in real artwork convention (see client/assets/card-art/README.md) ----
 // assets/card-art/<cardId>.png → .jpg → .webp; cached probe results so the deck
 // builder's big grid doesn't re-probe the same missing files.
-const ART_EXTS = ['png', 'jpg', 'webp'];
-const ICON_EXTS = ['png', 'webp']; // transparency-preserving formats only
+// webp first: the shipped art is optimized WebP (see assets/optimize-art.py),
+// so probing it first means a first-try hit instead of a wasted png/jpg 404.
+// png/jpg kept as fallbacks so a freshly dropped, not-yet-optimized master
+// still shows.
+const ART_EXTS = ['webp', 'png', 'jpg'];
+const ICON_EXTS = ['webp', 'png']; // transparency-preserving formats only
 const artCache = new Map(); // cardId -> Promise<string|null> (resolved url or null)
 const ceoCache = new Map(); // faction -> Promise<string|null>
 const iconCache = new Map(); // faction -> Promise<string|null>
