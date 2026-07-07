@@ -1176,6 +1176,32 @@ async function playEvent(ev) {
       await wait(200);
       break;
     }
+    case 'bankCapital': {
+      // War Chest (§reserve): capital socked away at end of turn. Owner-only
+      // event (redacted for the opponent), so this only ever plays on your own
+      // tile — a subtle gold vault pulse + a small "+N BANKED" float. Quick.
+      const tile = hooks.resolveTarget(ev.contractId);
+      if (tile) {
+        pulseClass(tile, 'anim-bank-pulse', 520);
+        floatNum(tile, '+' + ev.amount + ' BANKED', 'gold');
+      }
+      await wait(200);
+      break;
+    }
+    case 'reserveActivated': {
+      // War Chest cracked open (public): a more emphatic gold burst on the tile
+      // plus a pulse of the owner's capital pip row — the reserve tops up
+      // ASSET-only capital right now, so it reads as a big moment.
+      audio.playSfx('sfx-play');
+      const tile = hooks.resolveTarget(ev.contractId);
+      if (tile) pulseClass(tile, 'anim-warchest-crack', 560);
+      const capRow = hooks.capitalAnchor?.(ev.player);
+      if (capRow) pulseClass(capRow, 'anim-reserve-pop', 560);
+      const anchor = tile || capRow;
+      if (anchor) floatNum(anchor, 'WAR CHEST +' + ev.amount, 'gold', { size: 'med' });
+      await wait(260);
+      break;
+    }
     default:
       await wait(120);
   }

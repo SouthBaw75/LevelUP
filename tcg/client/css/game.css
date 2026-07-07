@@ -57,6 +57,21 @@
 }
 .capital-pip.spent { background: #241f14; border-color: #4a3d21; }
 .capital-label { font: 700 12px/1 var(--mono); color: var(--gold); margin-left: 6px; letter-spacing: 0.05em; }
+/* War Chest: ASSET-only capital bonus available this turn — a gold "+N" chip
+   beside the pips (your row only) */
+.capital-bonus {
+  font: 800 11px/1 var(--mono); color: #071019; letter-spacing: 0.03em;
+  margin-left: 5px; padding: 2px 5px; border-radius: 7px;
+  background: radial-gradient(circle at 35% 30%, #ffe9b8, var(--gold) 62%, #9c7226);
+  border: 1px solid #f7dfa6;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.55), 0 0 8px rgba(232, 180, 90, 0.45);
+}
+/* reserveActivated: the capital row pulses gold as the reserve tops it up */
+.capital-row.anim-reserve-pop { animation: reserve-cap-pop 0.55s cubic-bezier(0.34, 1.56, 0.64, 1); }
+@keyframes reserve-cap-pop {
+  30% { transform: scale(1.12); filter: drop-shadow(0 0 10px rgba(232, 180, 90, 0.85)) brightness(1.35); }
+  100% { transform: none; filter: none; }
+}
 
 .deck-pill {
   display: flex; align-items: center; gap: 7px; padding: 6px 11px;
@@ -276,6 +291,8 @@
 }
 .float-num.heal { color: #52e88b; text-shadow: 0 2px 8px rgba(0,0,0,0.9), 0 0 14px rgba(82, 232, 139, 0.5); }
 .float-num.buff { color: #7dd8ff; font-size: 22px; }
+/* War Chest banking/activation floats — gold to match the capital economy */
+.float-num.gold { color: #ffd97a; font-size: 22px; text-shadow: 0 2px 8px rgba(0,0,0,0.9), 0 0 14px rgba(232, 180, 90, 0.6); }
 .float-num.small { font-size: 24px; }
 .float-num.med { font-size: 34px; }
 .float-num.crit {
@@ -877,6 +894,44 @@
   border: 1px solid #f7dfa6;
   box-shadow: 0 1px 4px rgba(0, 0, 0, 0.6), 0 0 6px rgba(232, 180, 90, 0.4);
 }
+/* War Chest reserve: banked-capital vault badge — bottom-right, gold like the
+   term pip it sits opposite (owner's own tile only; see renderContractTile) */
+.ct-bank {
+  position: absolute; bottom: -6px; right: -6px; z-index: 2;
+  min-width: 15px; height: 15px; padding: 0 4px; border-radius: 8px;
+  display: flex; align-items: center; gap: 2px;
+  font: 800 9px/1 var(--mono); color: #071019;
+  background: radial-gradient(circle at 35% 30%, #ffe9b8, var(--gold) 62%, #9c7226);
+  border: 1px solid #f7dfa6;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.6), 0 0 6px rgba(232, 180, 90, 0.4);
+}
+.ct-bank-glyph { font-size: 9px; line-height: 1; }
+/* an armed War Chest (your turn, banked > 0) invites a click: gold ready-glow
+   + pointer cursor, distinct from the red null-&-void target pulse */
+.contract-tile.reserve-armed {
+  cursor: pointer;
+  box-shadow: 0 3px 8px rgba(0, 0, 0, 0.55), inset 0 1px 0 rgba(255, 249, 226, 0.4),
+    0 0 0 1px rgba(245, 211, 138, 0.75), 0 0 14px 2px rgba(232, 180, 90, 0.55);
+  animation: reserve-armed-glow 1.6s ease-in-out infinite;
+}
+@keyframes reserve-armed-glow {
+  50% { box-shadow: 0 3px 8px rgba(0, 0, 0, 0.55), inset 0 1px 0 rgba(255, 249, 226, 0.4),
+    0 0 0 1px rgba(245, 211, 138, 0.95), 0 0 20px 4px rgba(232, 180, 90, 0.8); }
+}
+/* bankCapital: subtle gold vault pulse as capital is socked away */
+.contract-tile.anim-bank-pulse { animation: reserve-bank-pulse 0.52s cubic-bezier(0.34, 1.56, 0.64, 1); }
+@keyframes reserve-bank-pulse {
+  30% { transform: translateY(-2px) scale(1.06); filter: brightness(1.35) drop-shadow(0 0 10px rgba(232, 180, 90, 0.85)); }
+  100% { transform: none; filter: none; }
+}
+/* reserveActivated: emphatic gold burst as the fund is cracked open */
+.contract-tile.anim-warchest-crack { animation: reserve-crack 0.56s cubic-bezier(0.34, 1.56, 0.64, 1); }
+@keyframes reserve-crack {
+  0% { filter: brightness(1); }
+  35% { transform: scale(1.14); filter: brightness(1.9) drop-shadow(0 0 16px rgba(245, 211, 138, 0.95)); }
+  100% { transform: none; filter: none; }
+}
+
 /* null-&-void targeting reuses the shared red target pulse */
 .contract-tile.targetable {
   cursor: crosshair;

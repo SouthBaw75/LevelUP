@@ -14,6 +14,7 @@ const EVENT_TYPES = new Set([
   'attack', 'damage', 'heal', 'shieldBreak', 'death', 'buff', 'keyword',
   'heroPower', 'returnToHand', 'silence', 'transform', 'gameOver',
   'contractFiled', 'contractVoided', 'layoff', 'severance', 'distract', 'capitalRaid', 'bigHit',
+  'bankCapital', 'reserveActivated',
 ]);
 
 // independent PRNG for action choice (not the engine's)
@@ -45,12 +46,22 @@ function checkViewBasics(view, playerIndex) {
     assert.ok(u.health >= 1, 'no dead unit remains on a board');
   }
   for (const u of view.opp.board) assert.equal(u.canAttack, false);
-  // contracts are public on both sides, max 3, exact shape
+  // contracts are public on both sides, max 3, exact shape — except a
+  // reserve's private bank (War Chest): YOUR OWN contracts may carry it,
+  // the opponent's copy of your contracts must never
   for (const side of [view.you, view.opp]) {
+    const own = side === view.you;
     assert.ok(Array.isArray(side.contracts), 'contracts array present');
     assert.ok(side.contracts.length <= 3, 'max 3 filed contracts');
     for (const c of side.contracts) {
-      assert.deepEqual(Object.keys(c).sort(), ['cardId', 'id', 'turnsLeft']);
+      const keys = Object.keys(c).sort();
+      if (own && keys.includes('banked')) {
+        assert.deepEqual(keys, ['banked', 'cardId', 'id', 'turnsLeft']);
+        assert.ok(Number.isInteger(c.banked) && c.banked >= 0 && c.banked <= 8,
+          'banked is a non-negative integer ≤ 8');
+      } else {
+        assert.deepEqual(keys, ['cardId', 'id', 'turnsLeft']);
+      }
       assert.match(c.id, /^c\d+$/);
       assert.ok(c.turnsLeft === null || (Number.isInteger(c.turnsLeft) && c.turnsLeft >= 1));
     }

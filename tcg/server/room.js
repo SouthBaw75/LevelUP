@@ -49,6 +49,10 @@ export function cleanAction(a) {
       if (typeof a.unitId !== 'string' || a.unitId.length > 16) return null;
       return { type: 'layoff', unitId: a.unitId };
     }
+    case 'activateReserve': {
+      if (typeof a.contractId !== 'string' || a.contractId.length > 16) return null;
+      return { type: 'activateReserve', contractId: a.contractId };
+    }
     default:
       return null;
   }

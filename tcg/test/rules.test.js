@@ -2317,3 +2317,184 @@ test('REGULATORY CAPTURE does not tax the CEO power (fixed cost, not effectiveCo
   fileContract(s, 0, 'ntr_c03');
   assert.equal(getView(s, 1).you.power.cost, 2, "CEO power cost is untouched by the enemy's tax");
 });
+
+// ---------------------------------------------------------------------------
+// WAR CHEST (ntr_c04): a reserve CONTRACT. At the end of your turn it banks
+// your unspent Capital onto the filed instance (max 8 total, no capital
+// deduction). Activate moves the whole bank into assetCapitalBonus — spendable
+// on ASSETS only, bonus-before-capital, expiring at your next turn start. The
+// bank is private; assetCapitalBonus is public.
+// ---------------------------------------------------------------------------
+test('WAR CHEST: end of turn banks unspent Capital onto the instance without draining capital', () => {
+  const s = newGame();
+  const c = fileContract(s, 0, 'ntr_c04');
+  giveCapital(s, 0, 5);
+  const r = end(s);
+  assert.equal(c.banked, 5, 'unspent capital banked onto the contract instance');
+  assert.equal(s.players[0].capital, 5, 'banking does NOT reduce p.capital');
+  assert.deepEqual(find(r.events, 'bankCapital'),
+    { e: 'bankCapital', player: 0, contractId: c.id, cardId: 'ntr_c04', amount: 5, total: 5 });
+});
+
+test('WAR CHEST: the bank accumulates across turns and caps at 8', () => {
+  const s = newGame();
+  const c = fileContract(s, 0, 'ntr_c04');
+  // turn 1: bank 3
+  giveCapital(s, 0, 3);
+  let r = end(s);
+  assert.equal(c.banked, 3);
+  assert.equal(find(r.events, 'bankCapital').total, 3);
+  end(s); // p1 -> p0
+  // turn 2: bank 4 more -> 7
+  giveCapital(s, 0, 4);
+  r = end(s);
+  assert.equal(c.banked, 7);
+  assert.equal(find(r.events, 'bankCapital').amount, 4);
+  end(s);
+  // turn 3: only 1 fits under the cap even though 5 is unspent
+  giveCapital(s, 0, 5);
+  r = end(s);
+  assert.equal(c.banked, 8, 'capped at 8 total');
+  assert.equal(find(r.events, 'bankCapital').amount, 1, 'banks only up to the cap');
+  end(s);
+  // turn 4: already full -> banks nothing, no event
+  giveCapital(s, 0, 6);
+  r = end(s);
+  assert.equal(c.banked, 8, 'never exceeds 8');
+  assert.equal(find(r.events, 'bankCapital'), undefined, 'a full bank emits no bankCapital event');
+});
+
+test('WAR CHEST: no bankCapital event when there is 0 unspent Capital', () => {
+  const s = newGame();
+  const c = fileContract(s, 0, 'ntr_c04');
+  s.players[0].capital = 0;
+  const r = end(s);
+  assert.ok(!c.banked, 'nothing banked (bank untouched)');
+  assert.equal(find(r.events, 'bankCapital'), undefined, 'no event with nothing to bank');
+});
+
+test('WAR CHEST: activateReserve moves the bank into assetCapitalBonus and zeroes it', () => {
+  const s = newGame();
+  const c = fileContract(s, 0, 'ntr_c04');
+  c.banked = 6;
+  const r = applyAction(s, 0, { type: 'activateReserve', contractId: c.id });
+  assert.equal(r.ok, true);
+  assert.equal(s.players[0].assetCapitalBonus, 6, 'whole bank moved into the bonus');
+  assert.equal(c.banked, 0, 'bank zeroed');
+  assert.equal(s.activePlayer, 0, 'activation does not end the turn');
+  assert.deepEqual(find(r.events, 'reserveActivated'),
+    { e: 'reserveActivated', player: 0, contractId: c.id, cardId: 'ntr_c04', amount: 6 });
+  // second activation on the now-empty chest is rejected
+  const r2 = applyAction(s, 0, { type: 'activateReserve', contractId: c.id });
+  assert.equal(r2.ok, false, 'empty reserve cannot be activated again');
+});
+
+test('WAR CHEST: activateReserve enumerated exactly when banked > 0', () => {
+  const s = newGame();
+  const c = fileContract(s, 0, 'ntr_c04');
+  assert.ok(!legalActions(s, 0).some((a) => a.type === 'activateReserve'),
+    'not enumerated while the bank is empty');
+  c.banked = 4;
+  assert.ok(legalActions(s, 0).some((a) => a.type === 'activateReserve' && a.contractId === c.id),
+    'enumerated once the bank has capital');
+  // off-turn: rejected as "not your turn"
+  assert.equal(applyAction(s, 1, { type: 'activateReserve', contractId: c.id }).ok, false);
+});
+
+test('WAR CHEST: an activated reserve pays for an ASSET, bonus-before-capital', () => {
+  const s = newGame();
+  const c = fileContract(s, 0, 'ntr_c04');
+  c.banked = 3;
+  s.players[0].capital = 2;
+  s.players[0].maxCapital = 2;
+  applyAction(s, 0, { type: 'activateReserve', contractId: c.id }); // bonus = 3
+  const idx = putInHand(s, 0, 'ntr_013'); // ASSET, cost 4 (> capital 2, <= 2+3 budget)
+  const hv = getView(s, 0).you.hand[idx];
+  assert.equal(hv.cost, 4, 'view reports the printed cost');
+  assert.equal(hv.playable, true, 'affordable via capital(2)+bonus(3)');
+  const r = applyAction(s, 0, { type: 'playCard', handIndex: idx, target: null, position: null });
+  assert.equal(r.ok, true);
+  assert.equal(s.players[0].assetCapitalBonus, 0, 'bonus (3) drained first');
+  assert.equal(s.players[0].capital, 1, 'remaining 1 paid from capital (2 -> 1)');
+});
+
+test('WAR CHEST: assetCapitalBonus does NOT make an OPERATION or CONTRACT affordable', () => {
+  const s = newGame();
+  const c = fileContract(s, 0, 'ntr_c04');
+  c.banked = 8;
+  s.players[0].capital = 0;
+  s.players[0].maxCapital = 0;
+  applyAction(s, 0, { type: 'activateReserve', contractId: c.id }); // bonus = 8
+  // OPERATION costing 1 stays unaffordable at 0 capital
+  const iOp = putInHand(s, 0, 'nx_019'); // Telemetry, OPERATION cost 1
+  assert.equal(getView(s, 0).you.hand[iOp].playable, false, 'bonus cannot pay for an operation');
+  assert.equal(applyAction(s, 0, { type: 'playCard', handIndex: iOp, target: null, position: null }).ok,
+    false, 'operation play rejected');
+  // CONTRACT costing 2 likewise
+  const iK = putInHand(s, 0, 'nx_c03'); // Push Notification Consent, CONTRACT cost 2
+  assert.equal(getView(s, 0).you.hand[iK].playable, false, 'bonus cannot pay for a contract');
+  assert.equal(applyAction(s, 0, { type: 'playCard', handIndex: iK, target: null, position: null }).ok,
+    false, 'contract play rejected');
+});
+
+test('WAR CHEST: assetCapitalBonus resets to 0 at the owner\'s next turn start', () => {
+  const s = newGame();
+  const c = fileContract(s, 0, 'ntr_c04');
+  c.banked = 5;
+  applyAction(s, 0, { type: 'activateReserve', contractId: c.id });
+  assert.equal(s.players[0].assetCapitalBonus, 5);
+  end(s); // p1's turn
+  assert.equal(s.players[0].assetCapitalBonus, 5, 'survives the opponent turn');
+  end(s); // p0's turn start
+  assert.equal(s.players[0].assetCapitalBonus, 0, 'wiped by the fresh capital refill');
+});
+
+test('WAR CHEST: the bank is private (owner-only view); assetCapitalBonus is public', () => {
+  const s = newGame();
+  const c = fileContract(s, 0, 'ntr_c04');
+  c.banked = 4;
+  s.players[0].assetCapitalBonus = 3;
+  // owner's own view carries banked
+  const own = getView(s, 0);
+  const ownContract = own.you.contracts.find((x) => x.id === c.id);
+  assert.equal(ownContract.banked, 4, 'owner sees the bank');
+  assert.equal(own.you.assetCapitalBonus, 3, 'owner sees the bonus');
+  // opponent's copy omits the banked key entirely
+  const oppView = getView(s, 1);
+  const oppContract = oppView.opp.contracts.find((x) => x.id === c.id);
+  assert.deepEqual(Object.keys(oppContract).sort(), ['cardId', 'id', 'turnsLeft'],
+    'opponent contract entry has no banked key at all');
+  assert.equal(oppView.opp.assetCapitalBonus, 3, 'assetCapitalBonus is public on both views');
+});
+
+test('WAR CHEST: redactEvents drops enemy bankCapital, keeps reserveActivated', () => {
+  const s = newGame();
+  const c = fileContract(s, 0, 'ntr_c04');
+  c.banked = 4;
+  // reserveActivated survives BOTH redactions (public)
+  const rAct = applyAction(s, 0, { type: 'activateReserve', contractId: c.id });
+  assert.ok(redactEvents(rAct.events, 0).some((e) => e.e === 'reserveActivated'), 'owner sees it');
+  assert.ok(redactEvents(rAct.events, 1).some((e) => e.e === 'reserveActivated'), 'opponent sees it');
+  // bankCapital is present for the owner but DROPPED for the opponent
+  giveCapital(s, 0, 4);
+  const rEnd = end(s);
+  assert.ok(find(rEnd.events, 'bankCapital'), 'raw stream has the bank event');
+  assert.ok(redactEvents(rEnd.events, 0).some((e) => e.e === 'bankCapital'), 'owner keeps its bankCapital');
+  assert.ok(!redactEvents(rEnd.events, 1).some((e) => e.e === 'bankCapital'), 'opponent stream drops it');
+});
+
+test('WAR CHEST: two chests bank INDEPENDENTLY from the same unspent Capital', () => {
+  const s = newGame();
+  const c1 = fileContract(s, 0, 'ntr_c04');
+  const c2 = fileContract(s, 0, 'ntr_c04');
+  giveCapital(s, 0, 5);
+  const r = end(s);
+  // bankCapital reads live capital and never deducts, so each chest banks the
+  // full leftover independently — 5 capital yields 10 banked across two chests.
+  assert.equal(c1.banked, 5, 'first chest banks the whole leftover');
+  assert.equal(c2.banked, 5, 'second chest banks it again from the same pool');
+  assert.equal(s.players[0].capital, 5, 'capital never deducted despite two banks');
+  const banks = findAll(r.events, 'bankCapital');
+  assert.equal(banks.length, 2, 'one bankCapital event per chest');
+  assert.deepEqual(banks.map((e) => e.total), [5, 5]);
+});

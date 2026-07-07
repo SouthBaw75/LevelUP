@@ -244,7 +244,53 @@ the buff to neighbors of that asset class; omitting `match` buffs any neighbor u
   `{ attack: 1, health: 1, match: { tag: 'software' } }` ("+1/+1 to a SOFTWARE-class asset
   placed immediately beside it").
 
-### v1 contract set (13 faction + 1 neutral contract + 2 neutral answers)
+## 3g. Capital Reserve (War Chest)
+
+A restricted capital reserve — the CapEx fund every board sets aside "for strategic
+opportunities," off the operating books and spendable only on hard assets. A contract that
+squirrels away unspent Capital across turns, then lets you crack it open to buy ASSETS.
+
+- **The `reserve: { assetOnly: true }` CONTRACT marker.** A contract carrying `effects.reserve`
+  is a *reserve contract*. Filing it works exactly like any contract (cost in capital, into the
+  contract zone, counts against the max-3), with ONE addition: its filed instance gets a private
+  `banked: 0`. Every other (non-reserve) contract keeps its exact historical instance shape — no
+  stray `banked` field appears anywhere it shouldn't.
+- **The `bankCapital` op** (`{op:'bankCapital', cap?}`, default `cap: 8`). Fires at the owner's
+  **end of turn** (it lives in the contract's `endOfTurn` list). It banks the owner's unspent
+  Capital onto the SOURCE contract instance, up to `cap` **total** on that instance —
+  `amount = max(0, min(capital, cap − banked))`, then `banked += amount`. It does **NOT** deduct
+  the banked amount from the player's `capital`. This is deliberate: capital refills from scratch
+  at the owner's next `startTurn` anyway, so there is nothing to save by spending it down; and a
+  mid-shutdown deduction would silently corrupt any `dynamicAttack:'capital'` units reading the
+  owner's capital during the OPPONENT's turn. Consequence: two filed War Chests each bank the full
+  unspent amount independently (intended — the bank is per-instance, not a shared pool). The event
+  only emits when `amount > 0`.
+- **Private information — the game's FIRST hidden state beyond the hand.** A reserve's `banked`
+  balance appears ONLY in the owner's own view: `contracts[].banked` is populated when `self &&
+  effects.reserve`, and omitted otherwise. The opponent still sees the contract tile — its `id`,
+  `cardId`, and `turnsLeft`, like any filed contract — but **not** the balance sitting on it. Up to
+  now the only thing one player could hide from the other was their hand; a War Chest's bank is the
+  first on-board secret. To preserve it, `redactEvents` **drops** `bankCapital` events outright when
+  the viewer isn't the event's `player` (they are not merely blanked like opponent `draw` cardIds —
+  they are filtered out of the stream entirely). `reserveActivated` stays public.
+- **The `activateReserve` action** — `{ "type": "activateReserve", "contractId": "c<N>" }`. Free,
+  usable any time on your turn, and does **not** end the turn. Legal only when the named contract is
+  a filed reserve with a positive bank. It moves the WHOLE bank into the player's `assetCapitalBonus`
+  and empties the bank (`banked → 0`), emitting `reserveActivated {player, contractId, cardId, amount}`.
+  `legalActions` enumerates one `activateReserve` per filed reserve with `banked > 0`.
+- **`assetCapitalBonus` semantics.** A per-player pool of spending power that is **ASSET-only** — it
+  tops up `capital` when paying for an ASSET, and is invisible to OPERATIONS, CONTRACTS, and the CEO
+  power (which all spend plain capital). Every cost check — `handEntry` playability, `legalActions`
+  enumeration, and `applyAction` validation — routes through one `spendingBudget(p, card) = p.capital
+  + (card.type === 'ASSET' ? p.assetCapitalBonus : 0)` so display, enumeration, and validation agree.
+  When an asset is actually paid for, the bonus is spent **first**: `fromBonus = min(assetCapitalBonus,
+  cost)` comes off the reserve, and only the remainder comes off plain capital. It is **use-it-or-lose-it
+  that turn**: `startTurn` resets `assetCapitalBonus = 0` alongside the capital refill, so an activated-
+  but-unspent reserve evaporates. Unlike the hidden `banked` balance, `assetCapitalBonus` **is public**
+  in the view once activated — like capital, both players can see how much asset-buying power is on the
+  table.
+
+### v1 contract set (13 faction + 2 neutral contracts + 2 neutral answers)
 
 | id | Name | Cost | Effect |
 |---|---|---|---|
@@ -262,14 +308,15 @@ the buff to neighbors of that asset class; omitting `match` buffs any neighbor u
 | `ob_c02` | Bridge Loan | 4 | **Term 2.** At the start of your turn, gain +1 permanent max Capital. |
 | `ob_c03` | Liquidation Rights | 3 | Whenever a friendly asset is destroyed, gain 1 Capital this turn only. |
 | `ntr_c03` | Regulatory Capture | 4 | Your opponent's cards cost (1) more (every type — see `enemyCostIncrease` above). |
+| `ntr_c04` | War Chest | 2 | At end of turn, bank unspent Capital (max 8, private); Activate to spend the bank on ASSETS this turn (§3g). |
 | `ntr_c01` | Contract Attorney | 3 | ASSET 2/3. ONBOARDING: declare an enemy contract null & void. |
 | `ntr_c02` | Void Clause | 1 | OPERATION. Declare an enemy contract null & void. |
 
 Flavor bar: every contract gets dry legal-satire flavor text ("fine print" energy).
-Rarity spread: commons/rares; `vx_c03`, `ob_c02`, and `ntr_c03` epic. Starter decks: each
+Rarity spread: commons/rares; `vx_c03`, `ob_c02`, `ntr_c03`, and `ntr_c04` epic. Starter decks: each
 starter deck swaps in 1 of its faction's contracts (2 copies → no; ONE copy, cutting one
 existing card) plus each deck gains one `ntr_c02` Void Clause (cutting one card),
-keeping exactly 40 and passing validateDeck. `ntr_c03` is not in any starter deck yet.
+keeping exactly 40 and passing validateDeck. `ntr_c03` and `ntr_c04` are not in any starter deck yet.
 
 ## 4. Card data schema (what client & server see)
 
@@ -307,7 +354,7 @@ convention. The card data schema needs no art field.
 - `type: "CEO"` cards (one per faction, e.g. `nx_ceo`) define the hero: name, 40 health, `powerId`.
 - `type: "POWER"` cards define the CEO power: cost 2, `text`, effects.
 - Tokens (summoned units) are non-collectible ASSET cards in the same map.
-- **144 collectible cards total**: ~26 per faction + 41 neutral. Costs 0–10, all rarities.
+- **145 collectible cards total**: ~26 per faction + 42 neutral. Costs 0–10, all rarities.
 
 `STARTER_DECKS`: `{ nexus: {name, faction, cards:[40 ids]}, vulcan: {...}, helix: {...}, obsidian: {...} }`
 — four tuned, playable prebuilt decks.
@@ -360,6 +407,7 @@ import { createGame, applyAction, legalActions, getView, redactEvents, cloneStat
     "index": 0, "name": "Alice", "faction": "nexus",
     "integrity": 37, "maxIntegrity": 40,
     "capital": 4, "maxCapital": 4,
+    "assetCapitalBonus": 0,       // §3g — activated War Chest reserve, ASSET-only spending; public. Reserve contracts also carry an owner-only `banked` in their `contracts[]` entry.
     "ceo": { "cardId": "nx_ceo", "name": "..." },
     "power": { "cardId": "nx_power", "cost": 2, "used": false, "targeting": null },
     "hand": [ { "cardId": "nx_003", "cost": 2, "playable": true, "targeting": "enemyUnit", "validPositions": true } ],
@@ -387,6 +435,8 @@ Every event: `{ "e": "<type>", ...fields }`. Types (fixed list):
 - `layoff {unitId, cardId, player}` (§3c — always followed by `heal` on the owner's hero, then `death`)
 - `severance {unitId, cardId, player}` (§3d — emitted during the death sweep, immediately before its `draw` for the owner)
 - `capitalRaid {unitId, cardId, player, targetPlayer}` (RAID — survived attack banks a 1-Capital steal, applied at the start of `targetPlayer`'s next turn; see §3)
+- `bankCapital {player, contractId, cardId, amount, total}` (§3g — War Chest banks unspent Capital at end of turn; **private**: redacted (dropped) from the non-owner's stream)
+- `reserveActivated {player, contractId, cardId, amount}` (§3g — the whole bank moves into `assetCapitalBonus`; public)
 - `bigHit {targetPlayer, attackerPlayer, amount}` — cumulative ENEMY-caused damage to `targetPlayer`'s CEO within the current game-turn crossed `BIG_HIT_THRESHOLD` (10); fires once per turn. Client plays a random taunt for `attackerPlayer`'s CEO (`ceo-taunts/<faction>[-N].mp3`). Self-inflicted damage (own fatigue/contract/CEO-power) never counts.
 
 After applying redacted events, the client re-renders from the authoritative `view` that

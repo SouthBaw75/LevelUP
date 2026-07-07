@@ -380,3 +380,14 @@
 
 /* hand card playability glow */
 .hand-card.playable .card { box-shadow: 0 0 14px 2px color-mix(in srgb, var(--gr) 50%, transparent), 0 4px 14px rgba(0,0,0,0.55); border-color: color-mix(in srgb, var(--gr) 60%, var(--fc)); }
+/* War Chest eligibility: an ASSET the cracked-open reserve can now pay for gets
+   a distinct GOLD glow (vs. the green playable glow) + a soft breathing pulse,
+   so the player sees exactly what the extra ASSET-only capital buys. */
+.hand-card.reserve-eligible .card {
+  box-shadow: 0 0 16px 3px color-mix(in srgb, var(--gold) 70%, transparent), 0 4px 14px rgba(0,0,0,0.55);
+  border-color: color-mix(in srgb, var(--gold) 75%, var(--fc));
+  animation: reserve-eligible-glow 1.7s ease-in-out infinite;
+}
+@keyframes reserve-eligible-glow {
+  50% { box-shadow: 0 0 22px 5px color-mix(in srgb, var(--gold) 90%, transparent), 0 4px 14px rgba(0,0,0,0.55); }
+}

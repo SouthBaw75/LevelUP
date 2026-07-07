@@ -262,8 +262,8 @@ function renderView() {
   renderBoard(els['g-row-me'], me.board || [], false);
 
   // filed contracts (public on both sides; empty zone renders nothing)
-  renderContracts(els['g-contracts-opp'], opp.contracts || []);
-  renderContracts(els['g-contracts-me'], me.contracts || []);
+  renderContracts(els['g-contracts-opp'], opp.contracts || [], false);
+  renderContracts(els['g-contracts-me'], me.contracts || [], myTurn);
 
   // hand
   renderHand(me.hand || [], myTurn);
@@ -325,6 +325,16 @@ function renderHero(side, p, isActive) {
   lbl.className = 'capital-label';
   lbl.textContent = `${p.capital}/${p.maxCapital}`;
   capRow.appendChild(lbl);
+  // War Chest: a cracked-open reserve adds ASSET-only capital THIS turn — show
+  // it as a gold "+N" chip beside the pips so the player knows it's spendable
+  // (owner's own row only; the opponent's bonus is public but not surfaced here).
+  if (meSide && p.assetCapitalBonus > 0) {
+    const bonus = document.createElement('span');
+    bonus.className = 'capital-bonus';
+    bonus.textContent = `+${p.assetCapitalBonus}`;
+    bonus.title = `War Chest: +${p.assetCapitalBonus} Capital available for ASSET plays this turn`;
+    capRow.appendChild(bonus);
+  }
 }
 
 function renderBoard(row, board, enemy) {
@@ -343,19 +353,35 @@ function renderBoard(row, board, enemy) {
   }
 }
 
-function renderContracts(container, contracts) {
+function renderContracts(container, contracts, myTurn = false) {
   container.innerHTML = '';
   for (const c of contracts) {
     const def = getCard(c.cardId);
     const tile = renderContractTile(c, def);
     if (def) attachPreview(tile, def);
-    // tiles are only ever clicked as targets (null-&-void effects)
+    // War Chest tiles with a banked reserve are "armed" on your turn — surface
+    // the click affordance (the CSS glow) so it doesn't read as inert chrome.
+    const canActivate = myTurn && c.banked > 0;
+    if (canActivate) tile.classList.add('reserve-armed');
     tile.addEventListener('click', (ev) => {
       ev.stopPropagation();
-      if (mode && mode.kind === 'target') onTargetClick(c.id);
+      // null-&-void targeting (enemy contracts) takes precedence when active
+      if (mode && mode.kind === 'target') { onTargetClick(c.id); return; }
+      // War Chest (§reserve): crack open a banked reserve — only when it's your
+      // turn and the fund actually holds capital (never send an illegal action)
+      if (canActivate) onReserveClick(c);
     });
     container.appendChild(tile);
   }
+}
+
+// War Chest: activate a filed reserve, converting its banked capital into
+// this turn's ASSET-only capital bonus. Guarded so no illegal action is sent.
+function onReserveClick(c) {
+  if (over || !view || view.activePlayer !== youIdx) return;
+  if (!(c.banked > 0)) { toast('War Chest is empty — nothing to crack open yet.', 'warn', 1500); return; }
+  cancelMode(true);
+  net.sendAction({ type: 'activateReserve', contractId: c.id });
 }
 
 function renderHand(hand, myTurn) {
@@ -366,10 +392,17 @@ function renderHand(hand, myTurn) {
   const zoneW = fan.clientWidth || 800;
   const cardW = 128;
   const spacing = Math.min(cardW * 0.72, (zoneW - cardW - 40) / Math.max(n - 1, 1));
+  // War Chest: while a cracked-open reserve is available, playable ASSETS get a
+  // distinct gold "reserve-eligible" glow (the engine already folds the bonus
+  // into hand[i].playable, so we just flag the assets it can now pay for).
+  const reserveOpen = (view?.you?.assetCapitalBonus || 0) > 0;
   hand.forEach((hc, i) => {
     const def = getCard(hc.cardId);
+    const isPlayable = hc.playable && myTurn;
+    const reserveEligible = reserveOpen && isPlayable && def?.type === 'ASSET';
     const wrap = document.createElement('div');
-    wrap.className = 'hand-card' + (hc.playable && myTurn ? ' playable' : ' unplayable');
+    wrap.className = 'hand-card' + (isPlayable ? ' playable' : ' unplayable')
+      + (reserveEligible ? ' reserve-eligible' : '');
     wrap.style.zIndex = 20 + i;
     const centerOffset = (i - (n - 1) / 2);
     wrap.style.left = `calc(50% + ${Math.round(centerOffset * spacing - cardW / 2)}px)`;
@@ -803,6 +836,13 @@ function logEvent(ev) {
       break;
     case 'bigHit':
       logLine(`<span class="dmg">${ev.amount} damage in one turn</span> — ${ceoName(ev.attackerPlayer)} can't resist gloating.`);
+      break;
+    case 'bankCapital':
+      // owner-only event (redacted from the opponent's stream) — always "You"
+      logLine(`You banked <span class="healtxt">${ev.amount} Capital</span> into ${card(ev.cardId)} (total ${ev.total}).`);
+      break;
+    case 'reserveActivated':
+      logLine(`${ev.player === you ? '<b>You</b> cracked' : `${ceoName(ev.player)} cracked`} open the ${card(ev.cardId)} — <span class="healtxt">${ev.amount} Capital</span> for Assets this turn.`);
       break;
     case 'contractFiled': {
       const term = ev.contract && ev.contract.turnsLeft != null ? ` (term: ${ev.contract.turnsLeft})` : '';

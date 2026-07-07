@@ -359,6 +359,20 @@ export function renderContractTile(contract, def = null) {
     pip.title = `Term: ${contract.turnsLeft} of the owner's turns remaining`;
     el.appendChild(pip);
   }
+
+  // War Chest reserve (§reserve): banked-capital vault badge — styled like the
+  // gold term pip. Only ever present on the OWNER's own view: the server
+  // redacts `banked` from the opponent's copy, so `banked` is absent (not 0)
+  // there and this badge simply never renders on enemy tiles.
+  if (typeof contract.banked === 'number') {
+    el.classList.add('has-reserve');
+    const bank = document.createElement('div');
+    bank.className = 'ct-bank';
+    bank.innerHTML = `<span class="ct-bank-glyph">\u{1F3E6}</span>${contract.banked}`;
+    bank.title = `War Chest: ${contract.banked} Capital banked (max 8)`
+      + (contract.banked > 0 ? ' — click on your turn to crack it open for Assets' : '');
+    el.appendChild(bank);
+  }
   return el;
 }
 

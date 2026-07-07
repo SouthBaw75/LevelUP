@@ -132,6 +132,7 @@ export function createGame({ decks, names, seed }) {
       capital: 0,
       maxCapital: 0,
       capitalDrain: 0, // RAID (Corporate Raider): banked reduction applied to this turn's capital, then cleared
+      assetCapitalBonus: 0, // War Chest: activated reserve, spendable on ASSETS only, cleared at this player's next turn start
       deck: shuffle(state, deck.cards.slice()),
       hand: [],
       board: [],
@@ -260,6 +261,7 @@ function contractCtx(player, contract) {
   return {
     player, sourceUnit: null, target: null,
     sourceCardId: contract.cardId, contractSource: true,
+    sourceContract: contract, // instance-state ops (bankCapital) write to it
   };
 }
 
@@ -348,6 +350,14 @@ function effectiveCost(state, player, card) {
   else if (card.type === 'CONTRACT') cost -= assetStatic(state, player, 'contractCostReduction');
   cost += contractStatic(state, 1 - player, 'enemyCostIncrease');
   return Math.max(0, cost);
+}
+
+// War Chest (§reserve): what `p` can actually pay for `card`. An activated
+// reserve (assetCapitalBonus) tops up capital for ASSETS ONLY; operations and
+// contracts spend plain capital. handEntry, legalActions and applyAction all
+// gate through here so display, enumeration and validation agree.
+function spendingBudget(p, card) {
+  return p.capital + (card.type === 'ASSET' ? p.assetCapitalBonus : 0);
 }
 
 // Remove a filed contract from play (either owner) and emit contractVoided.
@@ -807,6 +817,21 @@ export const OPS = {
       voidContract(state, ev, id, 'nullified');
     }
   },
+  // War Chest (§reserve): bank the owner's unspent Capital onto the SOURCE
+  // contract instance, up to `cap` total (default 8). Banking does NOT deduct
+  // from capital — it resets at the owner's next startTurn anyway, and a
+  // deduction would break dynamicAttack:'capital' units during the opponent's
+  // turn. Two filed War Chests therefore bank independently (intended).
+  bankCapital(state, ev, op, ctx) {
+    const c = ctx.sourceContract;
+    if (!c) return;
+    const amount = Math.max(0,
+      Math.min(state.players[ctx.player].capital, (op.cap ?? 8) - (c.banked || 0)));
+    if (amount > 0) {
+      c.banked = (c.banked || 0) + amount;
+      ev.push({ e: 'bankCapital', player: ctx.player, contractId: c.id, cardId: c.cardId, amount, total: c.banked });
+    }
+  },
 };
 
 // §3c LAYOFF resolution (shared by the `layoff` action and the `layoffTarget`
@@ -914,6 +939,7 @@ function startTurn(state, player, ev) {
   // not a lasting maxCapital scar.
   p.capital = Math.max(0, p.maxCapital - p.capitalDrain);
   p.capitalDrain = 0;
+  p.assetCapitalBonus = 0; // War Chest: an unspent activated reserve expires with the fresh refill
   p.powerUsed = false;
   for (const u of p.board) u.attacksUsed = 0;
   ev.push({ e: 'turnStart', player, turn: state.turn });
@@ -1015,7 +1041,7 @@ function applyActionInner(state, playerIndex, action) {
       if (!PLAYABLE_TYPES.includes(card.type))
         return { ok: false, error: 'card cannot be played' };
       const cost = effectiveCost(state, playerIndex, card);
-      if (cost > p.capital) return { ok: false, error: 'not enough capital' };
+      if (cost > spendingBudget(p, card)) return { ok: false, error: 'not enough capital' };
       if (card.type === 'ASSET' && p.board.length >= MAX_BOARD)
         return { ok: false, error: 'board is full' };
       if (card.type === 'CONTRACT' && p.contracts.length >= MAX_CONTRACTS)
@@ -1028,7 +1054,15 @@ function applyActionInner(state, playerIndex, action) {
       });
       if (!tc.ok) return tc;
 
-      p.capital -= cost;
+      // War Chest (§reserve): ASSETS drain the activated reserve FIRST, then
+      // capital; everything else pays plain capital (budget-gated above).
+      if (card.type === 'ASSET') {
+        const fromBonus = Math.min(p.assetCapitalBonus, cost);
+        p.assetCapitalBonus -= fromBonus;
+        p.capital -= cost - fromBonus;
+      } else {
+        p.capital -= cost;
+      }
       p.hand.splice(idx, 1);
       ev.push({ e: 'cardPlayed', player: playerIndex, cardId, handIndex: idx });
 
@@ -1047,6 +1081,9 @@ function applyActionInner(state, playerIndex, action) {
           cardId,
           turnsLeft: Number.isInteger(card.term) ? card.term : null,
         };
+        // War Chest (§reserve): only reserve contracts carry a private bank;
+        // every other contract keeps its exact historical shape.
+        if (card.effects.reserve) contract.banked = 0;
         p.contracts.push(contract);
         ev.push({
           e: 'contractFiled', player: playerIndex,
@@ -1143,6 +1180,21 @@ function applyActionInner(state, playerIndex, action) {
       return { ok: true, events: ev };
     }
 
+    // War Chest (§reserve): crack open a banked reserve — free, any time on
+    // your turn, does not end the turn. The bank becomes ASSET-only spending
+    // power for the rest of this turn (cleared at this player's next startTurn).
+    case 'activateReserve': {
+      const c = p.contracts.find((x) => x.id === action.contractId);
+      if (!c) return { ok: false, error: 'invalid contract' };
+      if (!CARDS[c.cardId].effects.reserve)
+        return { ok: false, error: 'contract has no reserve' };
+      if (!(c.banked > 0)) return { ok: false, error: 'reserve is empty' };
+      p.assetCapitalBonus += c.banked;
+      ev.push({ e: 'reserveActivated', player: playerIndex, contractId: c.id, cardId: c.cardId, amount: c.banked });
+      c.banked = 0;
+      return { ok: true, events: ev };
+    }
+
     default:
       return { ok: false, error: 'unknown action type' };
   }
@@ -1159,7 +1211,7 @@ export function legalActions(state, playerIndex) {
   p.hand.forEach((cardId, handIndex) => {
     const card = CARDS[cardId];
     if (!PLAYABLE_TYPES.includes(card.type)) return;
-    if (effectiveCost(state, playerIndex, card) > p.capital) return;
+    if (effectiveCost(state, playerIndex, card) > spendingBudget(p, card)) return;
     if (card.type === 'ASSET' && p.board.length >= MAX_BOARD) return;
     if (card.type === 'CONTRACT' && p.contracts.length >= MAX_CONTRACTS) return;
     const targeting = card.effects.targeting || null;
@@ -1189,6 +1241,12 @@ export function legalActions(state, playerIndex) {
     if (hasKw(unit, 'layoff')) actions.push({ type: 'layoff', unitId: unit.id });
   }
 
+  // War Chest (§reserve): free activation for any filed reserve with a bank
+  for (const c of p.contracts) {
+    if (CARDS[c.cardId].effects.reserve && c.banked > 0)
+      actions.push({ type: 'activateReserve', contractId: c.id });
+  }
+
   if (!p.powerUsed && p.capital >= POWER_COST) {
     const power = CARDS[p.powerCardId];
     const targeting = power.effects.targeting || null;
@@ -1212,7 +1270,7 @@ function handEntry(state, playerIndex, cardId, isActive) {
   // live effective cost (opCostReduction / contractCostReduction) so display matches playable calc
   const cost = effectiveCost(state, playerIndex, card);
   let playable = false;
-  if (isActive && !state.over && PLAYABLE_TYPES.includes(card.type) && cost <= p.capital) {
+  if (isActive && !state.over && PLAYABLE_TYPES.includes(card.type) && cost <= spendingBudget(p, card)) {
     if (card.type === 'ASSET') {
       playable = p.board.length < MAX_BOARD;
     } else if (card.type === 'CONTRACT') {
@@ -1272,11 +1330,17 @@ function playerView(state, i, { self }) {
       targeting: powerCard.effects.targeting || null,
     },
     board: p.board.map((u) => unitView(state, u, self && isActive, i)),
-    // §3b: contracts are public — full detail on both `you` and `opp`
-    contracts: p.contracts.map((c) => ({ id: c.id, cardId: c.cardId, turnsLeft: c.turnsLeft })),
+    // §3b: contracts are public — full detail on both `you` and `opp`.
+    // EXCEPT a reserve's bank (War Chest): private, owner's own view only.
+    contracts: p.contracts.map((c) => {
+      const v = { id: c.id, cardId: c.cardId, turnsLeft: c.turnsLeft };
+      if (self && CARDS[c.cardId].effects.reserve) v.banked = c.banked;
+      return v;
+    }),
     deckCount: p.deck.length,
     fatigue: p.fatigue,
     capitalDrain: p.capitalDrain, // RAID: pending capital reduction for this player's next turn
+    assetCapitalBonus: p.assetCapitalBonus, // War Chest: activated reserve — public once cracked open, like capital
   };
   if (self) view.hand = p.hand.map((cardId) => handEntry(state, i, cardId, isActive));
   else view.handCount = p.hand.length;
@@ -1295,10 +1359,14 @@ export function getView(state, playerIndex) {
 }
 
 export function redactEvents(events, playerIndex) {
-  // contractFiled / contractVoided are public (§3b) and pass through unredacted
-  return events.map((e) =>
-    e.e === 'draw' && e.player !== playerIndex ? { ...e, cardId: null } : { ...e }
-  );
+  // contractFiled / contractVoided are public (§3b) and pass through
+  // unredacted; the opponent's bankCapital events (War Chest) are DROPPED
+  // outright — the bank total is private. reserveActivated stays public.
+  return events
+    .filter((e) => !(e.e === 'bankCapital' && e.player !== playerIndex))
+    .map((e) =>
+      e.e === 'draw' && e.player !== playerIndex ? { ...e, cardId: null } : { ...e }
+    );
 }
 
 // exported for data-integrity tests (engine-internal knowledge)

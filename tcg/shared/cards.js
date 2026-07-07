@@ -19,6 +19,8 @@
 //     static: { contractCostReduction?: N },  // ASSET-only, live, stack (Corporate Lobbyist)
 //     static: { enemyCostIncrease?: N },  // CONTRACT-only, live, stack (Regulatory Capture);
 //                                         // raises the FILER's OPPONENT's costs, all types
+//     reserve: { assetOnly: true },  // CONTRACT-only marker (War Chest): the filed instance
+//                                    // banks Capital privately; Activate to spend it on ASSETS
 //   }
 //   CONTRACT cards may also carry a top-level `term: N` (expires after N of the
 //   owner's turns); no attack/health.
@@ -37,6 +39,7 @@
 //   {op:"transform", cardId, to:"target"}
 //   {op:"silence", to:"target"}
 //   {op:"nullify", to:"target"}                  null & void a contract (targeting "enemyContract")
+//   {op:"bankCapital", cap?}                     CONTRACT endOfTurn: bank unspent Capital on the instance (total ≤ cap, default 8)
 //   {op:"special", key, ...}                     keyed handler: "stealUnit"|"summonCopy"|"liquidate"|"layoffTarget"
 
 export const CARDS = {};
@@ -685,6 +688,10 @@ K('ntr_c03', 'Regulatory Capture', 'neutral', 4, { rarity: 'epic',
   text: 'While in play, your opponent’s cards cost (1) more.',
   flavor: 'The agency meant to police the industry now takes minutes at its board meetings.',
   effects: { static: { enemyCostIncrease: 1 } } });
+K('ntr_c04', 'War Chest', 'neutral', 2, { rarity: 'epic',
+  text: 'At the end of your turn, bank your unspent Capital (max 8). Activate: spend the bank on ASSETS this turn.',
+  flavor: 'Filed under “miscellaneous.” Audited by no one, twice a year.',
+  effects: { endOfTurn: [{ op: 'bankCapital', cap: 8 }], reserve: { assetOnly: true } } });
 
 // ---------------------------------------------------------------------------
 // STARTER DECKS — 40 cards, max 2 copies, faction + neutral
