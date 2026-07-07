@@ -37,6 +37,7 @@
 //   {op:"destroy", to}                           to: "target"|"allUnits"|"allEnemyUnits"
 //   {op:"returnToHand", to}                      to: "target"|"allEnemyUnits"
 //   {op:"addCapital", amount, permanent?}        temp capital this turn, or +max capital
+//   {op:"addCapital", perEnemyAsset:true}        temp capital = ASSETS the enemy played last turn (MLM)
 //   {op:"discardRandom", count, player?}         player: "opponent"(default)|"self"
 //   {op:"transform", cardId, to:"target"}
 //   {op:"silence", to:"target"}
@@ -618,6 +619,10 @@ A('ntr_039', 'Affiliate Influencer', 'neutral', 3, 3, 4, { rarity: 'rare',
   text: 'When this attacks a PERSONNEL asset, deal 1 extra damage.',
   flavor: 'Every opinion is authentic and brought to you by our partners.',
   effects: { combatBonus: { vsTag: 'personnel', damage: 1 } } });
+O('ntr_040', 'Multilevel Marketing', 'neutral', 2, { rarity: 'rare',
+  text: 'Gain 1 Capital this turn for each asset your opponent played last turn.',
+  flavor: 'It’s not a pyramid. Pyramids are load-bearing.',
+  effects: { targeting: null, play: [{ op: 'addCapital', perEnemyAsset: true }] } });
 
 // ---------------------------------------------------------------------------
 // CONTRACTS (§3b) — persistent corporate agreements, plus the two neutral

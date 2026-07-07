@@ -258,6 +258,19 @@ total that trample carries.
   this attacks a PERSONNEL asset, deal 1 extra damage"). PERSONNEL is the default class, so the
   bonus is live against most human units but does nothing to machines/structures/constructs.
 
+## 3f-ter. Reactive capital scaling (Multilevel Marketing)
+
+Each player tracks `assetsPlayedThisTurn` — incremented only when an ASSET is **played from
+hand** (effect-summoned tokens don't count), and reset at the start of that player's OWN turn.
+Because the reset is per-owner, a player's counter still holds their last turn's total while it
+is the opponent's turn. The `addCapital` op gains a `perEnemyAsset: true` variant: instead of a
+fixed `amount`, it grants **temporary** Capital equal to `1 - player`'s `assetsPlayedThisTurn`
+(capped at 10 like any gain; grants nothing and emits no `capital` event at 0).
+
+- **v1 card**: `ntr_040` **Multilevel Marketing** — neutral OPERATION, cost 2, rare ("Gain 1
+  Capital this turn for each asset your opponent played last turn"). A reactive ramp/tempo tool
+  that pays off against a board-flooding opponent and whiffs against a passive one.
+
 ## 3g. Capital Reserve (War Chest)
 
 A restricted capital reserve — the CapEx fund every board sets aside "for strategic
@@ -368,7 +381,7 @@ convention. The card data schema needs no art field.
 - `type: "CEO"` cards (one per faction, e.g. `nx_ceo`) define the hero: name, 40 health, `powerId`.
 - `type: "POWER"` cards define the CEO power: cost 2, `text`, effects.
 - Tokens (summoned units) are non-collectible ASSET cards in the same map.
-- **146 collectible cards total**: ~26 per faction + 43 neutral. Costs 0–10, all rarities.
+- **148 collectible cards total**: ~26 per faction + 44 neutral. Costs 0–10, all rarities.
 
 `STARTER_DECKS`: `{ nexus: {name, faction, cards:[40 ids]}, vulcan: {...}, helix: {...}, obsidian: {...} }`
 — four tuned, playable prebuilt decks.

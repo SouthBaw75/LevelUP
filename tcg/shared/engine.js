@@ -141,6 +141,7 @@ export function createGame({ decks, names, seed }) {
       powerUsed: false,
       turnDamage: 0, // cumulative enemy-caused hero damage this game-turn (bigHit taunt trigger)
       bigHitFired: false, // whether bigHit already fired for this player this game-turn
+      assetsPlayedThisTurn: 0, // ASSETS played from hand this turn (Multilevel Marketing reads the ENEMY's); resets at this player's own startTurn, so it holds their last turn's count while it's your turn
     });
   }
   // opening hands: first player 3, second player 4 + Government Subsidy
@@ -776,10 +777,17 @@ export const OPS = {
   },
   addCapital(state, ev, op, ctx) {
     const p = state.players[ctx.player];
+    // Multilevel Marketing: `perEnemyAsset` scales the (temporary) gain to the
+    // number of ASSETS the OPPONENT played on their last turn (their counter
+    // hasn't reset yet — it only resets at the start of their own next turn).
+    const amount = op.perEnemyAsset
+      ? state.players[1 - ctx.player].assetsPlayedThisTurn
+      : op.amount;
+    if (amount <= 0) return; // nothing to grant (e.g. MLM vs an asset-less last turn) — no event
     if (op.permanent) {
-      p.maxCapital = Math.min(MAX_CAPITAL, p.maxCapital + op.amount);
+      p.maxCapital = Math.min(MAX_CAPITAL, p.maxCapital + amount);
     }
-    p.capital = Math.min(MAX_CAPITAL, p.capital + op.amount);
+    p.capital = Math.min(MAX_CAPITAL, p.capital + amount);
     ev.push({ e: 'capital', player: ctx.player, capital: p.capital, maxCapital: p.maxCapital });
   },
   discardRandom(state, ev, op, ctx) {
@@ -958,6 +966,7 @@ function startTurn(state, player, ev) {
   p.capital = Math.max(0, p.maxCapital - p.capitalDrain);
   p.capitalDrain = 0;
   p.assetCapitalBonus = 0; // War Chest: an unspent activated reserve expires with the fresh refill
+  p.assetsPlayedThisTurn = 0; // fresh count for THIS player's turn (the enemy's stays put for MLM)
   p.powerUsed = false;
   for (const u of p.board) u.attacksUsed = 0;
   ev.push({ e: 'turnStart', player, turn: state.turn });
@@ -1085,6 +1094,7 @@ function applyActionInner(state, playerIndex, action) {
       ev.push({ e: 'cardPlayed', player: playerIndex, cardId, handIndex: idx });
 
       if (card.type === 'ASSET') {
+        p.assetsPlayedThisTurn += 1; // Multilevel Marketing counts assets PLAYED from hand (not tokens)
         const pos = Number.isInteger(action.position) ? action.position : null;
         const unit = summonUnit(state, ev, playerIndex, cardId, pos);
         // a targeted onboarding with no target (no valid targets existed) fizzles
