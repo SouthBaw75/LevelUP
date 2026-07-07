@@ -686,6 +686,13 @@ function highlightTargets(targeting) {
     // Cost isn't modified in-game, so getCard(cardId).cost matches the server.
     case 'enemyUnitCost4':
       targets = oppTargetable.filter((el) => (getCard(el.dataset.cardId)?.cost ?? 0) <= 4); break;
+    // Margin Call: only enemy assets at 2 or less CURRENT Health light up —
+    // read live from `view` (server-authoritative), not the printed card def.
+    case 'enemyUnitLowHealth': {
+      const lowHealthIds = new Set((view.opp.board || []).filter((u) => u.health <= 2).map((u) => u.id));
+      targets = oppTargetable.filter((el) => lowHealthIds.has(el.dataset.unitId));
+      break;
+    }
     case 'friendlyUnit': targets = myUnits; break;
     // Firewall Upgrade: only friendly assets that don't already have FIREWALL
     case 'friendlyUnitNoFirewall':

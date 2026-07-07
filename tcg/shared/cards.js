@@ -420,6 +420,10 @@ O('ob_005', 'Liquidation Order', 'obsidian', 5, {
   text: 'Destroy an enemy asset.',
   flavor: 'Everything must go. Especially you.',
   effects: { targeting: 'enemyUnit', play: [{ op: 'destroy', to: 'target' }] } });
+O('ob_032', 'Margin Call', 'obsidian', 1, {
+  text: 'Destroy an enemy asset with 2 or less Health.',
+  flavor: 'Collateral shortfall. Liquidated before lunch.',
+  effects: { targeting: 'enemyUnitLowHealth', play: [{ op: 'destroy', to: 'target' }] } });
 O('ob_006', 'Aggressive Expansion', 'obsidian', 2, { rarity: 'rare',
   text: 'Gain 1 permanent maximum Capital.',
   flavor: 'Growth strategy: buy the strategy department of a growth company.',
@@ -782,12 +786,20 @@ export const STARTER_DECKS = {
     // swaps: +1 ob_c03 (Liquidation Rights), +1 ntr_c02;
     // -2 ntr_016 (Teamsters Rep) / +1 ob_023 (Counter Offer, faction steal);
     // -1 ntr_013 (Middle Management) / +1 ob_024 (Hedge Fund);
-    // -1 ob_022 (Repo Crew, vanilla) / +1 ntr_037 (Flirty Intern)
+    // -1 ob_022 (Repo Crew, vanilla) / +1 ntr_037 (Flirty Intern);
+    // -2 ob_018 (Depreciation, a -2/-2 debuff that can't finish anything) / +2
+    // ob_032 (Margin Call — a cheap kill spell in the same "answer a small
+    // threat" slot, but it actually removes the body). AI-vs-AI playtesting
+    // (watch mode) showed Obsidian had no removal under 2 cost, while Nexus's
+    // cheap efficient removal + card draw ran away with the matchup; Vulcan's
+    // healthier 60/40 record against the same Nexus deck tracked with having
+    // real cheap removal of its own (Shrapnel Burst et al.), not card-draw
+    // parity — so this targets the actual lever, not a guess.
     name: 'Obsidian Capital — Leveraged Everything',
     faction: 'obsidian',
     cards: withContracts(['ob_001', 'ob_003', 'ob_005', 'ob_006', 'ob_007', 'ob_008', 'ob_009',
-      'ob_010', 'ob_012', 'ob_013', 'ob_018', 'ob_019', 'ob_022', 'ob_024', 'ob_023', 'ntr_037',
-      'ob_002', 'ob_011', 'ob_016', 'ob_017', 'ob_020'],
+      'ob_010', 'ob_012', 'ob_013', 'ob_019', 'ob_022', 'ob_024', 'ob_023', 'ntr_037',
+      'ob_002', 'ob_011', 'ob_016', 'ob_017', 'ob_020', 'ob_032'],
     ['ob_024', 'ob_023', 'ob_022', 'ntr_037'], 'ob_c03'),
   },
 };

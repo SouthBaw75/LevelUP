@@ -60,7 +60,8 @@ const MAX_CONTRACTS = 3;
 const BIG_HIT_THRESHOLD = 10; // cumulative enemy hero damage in one game-turn that fires a CEO taunt
 const PLAYABLE_TYPES = ['ASSET', 'OPERATION', 'CONTRACT'];
 const TARGETINGS = [null, 'any', 'anyRespectFirewall', 'anyUnit', 'enemyUnit', 'enemyUnitCost4',
-  'friendlyUnit', 'friendlyUnitNoFirewall', 'facilityUnit', 'enemyHero', 'anyHero', 'enemyContract'];
+  'enemyUnitLowHealth', 'friendlyUnit', 'friendlyUnitNoFirewall', 'facilityUnit', 'enemyHero',
+  'anyHero', 'enemyContract'];
 
 // ---------------------------------------------------------------------------
 // Seeded RNG (mulberry32 stepping state.rng)
@@ -256,6 +257,12 @@ function validTargets(state, player, targeting) {
     case 'enemyUnitCost4':
       return state.players[enemy].board
         .filter((u) => !hasKw(u, 'stealth') && (CARDS[u.cardId]?.cost ?? 0) <= 4)
+        .map((u) => u.id);
+    // enemy assets at 2 or less CURRENT Health (live, post-damage) — for
+    // Margin Call's cheap conditional kill.
+    case 'enemyUnitLowHealth':
+      return state.players[enemy].board
+        .filter((u) => !hasKw(u, 'stealth') && u.health <= 2)
         .map((u) => u.id);
     case 'friendlyUnit': return friendlyUnits;
     // friendly assets that don't already have FIREWALL (Firewall Upgrade)

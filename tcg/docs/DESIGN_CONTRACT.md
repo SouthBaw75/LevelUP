@@ -419,7 +419,7 @@ convention. The card data schema needs no art field.
 - `type: "CEO"` cards (one per faction, e.g. `nx_ceo`) define the hero: name, 40 health, `powerId`.
 - `type: "POWER"` cards define the CEO power: cost 2, `text`, effects.
 - Tokens (summoned units) are non-collectible ASSET cards in the same map.
-- **154 collectible cards total**: ~26 per faction (obsidian 34) + 44 neutral. Costs 0–10, all rarities.
+- **155 collectible cards total**: ~26 per faction (obsidian 35) + 44 neutral. Costs 0–10, all rarities.
 
 `STARTER_DECKS`: `{ nexus: {name, faction, cards:[40 ids]}, vulcan: {...}, helix: {...}, obsidian: {...} }`
 — four tuned, playable prebuilt decks.
@@ -457,8 +457,10 @@ import { createGame, applyAction, legalActions, getView, redactEvents, cloneStat
 
 - Unit instance ids: `"u<N>"` unique per game. CEO target ids: `"hero0"`, `"hero1"` (by player index).
 - `target` is required by cards whose effect needs a target (`targeting` field in view hand cards
-  tells the client: `null | "any" | "anyRespectFirewall" | "anyUnit" | "enemyUnit" | "enemyUnitCost4" | "friendlyUnit" | "friendlyUnitNoFirewall" | "facilityUnit" | "enemyHero" | "anyHero" | "enemyContract"`).
+  tells the client: `null | "any" | "anyRespectFirewall" | "anyUnit" | "enemyUnit" | "enemyUnitCost4" | "enemyUnitLowHealth" | "friendlyUnit" | "friendlyUnitNoFirewall" | "facilityUnit" | "enemyHero" | "anyHero" | "enemyContract"`).
   `enemyUnitCost4` = enemy assets whose printed cost is ≤ 4 (Counter Offer's outbid-poach);
+  `enemyUnitLowHealth` = enemy assets at 2 or less CURRENT Health, live/post-damage — NOT printed
+  cost (Margin Call's cheap conditional kill — Obsidian's answer to small early threats);
   `friendlyUnitNoFirewall` = friendly assets that don't already have FIREWALL (Firewall Upgrade);
   `facilityUnit` = any FACILITY-class asset on EITHER board, enemy stealth excluded (Franchise's
   copy — it reaches across the table). Both the engine `validTargets` and the client highlighter

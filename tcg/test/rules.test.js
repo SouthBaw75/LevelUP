@@ -817,6 +817,66 @@ test('Counter Offer: enumerated only against eligible enemy assets', () => {
   assert.deepEqual(targets, [cheap.id], 'exactly the one eligible target');
 });
 
+test('Margin Call: destroys an enemy asset at 2 or less current Health', () => {
+  const s = newGame();
+  giveCapital(s, 0);
+  const weak = addUnit(s, 1, 'vx_013', { health: 2 }); // War Factory, printed 7 HP, damaged down to 2
+  const idx = putInHand(s, 0, 'ob_032');
+  const r = applyAction(s, 0, { type: 'playCard', handIndex: idx, target: weak.id, position: null });
+  assert.equal(r.ok, true);
+  assert.equal(s.players[1].board.length, 0, 'destroyed');
+});
+
+test('Margin Call: an asset above 2 current Health is NOT a legal target, even if cheap', () => {
+  const s = newGame();
+  giveCapital(s, 0);
+  const healthy = addUnit(s, 1, 'ob_001'); // Day Trader, printed 2/1 — 1 HP is fine, so bump it up
+  healthy.health = 3;
+  const idx = putInHand(s, 0, 'ob_032');
+  const legal = legalActions(s, 0)
+    .filter((a) => a.type === 'playCard' && a.handIndex === idx)
+    .map((a) => a.target);
+  assert.ok(!legal.includes(healthy.id), '3 HP asset not offered as a target');
+  const r = applyAction(s, 0, { type: 'playCard', handIndex: idx, target: healthy.id, position: null });
+  assert.equal(r.ok, false, 'engine rejects the illegal target');
+  assert.equal(s.players[1].board.length, 1, 'survives');
+});
+
+test('Margin Call: printed cost is irrelevant — only CURRENT Health gates targeting', () => {
+  const s = newGame();
+  giveCapital(s, 0);
+  // Monopoly Enforcer: cost 6, printed 6/7 — well above enemyUnitCost4's cost
+  // ceiling, but legal for Margin Call once its Health has been whittled down.
+  const bruised = addUnit(s, 1, 'ob_012', { health: 1 });
+  const idx = putInHand(s, 0, 'ob_032');
+  const r = applyAction(s, 0, { type: 'playCard', handIndex: idx, target: bruised.id, position: null });
+  assert.equal(r.ok, true, 'a big, expensive asset at 1 HP is still a legal kill');
+  assert.equal(s.players[1].board.length, 0);
+});
+
+test('Margin Call: a STEALTH enemy asset (even at low Health) is not targetable', () => {
+  const s = newGame();
+  giveCapital(s, 0);
+  const sneaky = addUnit(s, 1, 'ntr_021', { health: 1 }); // Corporate Spy, STEALTH
+  const idx = putInHand(s, 0, 'ob_032');
+  const legal = legalActions(s, 0)
+    .filter((a) => a.type === 'playCard' && a.handIndex === idx)
+    .map((a) => a.target);
+  assert.ok(!legal.includes(sneaky.id), 'stealth hides it from Margin Call');
+});
+
+test('Margin Call: enumerated only against eligible (low-Health) enemy assets', () => {
+  const s = newGame();
+  giveCapital(s, 0);
+  const weak = addUnit(s, 1, 'ob_001', { health: 1 }); // eligible
+  addUnit(s, 1, 'ob_012');                              // full health — not eligible
+  const idx = putInHand(s, 0, 'ob_032');
+  const targets = legalActions(s, 0)
+    .filter((a) => a.type === 'playCard' && a.handIndex === idx)
+    .map((a) => a.target);
+  assert.deepEqual(targets, [weak.id], 'exactly the one eligible target');
+});
+
 test('special summonCopy: Mitosis copies current stats', () => {
   const s = newGame();
   giveCapital(s, 0);
