@@ -604,15 +604,22 @@ export function showPreview(defOrId, anchorEl, overrides = {}) {
   layer.style.display = 'block';
   // position beside the anchor, clamped to viewport. Reminder text can grow
   // the card past the nominal height, so measure the real rendered height.
+  // An attachment reveals out to the side of the base card on hover (not
+  // below it, which used to spill into the hand/deck strip at the bottom of
+  // the screen) — reserve that extra width in the flip check so the reveal
+  // doesn't just run off the opposite edge instead.
   const r = anchorEl.getBoundingClientRect();
   const cw = 250, ch = card.offsetHeight || cw * 1.45;
+  const attachW = attachments.length ? 178 + 8 : 0;
   let x = r.right + 14;
-  if (x + cw > innerWidth - 8) x = r.left - cw - 14;
+  let flipped = false;
+  if (x + cw + attachW > innerWidth - 8) { x = r.left - cw - 14; flipped = true; }
   if (x < 8) x = Math.min(Math.max(8, r.left + r.width / 2 - cw / 2), innerWidth - cw - 8);
   let y = r.top + r.height / 2 - ch / 2;
   y = Math.max(8, Math.min(y, innerHeight - ch - 8));
   layer.style.left = x + 'px';
   layer.style.top = y + 'px';
+  layer.classList.toggle('attach-left', flipped);
   void key;
 }
 
