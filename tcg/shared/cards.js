@@ -487,6 +487,10 @@ A('ob_024', 'Hedge Fund', 'obsidian', 5, 0, 5, { keywords: ['stealth'], rarity: 
   text: 'This asset’s Attack always equals your current Capital.',
   flavor: 'It is long on everything and accountable for nothing.',
   effects: { dynamicAttack: 'capital' } });
+O('ob_025', 'Franchise', 'obsidian', 3, { rarity: 'rare',
+  text: 'Summon a copy of any FACILITY asset (yours or the enemy’s).',
+  flavor: 'Same logo, same layout, same suspiciously flat soda. Now on their side of the street too.',
+  effects: { targeting: 'facilityUnit', play: [{ op: 'special', key: 'summonCopy' }] } });
 
 // ---------------------------------------------------------------------------
 // NEUTRAL — Independent Contractors (ntr)

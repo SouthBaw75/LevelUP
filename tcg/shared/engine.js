@@ -60,7 +60,7 @@ const MAX_CONTRACTS = 3;
 const BIG_HIT_THRESHOLD = 10; // cumulative enemy hero damage in one game-turn that fires a CEO taunt
 const PLAYABLE_TYPES = ['ASSET', 'OPERATION', 'CONTRACT'];
 const TARGETINGS = [null, 'any', 'anyUnit', 'enemyUnit', 'enemyUnitCost4', 'friendlyUnit',
-  'friendlyUnitNoFirewall', 'enemyHero', 'anyHero', 'enemyContract'];
+  'friendlyUnitNoFirewall', 'facilityUnit', 'enemyHero', 'anyHero', 'enemyContract'];
 
 // ---------------------------------------------------------------------------
 // Seeded RNG (mulberry32 stepping state.rng)
@@ -245,6 +245,13 @@ function validTargets(state, player, targeting) {
     // friendly assets that don't already have FIREWALL (Firewall Upgrade)
     case 'friendlyUnitNoFirewall':
       return state.players[player].board.filter((u) => !hasKw(u, 'firewall')).map((u) => u.id);
+    // any FACILITY-class asset on either board (enemy stealth excluded), for
+    // Franchise's copy — Obsidian has no facility of its own, so this reaches
+    // across the table to duplicate the opponent's installations too.
+    case 'facilityUnit':
+      return [...state.players[player].board,
+        ...state.players[enemy].board.filter((u) => !hasKw(u, 'stealth'))]
+        .filter((u) => (CARDS[u.cardId]?.tags || []).includes('facility')).map((u) => u.id);
     case 'enemyHero': return ['hero' + enemy];
     case 'anyHero': return ['hero' + player, 'hero' + enemy];
     case 'enemyContract': return state.players[enemy].contracts.map((c) => c.id);

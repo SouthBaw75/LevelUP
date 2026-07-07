@@ -2572,3 +2572,80 @@ test('AFFILIATE INFLUENCER: the bonus stacks on top of an aura-boosted attack', 
   const dmg = findAll(r.events, 'damage').find((e) => e.targetId === foe.id);
   assert.equal(dmg.amount, 6, '5 effective attack + 1 personnel bonus');
 });
+
+// ---------------------------------------------------------------------------
+// FRANCHISE (ob_025): summon a copy of any FACILITY asset on either board.
+// Reuses summonCopy (current stats) but with facility-only targeting that
+// reaches across the table.
+// ---------------------------------------------------------------------------
+test('FRANCHISE: copies a friendly FACILITY onto your board', () => {
+  const s = newGame('obsidian', 'nexus');
+  giveCapital(s, 0, 10);
+  const fac = addUnit(s, 0, 'ntr_012'); // Front Desk Barricade (facility)
+  const idx = putInHand(s, 0, 'ob_025');
+  const r = applyAction(s, 0, { type: 'playCard', handIndex: idx, target: fac.id, position: null });
+  assert.equal(r.ok, true);
+  assert.equal(s.players[0].board.length, 2, 'original + the franchised copy');
+  assert.ok(s.players[0].board.every((u) => u.cardId === 'ntr_012'));
+});
+
+test('FRANCHISE: copies an ENEMY FACILITY onto YOUR board', () => {
+  const s = newGame('obsidian', 'nexus');
+  giveCapital(s, 0, 10);
+  const enemyFac = addUnit(s, 1, 'nx_010'); // enemy Data Center (facility)
+  const idx = putInHand(s, 0, 'ob_025');
+  const r = applyAction(s, 0, { type: 'playCard', handIndex: idx, target: enemyFac.id, position: null });
+  assert.equal(r.ok, true);
+  assert.equal(s.players[0].board.length, 1, 'the copy landed on my board');
+  assert.equal(s.players[0].board[0].cardId, 'nx_010');
+  assert.equal(s.players[1].board.length, 1, 'the enemy still has their original');
+});
+
+test('FRANCHISE: only FACILITY assets are legal targets', () => {
+  const s = newGame('obsidian', 'nexus');
+  giveCapital(s, 0, 10);
+  const fac = addUnit(s, 0, 'ntr_012'); // facility
+  const personnel = addUnit(s, 0, 'ntr_013'); // NOT a facility
+  const enemyPersonnel = addUnit(s, 1, 'ntr_006'); // enemy, not a facility
+  const idx = putInHand(s, 0, 'ob_025');
+  const targets = legalActions(s, 0)
+    .filter((a) => a.type === 'playCard' && a.handIndex === idx).map((a) => a.target);
+  assert.ok(targets.includes(fac.id), 'facility is targetable');
+  assert.ok(!targets.includes(personnel.id), 'friendly non-facility is not');
+  assert.ok(!targets.includes(enemyPersonnel.id), 'enemy non-facility is not');
+});
+
+test('FRANCHISE: unplayable when no facility is in play (operation does not fizzle)', () => {
+  const s = newGame('obsidian', 'nexus');
+  giveCapital(s, 0, 10);
+  addUnit(s, 0, 'ntr_013'); // only a non-facility on the board
+  const idx = putInHand(s, 0, 'ob_025');
+  assert.equal(getView(s, 0).you.hand[idx].playable, false, 'no valid target → unplayable');
+  const r = applyAction(s, 0, { type: 'playCard', handIndex: idx, target: null, position: null });
+  assert.equal(r.ok, false);
+});
+
+test('FRANCHISE: the copy takes the target\'s CURRENT stats (buffs/damage included)', () => {
+  const s = newGame('obsidian', 'nexus');
+  giveCapital(s, 0, 10);
+  const fac = addUnit(s, 0, 'ntr_012', { attack: 3, health: 2, maxHealth: 4 }); // buffed atk, damaged
+  const idx = putInHand(s, 0, 'ob_025');
+  const r = applyAction(s, 0, { type: 'playCard', handIndex: idx, target: fac.id, position: null });
+  assert.equal(r.ok, true);
+  const copy = s.players[0].board.find((u) => u.id !== fac.id);
+  assert.equal(copy.attack, 3);
+  assert.equal(copy.health, 2);
+  assert.equal(copy.maxHealth, 4);
+});
+
+test('FRANCHISE: does nothing (no crash) when your board is full', () => {
+  const s = newGame('obsidian', 'nexus');
+  giveCapital(s, 0, 10);
+  const fac = addUnit(s, 0, 'ntr_012'); // facility (board slot 1)
+  for (let i = 0; i < 6; i++) addUnit(s, 0, 'ntr_002'); // fill to 7 total
+  assert.equal(s.players[0].board.length, 7, 'board is full');
+  const idx = putInHand(s, 0, 'ob_025');
+  const r = applyAction(s, 0, { type: 'playCard', handIndex: idx, target: fac.id, position: null });
+  assert.equal(r.ok, true, 'the operation still resolves');
+  assert.equal(s.players[0].board.length, 7, 'no copy could be summoned — board stayed full');
+});

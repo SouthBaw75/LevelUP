@@ -660,6 +660,11 @@ function highlightTargets(targeting) {
     // Firewall Upgrade: only friendly assets that don't already have FIREWALL
     case 'friendlyUnitNoFirewall':
       targets = myUnits.filter((el) => !el.classList.contains('has-firewall')); break;
+    // Franchise: any FACILITY-class asset on either board (enemy stealth excluded).
+    // tags survive in the client card payload (only `effects` is stripped).
+    case 'facilityUnit':
+      targets = [...myUnits, ...oppTargetable]
+        .filter((el) => (getCard(el.dataset.cardId)?.tags || []).includes('facility')); break;
     case 'enemyHero': targets = [els['g-hero-opp']]; break;
     case 'anyHero': targets = [els['g-hero-me'], els['g-hero-opp']]; break;
     case 'enemyContract': targets = [...els['g-contracts-opp'].querySelectorAll('.contract-tile')]; break;

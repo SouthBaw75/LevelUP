@@ -406,10 +406,12 @@ import { createGame, applyAction, legalActions, getView, redactEvents, cloneStat
 
 - Unit instance ids: `"u<N>"` unique per game. CEO target ids: `"hero0"`, `"hero1"` (by player index).
 - `target` is required by cards whose effect needs a target (`targeting` field in view hand cards
-  tells the client: `null | "any" | "anyUnit" | "enemyUnit" | "enemyUnitCost4" | "friendlyUnit" | "friendlyUnitNoFirewall" | "enemyHero" | "anyHero" | "enemyContract"`).
+  tells the client: `null | "any" | "anyUnit" | "enemyUnit" | "enemyUnitCost4" | "friendlyUnit" | "friendlyUnitNoFirewall" | "facilityUnit" | "enemyHero" | "anyHero" | "enemyContract"`).
   `enemyUnitCost4` = enemy assets whose printed cost is ≤ 4 (Counter Offer's outbid-poach);
-  `friendlyUnitNoFirewall` = friendly assets that don't already have FIREWALL (Firewall Upgrade).
-  Both the engine `validTargets` and the client highlighter apply the same filter.
+  `friendlyUnitNoFirewall` = friendly assets that don't already have FIREWALL (Firewall Upgrade);
+  `facilityUnit` = any FACILITY-class asset on EITHER board, enemy stealth excluded (Franchise's
+  copy — it reaches across the table). Both the engine `validTargets` and the client highlighter
+  apply the same filter (the client reads `tags` from the card payload, which is not stripped).
 
 ### View shape (getView result — this exact shape goes over the wire)
 
