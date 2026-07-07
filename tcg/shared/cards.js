@@ -377,9 +377,9 @@ O('hx_015', 'Airborne Strain', 'helix', 6, { rarity: 'rare',
   text: 'Deal 3 damage to all enemy assets.',
   flavor: 'Patient zero was the marketing department.',
   effects: { targeting: null, play: [{ op: 'aoeDamage', amount: 3, side: 'enemy' }] } });
-A('hx_016', 'Symbiotic Titan', 'helix', 7, 6, 8, { keywords: ['firewall', 'siphon'], rarity: 'epic',
-  text: 'FIREWALL. SIPHON.',
-  flavor: 'A mutually beneficial relationship, per its lawyers.' });
+A('hx_016', 'Symbiotic Titan', 'helix', 7, 6, 8, { keywords: ['firewall'], rarity: 'epic',
+  text: 'FIREWALL.',
+  flavor: 'It stopped needing to feed. Just needing to stand there.' });
 A('hx_017', 'The Hydra Initiative', 'helix', 8, 7, 7, { rarity: 'legendary',
   text: 'GOLDEN PARACHUTE: Summon two 3/3 Hydra Clones.',
   flavor: 'Terminate one department and two more appear in the budget.',
