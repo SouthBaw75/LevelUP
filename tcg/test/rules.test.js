@@ -1930,6 +1930,73 @@ test('COMPUTE CLUSTER: an enemy Compute Cluster never buffs your software', () =
 });
 
 // ---------------------------------------------------------------------------
+// ADJACENCY BUFF (class-gated) — Executive Suite (ob_026): +1/+1 to a FINANCIAL
+// asset placed immediately beside it. Same engine path as Bioreactor/Compute
+// Cluster; also Obsidian's first facility of its own, so it's a valid target
+// for Franchise's cross-board copy.
+// ---------------------------------------------------------------------------
+test('EXECUTIVE SUITE: a FINANCIAL asset deployed beside it gains +1/+1', () => {
+  const s = newGame();
+  giveCapital(s, 0, 10);
+  addUnit(s, 0, 'ob_026'); // Executive Suite at index 0
+  const idx = putInHand(s, 0, 'ob_004'); // Toxic Asset — financial
+  const r = applyAction(s, 0, { type: 'playCard', handIndex: idx, target: null, position: 1 });
+  assert.equal(r.ok, true);
+  const placed = s.players[0].board[1];
+  assert.equal(placed.cardId, 'ob_004');
+  assert.equal(placed.attack, CARDS.ob_004.attack + 1);
+  assert.equal(placed.health, CARDS.ob_004.health + 1);
+  const buff = findAll(r.events, 'buff').find((e) => e.unitId === placed.id);
+  assert.ok(buff && buff.attack === 1 && buff.health === 1, 'a +1/+1 buff was emitted');
+});
+
+test('EXECUTIVE SUITE: a non-FINANCIAL asset deployed beside it gets nothing', () => {
+  const s = newGame();
+  giveCapital(s, 0, 10);
+  addUnit(s, 0, 'ob_026'); // Executive Suite
+  const idx = putInHand(s, 0, 'ntr_013'); // personnel, not financial
+  const r = applyAction(s, 0, { type: 'playCard', handIndex: idx, target: null, position: 1 });
+  assert.equal(r.ok, true);
+  const placed = s.players[0].board[1];
+  assert.equal(placed.attack, CARDS.ntr_013.attack, 'no bonus — wrong asset class');
+  assert.equal(placed.health, CARDS.ntr_013.health, 'no bonus — wrong asset class');
+  assert.equal(findAll(r.events, 'buff').length, 0);
+});
+
+test('EXECUTIVE SUITE: dropping it beside an existing FINANCIAL asset buffs both directions', () => {
+  const s = newGame();
+  giveCapital(s, 0, 10);
+  const financial = addUnit(s, 0, 'ob_004'); // Toxic Asset, index 0
+  const idx = putInHand(s, 0, 'ob_026'); // Executive Suite
+  const r = applyAction(s, 0, { type: 'playCard', handIndex: idx, target: null, position: 1 });
+  assert.equal(r.ok, true);
+  assert.equal(s.players[0].board[1].cardId, 'ob_026');
+  assert.equal(financial.attack, CARDS.ob_004.attack + 1, 'existing financial neighbor buffed');
+  assert.equal(financial.health, CARDS.ob_004.health + 1, 'existing financial neighbor buffed');
+});
+
+test('EXECUTIVE SUITE: an enemy Executive Suite never buffs your financials', () => {
+  const s = newGame();
+  addUnit(s, 1, 'ob_026'); // enemy Executive Suite at their index 0
+  giveCapital(s, 0, 10);
+  const idx = putInHand(s, 0, 'ob_004'); // financial, but on the other board
+  const r = applyAction(s, 0, { type: 'playCard', handIndex: idx, target: null, position: 0 });
+  assert.equal(r.ok, true);
+  assert.equal(s.players[0].board[0].attack, CARDS.ob_004.attack, 'no cross-board bonus');
+  assert.equal(s.players[0].board[0].health, CARDS.ob_004.health, 'no cross-board bonus');
+});
+
+test('EXECUTIVE SUITE: is a valid Franchise copy target (Obsidian\'s own facility)', () => {
+  const s = newGame();
+  giveCapital(s, 0, 10);
+  const suite = addUnit(s, 0, 'ob_026'); // Executive Suite — a facility on Obsidian's own board
+  const idx = putInHand(s, 0, 'ob_025'); // Franchise
+  const r = applyAction(s, 0, { type: 'playCard', handIndex: idx, target: suite.id, position: null });
+  assert.equal(r.ok, true);
+  assert.equal(s.players[0].board[1].cardId, 'ob_026', 'Franchise summoned a copy of Executive Suite');
+});
+
+// ---------------------------------------------------------------------------
 // FIREWALL UPGRADE (ntr_036): grant FIREWALL to a friendly asset that lacks it.
 // ---------------------------------------------------------------------------
 test('FIREWALL UPGRADE: grants FIREWALL to a friendly asset', () => {

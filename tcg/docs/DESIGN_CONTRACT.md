@@ -242,7 +242,10 @@ the buff to neighbors of that asset class; omitting `match` buffs any neighbor u
   `{ attack: 1, health: 1, match: { tag: 'organism' } }` ("+1/+1 to an ORGANISM-class asset
   placed immediately beside it"). `nx_020` **Compute Cluster** — class-gated,
   `{ attack: 1, health: 1, match: { tag: 'software' } }` ("+1/+1 to a SOFTWARE-class asset
-  placed immediately beside it").
+  placed immediately beside it"). `ob_026` **Executive Suite** — class-gated,
+  `{ attack: 1, health: 1, match: { tag: 'financial' } }` ("+1/+1 to a FINANCIAL-class asset
+  placed immediately beside it") — Obsidian's first facility of its own, and a Franchise copy
+  target.
 
 ## 3f-bis. Combat bonus vs asset class
 
@@ -383,7 +386,7 @@ convention. The card data schema needs no art field.
 - `type: "CEO"` cards (one per faction, e.g. `nx_ceo`) define the hero: name, 40 health, `powerId`.
 - `type: "POWER"` cards define the CEO power: cost 2, `text`, effects.
 - Tokens (summoned units) are non-collectible ASSET cards in the same map.
-- **148 collectible cards total**: ~26 per faction + 44 neutral. Costs 0–10, all rarities.
+- **149 collectible cards total**: ~26 per faction (obsidian 29) + 44 neutral. Costs 0–10, all rarities.
 
 `STARTER_DECKS`: `{ nexus: {name, faction, cards:[40 ids]}, vulcan: {...}, helix: {...}, obsidian: {...} }`
 — four tuned, playable prebuilt decks.
