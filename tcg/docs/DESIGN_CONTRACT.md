@@ -265,11 +265,13 @@ hand** (effect-summoned tokens don't count), and reset at the start of that play
 Because the reset is per-owner, a player's counter still holds their last turn's total while it
 is the opponent's turn. The `addCapital` op gains a `perEnemyAsset: true` variant: instead of a
 fixed `amount`, it grants **temporary** Capital equal to `1 - player`'s `assetsPlayedThisTurn`
-(capped at 10 like any gain; grants nothing and emits no `capital` event at 0).
+(capped at 10 like any gain; grants nothing and emits no `capital` event at 0). Every `addCapital`
+gain now stamps the `capital` event with `gain: N` (the routine turn-start refill does not), so
+the client floats a "+N Capital" beat only on real gains.
 
-- **v1 card**: `ntr_040` **Multilevel Marketing** — neutral OPERATION, cost 2, rare ("Gain 1
-  Capital this turn for each asset your opponent played last turn"). A reactive ramp/tempo tool
-  that pays off against a board-flooding opponent and whiffs against a passive one.
+- **v1 card**: `ntr_040` **Multilevel Marketing** — neutral OPERATION, cost 0, rare ("Gain 1
+  Capital this turn for each asset your opponent played last turn"). A reactive, cost-free ramp:
+  a clean burst against a board-flooding opponent, a dead 0-cost card against a passive one.
 
 ## 3g. Capital Reserve (War Chest)
 

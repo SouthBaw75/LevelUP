@@ -632,7 +632,19 @@ async function playEvent(ev) {
       break;
     }
     case 'capital': {
-      await wait(120);
+      // A real gain (Government Subsidy / Multilevel Marketing / Payday …) floats
+      // a gold "+N Capital" over the pip row and gives it a quick pop; the
+      // routine turn-start refill carries no `gain` and stays silent.
+      if (ev.gain > 0) {
+        const capRow = hooks.capitalAnchor?.(ev.player);
+        if (capRow) {
+          pulseClass(capRow, 'anim-reserve-pop', 460);
+          floatNum(capRow, '+' + ev.gain + ' Capital', 'gold', { size: 'med' });
+        }
+        await wait(300);
+      } else {
+        await wait(120);
+      }
       break;
     }
     case 'draw': {

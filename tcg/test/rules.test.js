@@ -2670,7 +2670,9 @@ test('MLM: grants temp Capital equal to the enemy\'s asset plays last turn', () 
   const idx = putInHand(s, 0, 'ntr_040');
   const r = applyAction(s, 0, { type: 'playCard', handIndex: idx, target: null, position: null });
   assert.equal(r.ok, true);
-  assert.equal(s.players[0].capital, before - 2 + 2, 'paid 2 for MLM, gained 2 back (net 0 capital, -1 card)');
+  assert.equal(s.players[0].capital, before + 2, 'cost 0 — a clean +2 gain from the enemy\'s 2 assets');
+  const capEv = find(r.events, 'capital');
+  assert.ok(capEv && capEv.gain === 2, 'capital event carries gain:2 (drives the +N float)');
 });
 
 test('MLM: gains 0 (and emits no capital event) when the enemy played no assets', () => {
@@ -2682,8 +2684,8 @@ test('MLM: gains 0 (and emits no capital event) when the enemy played no assets'
   const capBefore = s.players[0].capital;
   const r = applyAction(s, 0, { type: 'playCard', handIndex: idx, target: null, position: null });
   assert.equal(r.ok, true);
-  assert.equal(s.players[0].capital, capBefore - 2, 'only the 2 cost was spent, no gain');
-  // exactly one capital event (the cost deduction is not an event; addCapital emits none at 0)
+  assert.equal(s.players[0].capital, capBefore, 'cost 0 and no gain — capital unchanged');
+  // addCapital emits no event at 0, so there is no capital gain event
   assert.equal(findAll(r.events, 'capital').length, 0, 'no capital event when gain is 0');
 });
 
@@ -2699,7 +2701,7 @@ test('MLM: effect-summoned tokens do NOT count as assets played', () => {
   giveCapital(s, 0, 5);
   const capBefore = s.players[0].capital;
   applyAction(s, 0, { type: 'playCard', handIndex: putInHand(s, 0, 'ntr_040'), target: null, position: null });
-  assert.equal(s.players[0].capital, capBefore - 2, 'no gain — the 3 tokens were not asset plays');
+  assert.equal(s.players[0].capital, capBefore, 'no gain — the 3 tokens were not asset plays');
 });
 
 test('MLM: only the enemy\'s MOST RECENT turn counts (their counter resets each of their turns)', () => {
@@ -2716,7 +2718,7 @@ test('MLM: only the enemy\'s MOST RECENT turn counts (their counter resets each 
   giveCapital(s, 0, 5);
   const capBefore = s.players[0].capital;
   applyAction(s, 0, { type: 'playCard', handIndex: putInHand(s, 0, 'ntr_040'), target: null, position: null });
-  assert.equal(s.players[0].capital, capBefore - 2 + 1, 'gained 1 (turn B), not 4');
+  assert.equal(s.players[0].capital, capBefore + 1, 'gained 1 (turn B), not 4');
 });
 
 test('MLM: gain is temporary — does not raise maxCapital', () => {
@@ -2738,7 +2740,7 @@ test('MLM: the temp Capital is capped at 10 like any capital gain', () => {
   for (let i = 0; i < 5; i++) applyAction(s, 1, { type: 'playCard', handIndex: putInHand(s, 1, 'ntr_002'), target: null, position: null });
   end(s); // p0
   s.players[0].capital = 8; s.players[0].maxCapital = 10;
-  // MLM costs 2 → 6, then +5 would be 11 → capped at 10
+  // cost 0, so 8 + 5 would be 13 → capped at 10
   applyAction(s, 0, { type: 'playCard', handIndex: putInHand(s, 0, 'ntr_040'), target: null, position: null });
   assert.equal(s.players[0].capital, 10, 'capped at 10');
 });

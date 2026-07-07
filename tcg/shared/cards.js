@@ -619,7 +619,7 @@ A('ntr_039', 'Affiliate Influencer', 'neutral', 3, 3, 4, { rarity: 'rare',
   text: 'When this attacks a PERSONNEL asset, deal 1 extra damage.',
   flavor: 'Every opinion is authentic and brought to you by our partners.',
   effects: { combatBonus: { vsTag: 'personnel', damage: 1 } } });
-O('ntr_040', 'Multilevel Marketing', 'neutral', 2, { rarity: 'rare',
+O('ntr_040', 'Multilevel Marketing', 'neutral', 0, { rarity: 'rare',
   text: 'Gain 1 Capital this turn for each asset your opponent played last turn.',
   flavor: 'It’s not a pyramid. Pyramids are load-bearing.',
   effects: { targeting: null, play: [{ op: 'addCapital', perEnemyAsset: true }] } });

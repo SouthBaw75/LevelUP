@@ -788,7 +788,9 @@ export const OPS = {
       p.maxCapital = Math.min(MAX_CAPITAL, p.maxCapital + amount);
     }
     p.capital = Math.min(MAX_CAPITAL, p.capital + amount);
-    ev.push({ e: 'capital', player: ctx.player, capital: p.capital, maxCapital: p.maxCapital });
+    // `gain` marks this as an actual Capital GAIN (Subsidy/MLM/Payday/...) so the
+    // client floats a "+N Capital" beat; the routine turn-start refill omits it.
+    ev.push({ e: 'capital', player: ctx.player, capital: p.capital, maxCapital: p.maxCapital, gain: amount });
   },
   discardRandom(state, ev, op, ctx) {
     const player = op.player === 'self' ? ctx.player : 1 - ctx.player;
