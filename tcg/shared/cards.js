@@ -74,7 +74,7 @@ const ASSET_TAGS = {
   vx_009: ['facility'], vx_013: ['facility'], vx_015: ['facility'],
   hx_007: ['facility'], hx_009: ['facility'], ntr_012: ['facility'],
   ob_026: ['facility'], ob_027: ['facility'], ob_028: ['facility'],
-  ob_029: ['facility'], ob_030: ['facility'],
+  ob_029: ['facility'], ob_030: ['facility'], ob_031: ['facility'],
   // organism
   hx_t_hydra: ['organism'], hx_t_spore: ['organism'], hx_t_labrat: ['organism'],
   hx_001: ['organism'], hx_004: ['organism'], hx_008: ['organism'], hx_012: ['organism'],
@@ -514,6 +514,10 @@ A('ob_030', 'The Exchange', 'obsidian', 5, 4, 5, { rarity: 'epic',
   text: 'Whenever you play a FINANCIAL asset, gain 1 Capital.',
   flavor: 'Every trade lights up a window. Most of the building is dark by noon.',
   effects: { onFriendlyAssetPlayed: { match: { tag: 'financial' }, capital: 1 } } });
+A('ob_031', 'Talent Acquisition Center', 'obsidian', 4, 3, 5, { rarity: 'rare',
+  text: 'Adjacent PERSONNEL assets gain +1/+1.',
+  flavor: 'The line outside wraps the block. Most of them are here for the free coffee.',
+  effects: { adjacencyBuff: { attack: 1, health: 1, match: { tag: 'personnel' } } } });
 
 // ---------------------------------------------------------------------------
 // NEUTRAL — Independent Contractors (ntr)

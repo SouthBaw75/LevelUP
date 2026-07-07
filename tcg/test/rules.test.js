@@ -2229,6 +2229,73 @@ test('THE EXCHANGE: is a valid Franchise copy target (Obsidian\'s own facility)'
 });
 
 // ---------------------------------------------------------------------------
+// ADJACENCY BUFF (class-gated) — Talent Acquisition Center (ob_031): +1/+1 to
+// a PERSONNEL asset placed immediately beside it. Same engine path as
+// Bioreactor/Compute Cluster/Executive Suite, gated to PERSONNEL — the
+// DEFAULT tag, so it reaches most of Obsidian's non-financial roster.
+// ---------------------------------------------------------------------------
+test('TALENT ACQUISITION CENTER: a PERSONNEL asset deployed beside it gains +1/+1', () => {
+  const s = newGame();
+  giveCapital(s, 0, 10);
+  addUnit(s, 0, 'ob_031'); // Talent Acquisition Center at index 0
+  const idx = putInHand(s, 0, 'ob_001'); // Day Trader — defaults to personnel
+  const r = applyAction(s, 0, { type: 'playCard', handIndex: idx, target: null, position: 1 });
+  assert.equal(r.ok, true);
+  const placed = s.players[0].board[1];
+  assert.equal(placed.cardId, 'ob_001');
+  assert.equal(placed.attack, CARDS.ob_001.attack + 1);
+  assert.equal(placed.health, CARDS.ob_001.health + 1);
+  const buff = findAll(r.events, 'buff').find((e) => e.unitId === placed.id);
+  assert.ok(buff && buff.attack === 1 && buff.health === 1, 'a +1/+1 buff was emitted');
+});
+
+test('TALENT ACQUISITION CENTER: a non-PERSONNEL asset deployed beside it gets nothing', () => {
+  const s = newGame();
+  giveCapital(s, 0, 10);
+  addUnit(s, 0, 'ob_031'); // Talent Acquisition Center
+  const idx = putInHand(s, 0, 'ob_004'); // Toxic Asset — financial, not personnel
+  const r = applyAction(s, 0, { type: 'playCard', handIndex: idx, target: null, position: 1 });
+  assert.equal(r.ok, true);
+  const placed = s.players[0].board[1];
+  assert.equal(placed.attack, CARDS.ob_004.attack, 'no bonus — wrong asset class');
+  assert.equal(placed.health, CARDS.ob_004.health, 'no bonus — wrong asset class');
+  assert.equal(findAll(r.events, 'buff').length, 0);
+});
+
+test('TALENT ACQUISITION CENTER: dropping it beside an existing PERSONNEL asset buffs both directions', () => {
+  const s = newGame();
+  giveCapital(s, 0, 10);
+  const personnel = addUnit(s, 0, 'ob_001'); // Day Trader, index 0
+  const idx = putInHand(s, 0, 'ob_031'); // Talent Acquisition Center
+  const r = applyAction(s, 0, { type: 'playCard', handIndex: idx, target: null, position: 1 });
+  assert.equal(r.ok, true);
+  assert.equal(s.players[0].board[1].cardId, 'ob_031');
+  assert.equal(personnel.attack, CARDS.ob_001.attack + 1, 'existing personnel neighbor buffed');
+  assert.equal(personnel.health, CARDS.ob_001.health + 1, 'existing personnel neighbor buffed');
+});
+
+test('TALENT ACQUISITION CENTER: an enemy Talent Acquisition Center never buffs your personnel', () => {
+  const s = newGame();
+  addUnit(s, 1, 'ob_031'); // enemy Talent Acquisition Center at their index 0
+  giveCapital(s, 0, 10);
+  const idx = putInHand(s, 0, 'ob_001'); // personnel, but on the other board
+  const r = applyAction(s, 0, { type: 'playCard', handIndex: idx, target: null, position: 0 });
+  assert.equal(r.ok, true);
+  assert.equal(s.players[0].board[0].attack, CARDS.ob_001.attack, 'no cross-board bonus');
+  assert.equal(s.players[0].board[0].health, CARDS.ob_001.health, 'no cross-board bonus');
+});
+
+test('TALENT ACQUISITION CENTER: is a valid Franchise copy target (Obsidian\'s own facility)', () => {
+  const s = newGame();
+  giveCapital(s, 0, 10);
+  const center = addUnit(s, 0, 'ob_031');
+  const idx = putInHand(s, 0, 'ob_025'); // Franchise
+  const r = applyAction(s, 0, { type: 'playCard', handIndex: idx, target: center.id, position: null });
+  assert.equal(r.ok, true);
+  assert.equal(s.players[0].board[1].cardId, 'ob_031', 'Franchise summoned a copy of Talent Acquisition Center');
+});
+
+// ---------------------------------------------------------------------------
 // FIREWALL UPGRADE (ntr_036): grant FIREWALL to a friendly asset that lacks it.
 // ---------------------------------------------------------------------------
 test('FIREWALL UPGRADE: grants FIREWALL to a friendly asset', () => {
