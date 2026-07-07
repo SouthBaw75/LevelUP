@@ -325,6 +325,25 @@ const CONTRACT_GLYPH_SVG = `<svg viewBox="0 0 14 18" xmlns="http://www.w3.org/20
   <path d="M3.6 8.2 h6.8 M3.6 10.7 h6.8 M3.6 13.2 h4.4" stroke="currentColor" stroke-width="0.9" stroke-opacity="0.8"/>
 </svg>`;
 
+// Safe/vault glyph for reserve contracts (War Chest) — same hand-drawn,
+// stroke-on-currentColor, faint-fill treatment as the folder above so the two
+// read as a matched set, but the shape is a strongbox: body + inset door, a
+// combination dial with ticks, a side handle, and little feet.
+const RESERVE_GLYPH_SVG = `<svg viewBox="0 0 14 18" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+  <rect x="1.4" y="2.6" width="11.2" height="12" rx="1.2" fill="rgba(240,232,205,0.10)" stroke="currentColor" stroke-width="1.1" stroke-linejoin="round"/>
+  <rect x="3" y="4.1" width="8" height="9" rx="0.8" fill="none" stroke="currentColor" stroke-width="0.9" stroke-opacity="0.85"/>
+  <circle cx="7" cy="8.6" r="2" fill="none" stroke="currentColor" stroke-width="1"/>
+  <circle cx="7" cy="8.6" r="0.5" fill="currentColor"/>
+  <path d="M7 5.9 v-0.9 M7 11.3 v0.9 M4.3 8.6 h-0.9 M9.7 8.6 h0.9" stroke="currentColor" stroke-width="0.8" stroke-opacity="0.75" stroke-linecap="round"/>
+  <path d="M2.9 14.6 v1.4 M11.1 14.6 v1.4" stroke="currentColor" stroke-width="1.1" stroke-linecap="round"/>
+</svg>`;
+
+// Tiny coin for the banked-amount badge (inherits currentColor).
+const COIN_GLYPH_SVG = `<svg viewBox="0 0 10 10" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+  <circle cx="5" cy="5" r="4" fill="none" stroke="currentColor" stroke-width="1.1"/>
+  <path d="M5 2.7 v4.6 M3.4 4 h2.2 a1.1 1.1 0 0 1 0 2.2 h-2.2" fill="none" stroke="currentColor" stroke-width="1" stroke-linecap="round" stroke-linejoin="round"/>
+</svg>`;
+
 /**
  * Compact document-styled tile for a FILED contract in a player's contract
  * zone. Not a board unit: cannot attack / be attacked; only null-&-void
@@ -335,14 +354,19 @@ const CONTRACT_GLYPH_SVG = `<svg viewBox="0 0 14 18" xmlns="http://www.w3.org/20
 export function renderContractTile(contract, def = null) {
   def = def || getCard(contract.cardId) || {};
   const el = document.createElement('div');
-  el.className = `contract-tile faction-${def.faction || 'neutral'}`;
+  el.className = `contract-tile faction-${def.faction || 'neutral'}`
+    + (def.reserve ? ' is-reserve' : '');
   el.dataset.targetId = contract.id;
   el.dataset.cardId = contract.cardId;
   el.style.setProperty('--fc', factionColor(def.faction));
 
+  // reserve contracts (War Chest) draw a safe/vault; everyone else the folder.
+  // `def.reserve` is a public marker surfaced by the server for BOTH players,
+  // so the opponent still sees a safe — they just don't see its balance.
+  const isReserve = !!def.reserve;
   const glyph = document.createElement('div');
-  glyph.className = 'ct-glyph';
-  glyph.innerHTML = CONTRACT_GLYPH_SVG;
+  glyph.className = 'ct-glyph' + (isReserve ? ' ct-glyph-safe' : '');
+  glyph.innerHTML = isReserve ? RESERVE_GLYPH_SVG : CONTRACT_GLYPH_SVG;
   el.appendChild(glyph);
 
   const name = document.createElement('div');
@@ -368,7 +392,10 @@ export function renderContractTile(contract, def = null) {
     el.classList.add('has-reserve');
     const bank = document.createElement('div');
     bank.className = 'ct-bank';
-    bank.innerHTML = `<span class="ct-bank-glyph">\u{1F3E6}</span>${contract.banked}`;
+    // a small drawn coin (matching the vault's stroke style) + the amount, so
+    // the badge reads as "money in the safe" without an emoji clashing with
+    // the hand-drawn glyphs elsewhere on the tile.
+    bank.innerHTML = `<span class="ct-bank-glyph">${COIN_GLYPH_SVG}</span>${contract.banked}`;
     bank.title = `War Chest: ${contract.banked} Capital banked (max 8)`
       + (contract.banked > 0 ? ' — click on your turn to crack it open for Assets' : '');
     el.appendChild(bank);

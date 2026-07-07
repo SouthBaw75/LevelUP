@@ -878,6 +878,29 @@
 }
 .contract-tile:hover { transform: translateY(-2px); filter: brightness(1.08); z-index: 6; }
 .ct-glyph { display: none; } /* the folder shape is the icon now */
+
+/* War Chest (reserve): same tile silhouette + tab as a filed folder, but the
+   kraft paper becomes a brushed-steel strongbox and the (normally hidden)
+   glyph is switched on as a drawn safe icon — "like the folder, but a safe". */
+.contract-tile.is-reserve {
+  background:
+    linear-gradient(168deg, rgba(233, 240, 250, 0.16), rgba(0, 0, 0, 0) 26%),
+    linear-gradient(168deg, #6b7789 0%, #4a5566 55%, #333c49 100%);
+  border-color: #2c333d; border-top-color: #7d8a9c;
+}
+.contract-tile.is-reserve::before { /* the tab reads as a steel handle now */
+  background: linear-gradient(180deg, #aab6c6, #7b8798);
+  border-color: #3a434f;
+}
+.contract-tile.is-reserve::after { background: rgba(20, 26, 34, 0.4); } /* seam */
+.contract-tile.is-reserve .ct-name {
+  color: #e7edf5; text-shadow: 0 1px 1px rgba(0, 0, 0, 0.6);
+}
+.contract-tile.is-reserve .ct-glyph.ct-glyph-safe {
+  display: block; flex: none; width: 15px; color: #d3dce8;
+  filter: drop-shadow(0 1px 1px rgba(0, 0, 0, 0.5));
+}
+.contract-tile.is-reserve .ct-glyph.ct-glyph-safe svg { width: 100%; height: auto; display: block; }
 .ct-name {
   font: 700 7.5px/1.22 var(--mono); letter-spacing: 0.03em; text-transform: uppercase;
   color: #3a2c12; min-width: 0;
@@ -905,7 +928,8 @@
   border: 1px solid #f7dfa6;
   box-shadow: 0 1px 4px rgba(0, 0, 0, 0.6), 0 0 6px rgba(232, 180, 90, 0.4);
 }
-.ct-bank-glyph { font-size: 9px; line-height: 1; }
+.ct-bank-glyph { display: inline-flex; width: 9px; height: 9px; }
+.ct-bank-glyph svg { width: 9px; height: 9px; display: block; }
 /* an armed War Chest (your turn, banked > 0) invites a click: gold ready-glow
    + pointer cursor, distinct from the red null-&-void target pulse */
 .contract-tile.reserve-armed {

@@ -55,11 +55,17 @@ const FACTIONS = {
 };
 
 // GET /api/cards payload, serialized once at boot: card defs WITHOUT `effects`.
+// A few structural markers the CLIENT needs for rendering (but which live
+// inside the otherwise-opaque `effects` DSL) are surfaced as flat booleans:
+//   reserve — War Chest-style capital reserve; the tile draws a safe/vault
+//             glyph instead of the generic contract folder (for BOTH players,
+//             since the bank amount itself stays private).
 function buildCardsJson() {
   const cards = {};
   for (const [id, def] of Object.entries(CARDS)) {
     if (!def || typeof def !== 'object') continue;
     const { effects, ...pub } = def;
+    if (effects && effects.reserve) pub.reserve = true;
     cards[id] = pub;
   }
   return JSON.stringify({ cards, starterDecks: STARTER_DECKS, factions: FACTIONS });
