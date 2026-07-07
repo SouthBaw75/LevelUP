@@ -115,6 +115,13 @@ test('every referenced DSL op / special / token / keyword is implemented', () =>
         if (val.match) assert.ok(TAG_VALUES.includes(val.match.tag), `${card.id} adjacencyBuff match.tag`);
         continue;
       }
+      if (key === 'combatBonus') {
+        assert.equal(card.type, 'ASSET', `${card.id} combatBonus is asset-only`);
+        assert.ok(val && typeof val === 'object', `${card.id} combatBonus object`);
+        assert.ok(TAG_VALUES.includes(val.vsTag), `${card.id} combatBonus.vsTag`);
+        assert.ok(Number.isInteger(val.damage) && val.damage > 0, `${card.id} combatBonus.damage`);
+        continue;
+      }
       assert.ok(TRIGGERS.includes(key), `${card.id} unknown trigger ${key}`);
       assert.ok(Array.isArray(val), `${card.id} trigger ${key} must be an ops array`);
       for (const op of val) {
@@ -144,15 +151,15 @@ test('every referenced DSL op / special / token / keyword is implemented', () =>
   }
 });
 
-test('collectible counts match the contract (26 vulcan, 27 obsidian, 25 nexus/helix + 42 neutral = 145)', () => {
+test('collectible counts match the contract (26 vulcan, 27 obsidian, 25 nexus/helix + 43 neutral = 146)', () => {
   const byFaction = {};
   for (const c of collectible) byFaction[c.faction] = (byFaction[c.faction] || 0) + 1;
   assert.equal(byFaction.nexus, 25);
   assert.equal(byFaction.vulcan, 26); // + vx_c04 Retooling Order (counter aura)
   assert.equal(byFaction.helix, 25);
   assert.equal(byFaction.obsidian, 27); // + ob_023 Counter Offer; + ob_024 Hedge Fund
-  assert.equal(byFaction.neutral, 42); // + ntr_035 Nuclear Option; + ntr_036 Firewall Upgrade; + ntr_037 Flirty Intern; + ntr_038 Corporate Lobbyist; + ntr_c03 Regulatory Capture; + ntr_c04 War Chest
-  assert.equal(collectible.length, 145);
+  assert.equal(byFaction.neutral, 43); // + ntr_035..ntr_039, ntr_c03 Regulatory Capture, ntr_c04 War Chest
+  assert.equal(collectible.length, 146);
   // CONTRACT cards: 3 per faction, plus vx_c04 (a 4th Vulcan, the counter card), plus
   // the neutral pair ntr_c03 Regulatory Capture and ntr_c04 War Chest
   const contracts = collectible.filter((c) => c.type === 'CONTRACT');

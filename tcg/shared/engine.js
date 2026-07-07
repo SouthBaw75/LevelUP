@@ -335,6 +335,17 @@ export function effectiveAttack(state, unit, owner) {
   return Math.max(0, base + aura);
 }
 
+// Affiliate Influencer (§combatBonus): flat extra damage an attacker deals when
+// it strikes a DEFENDER asset whose class matches `vsTag`. Folded into the
+// combat damage number (no separate event), the way auras fold into
+// effectiveAttack. Silence strips it (it's an ability), same as keywords.
+function combatTagBonus(attacker, defenderDef) {
+  if (attacker.silenced) return 0;
+  const cb = CARDS[attacker.cardId]?.effects?.combatBonus;
+  if (cb && cb.vsTag && (defenderDef?.tags || []).includes(cb.vsTag)) return cb.damage || 0;
+  return 0;
+}
+
 // THE one cost helper: view display, playable calc, applyAction validation and
 // capital deduction all go through here. opCostReduction (nx_c01) applies to
 // the owner's OPERATIONs only; contractCostReduction (Corporate Lobbyist)
@@ -1121,12 +1132,15 @@ function applyActionInner(state, playerIndex, action) {
         const def = findUnit(state, action.targetId);
         const defender = def.unit;
         const defAttack = effectiveAttack(state, defender, def.owner);
+        // Affiliate Influencer (§combatBonus): +N vs a matching-class defender,
+        // added to the swing before trample math so the bonus carries too.
+        const vsPower = atkPower + combatTagBonus(attacker, CARDS[defender.cardId]);
         // BULLISH (trample): assign lethal to the blocker, and any attack beyond
         // its current Integrity spills to the enemy CEO. The two hits sum to the
         // attacker's Attack, so siphon/etc. count the damage exactly once.
         const blockerHp = Math.max(0, defender.health);
-        const overflow = hasKw(attacker, 'bullish') ? Math.max(0, atkPower - blockerHp) : 0;
-        dealDamage(state, ev, defender.id, overflow > 0 ? blockerHp : atkPower,
+        const overflow = hasKw(attacker, 'bullish') ? Math.max(0, vsPower - blockerHp) : 0;
+        dealDamage(state, ev, defender.id, overflow > 0 ? blockerHp : vsPower,
           { unit: attacker, player: playerIndex, id: attacker.id });
         if (overflow > 0) {
           dealDamage(state, ev, 'hero' + (1 - playerIndex), overflow,

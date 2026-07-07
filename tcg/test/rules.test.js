@@ -2498,3 +2498,77 @@ test('WAR CHEST: two chests bank INDEPENDENTLY from the same unspent Capital', (
   assert.equal(banks.length, 2, 'one bankCapital event per chest');
   assert.deepEqual(banks.map((e) => e.total), [5, 5]);
 });
+
+// ---------------------------------------------------------------------------
+// AFFILIATE INFLUENCER (ntr_039): +1 combat damage when she attacks a
+// PERSONNEL-class asset. Folded into the damage number; silence strips it;
+// never applies to the CEO (untagged) or to non-personnel defenders.
+// ---------------------------------------------------------------------------
+test('AFFILIATE INFLUENCER: +1 damage attacking a PERSONNEL asset', () => {
+  const s = newGame();
+  const inf = addUnit(s, 0, 'ntr_039'); // 3/4
+  const foe = addUnit(s, 1, 'ntr_013', { health: 8, maxHealth: 8 }); // personnel, survives to read dmg
+  const r = applyAction(s, 0, { type: 'attack', attackerId: inf.id, targetId: foe.id });
+  assert.equal(r.ok, true);
+  const dmg = findAll(r.events, 'damage').find((e) => e.targetId === foe.id);
+  assert.equal(dmg.amount, 4, '3 attack + 1 personnel bonus');
+});
+
+test('AFFILIATE INFLUENCER: no bonus attacking a non-PERSONNEL asset', () => {
+  const s = newGame();
+  const inf = addUnit(s, 0, 'ntr_039');
+  const bot = addUnit(s, 1, 'ntr_019', { attack: 0, health: 8, maxHealth: 8 }); // robotic
+  const r = applyAction(s, 0, { type: 'attack', attackerId: inf.id, targetId: bot.id });
+  assert.equal(r.ok, true);
+  const dmg = findAll(r.events, 'damage').find((e) => e.targetId === bot.id);
+  assert.equal(dmg.amount, 3, 'no bonus vs robotic');
+});
+
+test('AFFILIATE INFLUENCER: no bonus attacking the enemy CEO (untagged)', () => {
+  const s = newGame();
+  const inf = addUnit(s, 0, 'ntr_039');
+  const before = s.players[1].integrity;
+  const r = applyAction(s, 0, { type: 'attack', attackerId: inf.id, targetId: 'hero1' });
+  assert.equal(r.ok, true);
+  assert.equal(s.players[1].integrity, before - 3, 'CEO takes base 3, no class bonus');
+});
+
+test('AFFILIATE INFLUENCER: the bonus can be lethal that a base hit would not be', () => {
+  const s = newGame();
+  const inf = addUnit(s, 0, 'ntr_039');
+  const foe = addUnit(s, 1, 'ntr_006', { attack: 0, health: 4, maxHealth: 4 }); // personnel 4 hp
+  const r = applyAction(s, 0, { type: 'attack', attackerId: inf.id, targetId: foe.id });
+  assert.equal(r.ok, true);
+  assert.equal(s.players[1].board.length, 0, '3+1 = 4 exactly kills the 4-health personnel asset');
+});
+
+test('AFFILIATE INFLUENCER: retaliation is unaffected by the bonus', () => {
+  const s = newGame();
+  const inf = addUnit(s, 0, 'ntr_039'); // 3/4
+  const foe = addUnit(s, 1, 'ntr_013', { attack: 2, health: 8, maxHealth: 8 }); // personnel, hits back 2
+  const r = applyAction(s, 0, { type: 'attack', attackerId: inf.id, targetId: foe.id });
+  assert.equal(r.ok, true);
+  assert.equal(inf.health, 2, 'influencer took exactly the defender\'s 2, no self-bonus');
+});
+
+test('AFFILIATE INFLUENCER: SILENCE strips the combat bonus', () => {
+  const s = newGame();
+  const inf = addUnit(s, 0, 'ntr_039', { silenced: true, keywords: [] });
+  const foe = addUnit(s, 1, 'ntr_013', { health: 8, maxHealth: 8 });
+  const r = applyAction(s, 0, { type: 'attack', attackerId: inf.id, targetId: foe.id });
+  assert.equal(r.ok, true);
+  const dmg = findAll(r.events, 'damage').find((e) => e.targetId === foe.id);
+  assert.equal(dmg.amount, 3, 'silenced influencer deals base 3, no bonus');
+});
+
+test('AFFILIATE INFLUENCER: the bonus stacks on top of an aura-boosted attack', () => {
+  const s = newGame('vulcan', 'nexus'); // p0 vulcan can field Retooling Order (robotic +1 Atk)
+  // give the influencer robotic class won't work (she's personnel). Instead use a
+  // flat buff to prove base+buff+bonus all compound.
+  const inf = addUnit(s, 0, 'ntr_039', { attack: 5 }); // pretend-buffed to 5 attack
+  const foe = addUnit(s, 1, 'ntr_013', { health: 12, maxHealth: 12 }); // personnel
+  const r = applyAction(s, 0, { type: 'attack', attackerId: inf.id, targetId: foe.id });
+  assert.equal(r.ok, true);
+  const dmg = findAll(r.events, 'damage').find((e) => e.targetId === foe.id);
+  assert.equal(dmg.amount, 6, '5 effective attack + 1 personnel bonus');
+});

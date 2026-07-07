@@ -21,6 +21,8 @@
 //                                         // raises the FILER's OPPONENT's costs, all types
 //     reserve: { assetOnly: true },  // CONTRACT-only marker (War Chest): the filed instance
 //                                    // banks Capital privately; Activate to spend it on ASSETS
+//     combatBonus: { vsTag, damage },  // ASSET-only (Affiliate Influencer): +damage when this
+//                                      // attacks a DEFENDER asset whose class includes vsTag
 //   }
 //   CONTRACT cards may also carry a top-level `term: N` (expires after N of the
 //   owner's turns); no attack/health.
@@ -608,6 +610,10 @@ A('ntr_038', 'Corporate Lobbyist', 'neutral', 3, 2, 4, { rarity: 'rare',
   text: 'While in play, your CONTRACTS cost (1) less.',
   flavor: 'He didn’t write the loophole. He just made sure it was load-bearing.',
   effects: { static: { contractCostReduction: 1 } } });
+A('ntr_039', 'Affiliate Influencer', 'neutral', 3, 3, 4, { rarity: 'rare',
+  text: 'When this attacks a PERSONNEL asset, deal 1 extra damage.',
+  flavor: 'Every opinion is authentic and brought to you by our partners.',
+  effects: { combatBonus: { vsTag: 'personnel', damage: 1 } } });
 
 // ---------------------------------------------------------------------------
 // CONTRACTS (§3b) — persistent corporate agreements, plus the two neutral

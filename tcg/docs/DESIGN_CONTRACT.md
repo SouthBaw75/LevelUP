@@ -244,6 +244,20 @@ the buff to neighbors of that asset class; omitting `match` buffs any neighbor u
   `{ attack: 1, health: 1, match: { tag: 'software' } }` ("+1/+1 to a SOFTWARE-class asset
   placed immediately beside it").
 
+## 3f-bis. Combat bonus vs asset class
+
+An ASSET may carry `effects.combatBonus = { vsTag, damage }`. When it ATTACKS a defender
+**asset** whose class (`tags`) includes `vsTag`, `damage` is added to the swing (via
+`combatTagBonus`, folded into the combat damage number before the trample/overflow math — no
+separate event, exactly like §3e auras fold into `effectiveAttack`). It never applies when
+attacking the enemy CEO (untagged), never boosts the defender's retaliation, and — being an
+ability — is stripped by SILENCE. If the attacker also has BULLISH the bonus is part of the
+total that trample carries.
+
+- **v1 card**: `ntr_039` **Affiliate Influencer** — `{ vsTag: 'personnel', damage: 1 }` ("When
+  this attacks a PERSONNEL asset, deal 1 extra damage"). PERSONNEL is the default class, so the
+  bonus is live against most human units but does nothing to machines/structures/constructs.
+
 ## 3g. Capital Reserve (War Chest)
 
 A restricted capital reserve — the CapEx fund every board sets aside "for strategic
@@ -354,7 +368,7 @@ convention. The card data schema needs no art field.
 - `type: "CEO"` cards (one per faction, e.g. `nx_ceo`) define the hero: name, 40 health, `powerId`.
 - `type: "POWER"` cards define the CEO power: cost 2, `text`, effects.
 - Tokens (summoned units) are non-collectible ASSET cards in the same map.
-- **145 collectible cards total**: ~26 per faction + 42 neutral. Costs 0–10, all rarities.
+- **146 collectible cards total**: ~26 per faction + 43 neutral. Costs 0–10, all rarities.
 
 `STARTER_DECKS`: `{ nexus: {name, faction, cards:[40 ids]}, vulcan: {...}, helix: {...}, obsidian: {...} }`
 — four tuned, playable prebuilt decks.
