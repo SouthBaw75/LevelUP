@@ -12,7 +12,7 @@ export const FACTIONS = {
   vulcan: {
     id: 'vulcan', name: 'Vulcan Heavy Industries', industry: 'Manufacturing & Defense',
     color: '#f97316', tagline: 'We build the future. Then we sell it weapons.',
-    identity: 'Aggression — direct damage, FAST-TRACK, colossal late-game assets.',
+    identity: 'Aggression — direct damage, VESTED, colossal late-game assets.',
   },
   helix: {
     id: 'helix', name: 'Helix Biosystems', industry: 'Biotech',
@@ -33,7 +33,7 @@ export const FACTIONS = {
 
 export const KEYWORD_NAMES = {
   firewall: 'FIREWALL',
-  fasttrack: 'FAST-TRACK',
+  fasttrack: 'VESTED',
   stealth: 'CORPORATE VEIL',
   shielded: 'PATENT PROTECTION',
   overtime: 'OVERTIME',

@@ -247,19 +247,19 @@ O('nx_022', 'Mass Recall', 'nexus', 7, { rarity: 'epic',
   effects: { targeting: null, play: [{ op: 'returnToHand', to: 'allEnemyUnits' }] } });
 
 // ---------------------------------------------------------------------------
-// VULCAN HEAVY INDUSTRIES (vx) — manufacturing/defense. Aggro: damage, FAST-TRACK.
+// VULCAN HEAVY INDUSTRIES (vx) — manufacturing/defense. Aggro: damage, VESTED.
 // ---------------------------------------------------------------------------
 A('vx_001', 'Line Welder', 'vulcan', 1, 2, 1, {
   flavor: 'Sparks joy. Also just sparks.' });
 A('vx_002', 'Rapid Response Drone', 'vulcan', 2, 2, 1, { keywords: ['fasttrack'],
-  text: 'FAST-TRACK.',
+  text: 'VESTED.',
   flavor: 'Ships same-day. Explodes same-day.' });
 O('vx_003', 'Shrapnel Burst', 'vulcan', 1, {
   text: 'Deal 2 damage to an asset.',
   flavor: 'Now with 30% more plausible deniability.',
   effects: { targeting: 'anyUnit', play: [{ op: 'damage', amount: 2, to: 'target' }] } });
 A('vx_004', 'Strike Battalion', 'vulcan', 4, 4, 3, { keywords: ['fasttrack'], rarity: 'rare',
-  text: 'FAST-TRACK. Onboarding: deal 1 damage to the enemy CEO.',
+  text: 'VESTED. Onboarding: deal 1 damage to the enemy CEO.',
   flavor: 'Quarterly targets are not a suggestion.',
   effects: { onboarding: [{ op: 'damage', amount: 1, to: 'enemyHero' }] } });
 A('vx_005', 'Foundry Worker', 'vulcan', 2, 3, 2, {
@@ -272,7 +272,7 @@ A('vx_007', 'Double-Shift Foreman', 'vulcan', 3, 2, 3, { keywords: ['overtime'],
   text: 'OVERTIME.',
   flavor: 'Clocks out only to clock back in.' });
 A('vx_008', 'Repo Squad', 'vulcan', 3, 3, 1, { keywords: ['fasttrack'],
-  text: 'FAST-TRACK.',
+  text: 'VESTED.',
   flavor: 'They repossess first and read the paperwork in the truck.' });
 A('vx_009', 'Armor Plant', 'vulcan', 4, 4, 5, {
   text: 'When an asset is placed to the immediate left or right of this, it gains +1 Integrity.',
@@ -283,7 +283,7 @@ O('vx_010', 'Carpet Bombing', 'vulcan', 4, { rarity: 'rare',
   flavor: 'Restructuring, delivered by air.',
   effects: { targeting: null, play: [{ op: 'aoeDamage', amount: 2, side: 'enemy' }] } });
 A('vx_011', 'Blitz Mech', 'vulcan', 5, 5, 3, { keywords: ['fasttrack'], rarity: 'rare',
-  text: 'FAST-TRACK.',
+  text: 'VESTED.',
   flavor: 'Zero to liability in 1.8 seconds.' });
 O('vx_012', 'Railgun Prototype', 'vulcan', 4, { rarity: 'rare',
   text: 'Deal 5 damage to an asset.',
@@ -302,7 +302,7 @@ A('vx_016', 'Twin-Barrel Colossus', 'vulcan', 8, 8, 8, { keywords: ['overtime', 
   text: 'OVERTIME. BULLISH.',
   flavor: 'Why fire once when the invoice covers twice?' });
 A('vx_017', 'The Juggernaut', 'vulcan', 9, 8, 8, { keywords: ['fasttrack', 'bullish'], rarity: 'legendary',
-  text: 'FAST-TRACK. BULLISH.',
+  text: 'VESTED. BULLISH.',
   flavor: 'Line item: one (1) unstoppable object. Warranty void.' });
 O('vx_018', 'Overclock', 'vulcan', 1, {
   text: 'Give a friendly asset +2 Attack.',

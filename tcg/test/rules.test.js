@@ -153,7 +153,7 @@ test('cannot play a card you cannot afford', () => {
 });
 
 // ---------------------------------------------------------------------------
-// Summoning sickness / FAST-TRACK / OVERTIME
+// Summoning sickness / VESTED / OVERTIME
 // ---------------------------------------------------------------------------
 test('summoning sickness: freshly played assets cannot attack until next turn', () => {
   const s = newGame();
@@ -169,7 +169,7 @@ test('summoning sickness: freshly played assets cannot attack until next turn', 
   assert.equal(r2.ok, true);
 });
 
-test('FAST-TRACK attacks the turn it is deployed', () => {
+test('VESTED attacks the turn it is deployed', () => {
   const s = newGame();
   giveCapital(s, 0);
   const idx = putInHand(s, 0, 'vx_002');

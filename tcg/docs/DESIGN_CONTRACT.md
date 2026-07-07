@@ -34,7 +34,7 @@ battle for industry dominance. Tone: sleek corporate cyberpunk, dry satirical fl
     SAME player-facing term used for a CEO's health; both are "Integrity" in all card text/UI,
     never "Durability". Internal field names stay `health`/`maxHealth` on units vs `integrity`/
     `maxIntegrity` on players — an implementation detail, invisible to players).
-    Summoning sickness: cannot attack the turn it's deployed unless it has FAST-TRACK.
+    Summoning sickness: cannot attack the turn it's deployed unless it has VESTED.
     Assets attack once per turn (twice with OVERTIME). Attackers can target enemy assets
     or the enemy CEO — but must attack a FIREWALL asset if any exists (CORPORATE VEIL ignores nothing;
     firewall rule applies to attackers regardless). FIREWALL otherwise only gates the `attack`
@@ -52,7 +52,7 @@ battle for industry dominance. Tone: sleek corporate cyberpunk, dry satirical fl
 | id        | Name                     | Industry              | Identity / mechanics                                  | Accent color |
 |-----------|--------------------------|-----------------------|-------------------------------------------------------|--------------|
 | `nexus`   | Nexus Dynamics           | AI & software         | Tempo/control: card draw, bounce, cheap efficient ops  | cyan `#22d3ee` |
-| `vulcan`  | Vulcan Heavy Industries  | Manufacturing/defense | Aggro: direct damage, FAST-TRACK, big late-game assets | orange `#f97316` |
+| `vulcan`  | Vulcan Heavy Industries  | Manufacturing/defense | Aggro: direct damage, VESTED, big late-game assets     | orange `#f97316` |
 | `helix`   | Helix Biosystems         | Biotech               | Growth: healing, buffs, clone tokens, SIPHON           | green `#4ade80` |
 | `obsidian`| Obsidian Capital         | Finance/private equity| Greed: capital ramp, sacrifice, GOLDEN PARACHUTE value | violet-gold `#c084fc` |
 | `neutral` | Independent Contractors  | —                     | Usable in any deck                                     | gray `#94a3b8` |
@@ -62,7 +62,7 @@ battle for industry dominance. Tone: sleek corporate cyberpunk, dry satirical fl
 | Keyword id       | Display name        | Meaning (classic analog)                                        |
 |------------------|---------------------|-----------------------------------------------------------------|
 | `firewall`       | FIREWALL            | Enemies must attack this asset first (Taunt)                    |
-| `fasttrack`      | FAST-TRACK          | Can attack the turn it's deployed (Charge)                      |
+| `fasttrack`      | VESTED              | Can attack the turn it's deployed (Charge). Uniform name across every faction — no per-card flavor rename. |
 | `stealth`        | CORPORATE VEIL      | Can't be targeted/attacked until it deals damage (Stealth). Uniform name across every faction — no per-card flavor rename. |
 | `shielded`       | PATENT PROTECTION   | Ignores the first damage it would take (Divine Shield)          |
 | `overtime`       | OVERTIME            | Can attack twice per turn (Windfury)                            |
@@ -412,7 +412,7 @@ The server exposes them to the client as JSON via `GET /api/cards`.
   "attack": 4,                 // ASSET only
   "health": 3,                 // ASSET only (CEO uses health: 40)
   "keywords": ["fasttrack"],  // stand-alone keywords only (section 3)
-  "text": "FAST-TRACK. Onboarding: deal 1 damage to the enemy CEO.",
+  "text": "VESTED. Onboarding: deal 1 damage to the enemy CEO.",
   "flavor": "Quarterly targets are not a suggestion.",
   "rarity": "common",          // common | rare | epic | legendary
   "collectible": true,          // false for tokens / CEO / POWER cards
