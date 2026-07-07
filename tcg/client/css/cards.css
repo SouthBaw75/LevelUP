@@ -281,17 +281,26 @@
 /* the inspect preview grows to fit reminder text instead of clipping it */
 .preview-card { height: auto; min-height: calc(var(--cw) * 1.45); position: relative; z-index: 2; }
 .preview-card .card-body { overflow: visible; }
-/* attached card(s) in the hover preview — tucked behind-and-below the base card,
-   lower-right, so hovering a distracted unit shows BOTH what it is and what's
-   stuck to it. Offset per index in case a unit ever carries more than one. */
+/* attached card(s) in the hover preview — rests fully clear below the base
+   card (whole card readable, nothing clipped), but arrives by sliding out
+   from underneath it: the animation's `from` state is the same "tucked,
+   mostly-hidden, small peek" position the board unit shows, so hovering
+   reads as pulling the intern out from where it was stuck. Freshly created
+   per showPreview() call, so the animation autoplays every time. Offset per
+   index in case a unit ever carries more than one attachment. */
 #card-preview-layer.has-attachment { overflow: visible; }
 .preview-attachment {
   position: absolute; z-index: 1;
-  top: calc(158px + var(--att-i, 0) * 22px);
-  left: calc(152px + var(--att-i, 0) * 26px);
-  transform: rotate(7deg);
+  top: calc(372px + var(--att-i, 0) * 26px);
+  left: calc(36px + var(--att-i, 0) * 30px);
+  transform: rotate(6deg);
+  animation: tuck-slide-out 0.5s cubic-bezier(0.2, 0.8, 0.2, 1) both;
   filter: drop-shadow(5px 8px 12px rgba(0, 0, 0, 0.72)) brightness(0.92) saturate(1.05);
   pointer-events: none;
+}
+@keyframes tuck-slide-out {
+  from { transform: translateY(-254px) rotate(-4deg); }
+  to   { transform: translateY(0) rotate(6deg); }
 }
 
 /* ---------- board unit (compact in-play ASSET) ---------- */
@@ -335,13 +344,14 @@
 .unit .stat-chip { width: 26px; height: 26px; font-size: 13px; border-radius: 7px; bottom: 6px; }
 .unit .atk-chip { left: -6px; }
 .unit .hp-chip { right: -6px; }
-/* attached card (Flirty Intern) tucked behind the unit — a corner peeking out
-   the lower-left, tilted, so it reads as "a card slid underneath". Prepended
-   in the DOM so it sits behind the frame; pointer-events off so it never
-   steals the unit's hover/click. */
+/* attached card (Flirty Intern) tucked behind the unit — centered under it,
+   almost entirely hidden by the frame/name band, with just a small sliver
+   peeking out below the unit's bottom edge (a card slid underneath, not a
+   card fanned out beside it). Prepended in the DOM so it sits behind the
+   frame; pointer-events off so it never steals the unit's hover/click. */
 .unit-attachment {
-  position: absolute; left: -17px; bottom: -7px; z-index: 0;
-  transform: rotate(-11deg);
+  position: absolute; left: 50%; bottom: -8px; z-index: 0;
+  transform: translateX(-50%) rotate(-4deg);
   filter: drop-shadow(2px 3px 5px rgba(0,0,0,0.65)) brightness(0.9) saturate(1.05);
   pointer-events: none; cursor: default;
 }
