@@ -2046,6 +2046,189 @@ test('MEGA YACHT: is a valid Franchise copy target (Obsidian\'s own facility)', 
 });
 
 // ---------------------------------------------------------------------------
+// FEDERAL RESERVE ANNEX (ob_028): FIREWALL body, endOfTurn: +1 permanent
+// maximum Capital. Same generic ASSET endOfTurn path as nx_012 The Algorithm,
+// just calling addCapital with permanent:true instead of draw.
+// ---------------------------------------------------------------------------
+test('FEDERAL RESERVE ANNEX: gains 1 permanent max Capital at end of turn', () => {
+  const s = newGame();
+  giveCapital(s, 0, 5);
+  addUnit(s, 0, 'ob_028');
+  const r = end(s);
+  assert.equal(s.players[0].maxCapital, 6, 'gained 1 permanent max Capital');
+  const capEv = findAll(r.events, 'capital').find((e) => e.player === 0 && e.gain === 1);
+  assert.ok(capEv, 'a +1 capital event was emitted');
+});
+
+test('FEDERAL RESERVE ANNEX: capped at 10 like any max Capital gain', () => {
+  const s = newGame();
+  giveCapital(s, 0, 10);
+  addUnit(s, 0, 'ob_028');
+  end(s);
+  assert.equal(s.players[0].maxCapital, 10, 'capped at 10, not 11');
+});
+
+test('FEDERAL RESERVE ANNEX: only fires for its OWNER\'s own end of turn', () => {
+  const s = newGame();
+  giveCapital(s, 1, 5);
+  addUnit(s, 1, 'ob_028'); // the enemy's own Annex
+  const before0 = s.players[0].maxCapital;
+  end(s); // ends p0's turn — the enemy's Annex belongs to p1, should not fire yet
+  assert.equal(s.players[0].maxCapital, before0, 'p0 unaffected by the enemy\'s own facility');
+});
+
+test('FEDERAL RESERVE ANNEX: is a valid Franchise copy target (Obsidian\'s own facility)', () => {
+  const s = newGame();
+  giveCapital(s, 0, 10);
+  const annex = addUnit(s, 0, 'ob_028');
+  const idx = putInHand(s, 0, 'ob_025'); // Franchise
+  const r = applyAction(s, 0, { type: 'playCard', handIndex: idx, target: annex.id, position: null });
+  assert.equal(r.ok, true);
+  assert.equal(s.players[0].board[1].cardId, 'ob_028', 'Franchise summoned a copy of Federal Reserve Annex');
+});
+
+// ---------------------------------------------------------------------------
+// CAYMAN CLEARINGHOUSE (ob_029): GOLDEN PARACHUTE gains 1 Capital per OTHER
+// FINANCIAL asset the owner controls. New `perFriendlyTag` variant of
+// addCapital, counted against the owner's board AFTER the dying unit itself
+// has already been spliced out by sweepDeaths — "each OTHER financial asset"
+// falls out for free, no special-casing needed.
+// ---------------------------------------------------------------------------
+test('CAYMAN CLEARINGHOUSE: GOLDEN PARACHUTE gains 1 Capital per other FINANCIAL asset', () => {
+  const s = newGame();
+  addUnit(s, 1, 'ob_004'); // Toxic Asset — financial
+  addUnit(s, 1, 'ob_011'); // Vulture Fund — financial
+  const clearinghouse = addUnit(s, 1, 'ob_029', { health: 1 }); // one hit kills it
+  const a = addUnit(s, 0, 'vx_013'); // 6/7, easily lethal
+  s.players[1].capital = 2;
+  const r = applyAction(s, 0, { type: 'attack', attackerId: a.id, targetId: clearinghouse.id });
+  assert.equal(r.ok, true);
+  assert.equal(s.players[1].capital, 4, 'gained 2 Capital — one per OTHER financial asset');
+  const capEv = findAll(r.events, 'capital').find((e) => e.player === 1);
+  assert.ok(capEv && capEv.gain === 2, 'a +2 capital event was emitted');
+});
+
+test('CAYMAN CLEARINGHOUSE: gains 0 (and emits no capital event) with no other FINANCIAL assets', () => {
+  const s = newGame();
+  const clearinghouse = addUnit(s, 1, 'ob_029', { health: 1 });
+  const a = addUnit(s, 0, 'vx_013');
+  s.players[1].capital = 2;
+  const r = applyAction(s, 0, { type: 'attack', attackerId: a.id, targetId: clearinghouse.id });
+  assert.equal(r.ok, true);
+  assert.equal(s.players[1].capital, 2, 'no gain');
+  assert.equal(findAll(r.events, 'capital').filter((e) => e.player === 1).length, 0, 'no capital event for a zero gain');
+});
+
+test('CAYMAN CLEARINGHOUSE: does not count non-FINANCIAL assets or the enemy\'s', () => {
+  const s = newGame();
+  addUnit(s, 1, 'ntr_013'); // personnel, not financial
+  addUnit(s, 0, 'ob_004'); // enemy's financial asset — doesn't count
+  const clearinghouse = addUnit(s, 1, 'ob_029', { health: 1 });
+  const a = addUnit(s, 0, 'vx_013');
+  s.players[1].capital = 2;
+  const r = applyAction(s, 0, { type: 'attack', attackerId: a.id, targetId: clearinghouse.id });
+  assert.equal(r.ok, true);
+  assert.equal(s.players[1].capital, 2, 'neither the personnel nor the enemy\'s financial asset counted');
+});
+
+test('CAYMAN CLEARINGHOUSE: parachute Capital gain is capped at 10', () => {
+  const s = newGame();
+  for (let i = 0; i < 5; i++) addUnit(s, 1, 'ob_004'); // 5 financial assets
+  const clearinghouse = addUnit(s, 1, 'ob_029', { health: 1 });
+  const a = addUnit(s, 0, 'vx_013');
+  s.players[1].capital = 8; s.players[1].maxCapital = 10;
+  const r = applyAction(s, 0, { type: 'attack', attackerId: a.id, targetId: clearinghouse.id });
+  assert.equal(r.ok, true);
+  assert.equal(s.players[1].capital, 10, 'capped at 10, not 13');
+});
+
+test('CAYMAN CLEARINGHOUSE: is a valid Franchise copy target (Obsidian\'s own facility)', () => {
+  const s = newGame();
+  giveCapital(s, 0, 10);
+  const ch = addUnit(s, 0, 'ob_029');
+  const idx = putInHand(s, 0, 'ob_025'); // Franchise
+  const r = applyAction(s, 0, { type: 'playCard', handIndex: idx, target: ch.id, position: null });
+  assert.equal(r.ok, true);
+  assert.equal(s.players[0].board[1].cardId, 'ob_029', 'Franchise summoned a copy of Cayman Clearinghouse');
+});
+
+// ---------------------------------------------------------------------------
+// THE EXCHANGE (ob_030): reactive facility. `effects.onFriendlyAssetPlayed =
+// { match: { tag }, capital }` fires from the playCard callsite (not baked
+// into the played card) whenever the OWNER plays a matching-class ASSET from
+// hand — so multiple copies each grant their own Capital independently.
+// ---------------------------------------------------------------------------
+test('THE EXCHANGE: gains 1 Capital whenever a FINANCIAL asset is played', () => {
+  const s = newGame();
+  giveCapital(s, 0, 10);
+  addUnit(s, 0, 'ob_030'); // The Exchange
+  const before = s.players[0].capital;
+  const idx = putInHand(s, 0, 'ob_004'); // Toxic Asset — financial
+  const r = applyAction(s, 0, { type: 'playCard', handIndex: idx, target: null, position: 1 });
+  assert.equal(r.ok, true);
+  assert.equal(s.players[0].capital, before - CARDS.ob_004.cost + 1, 'paid cost, then gained 1 Capital');
+  const capEv = findAll(r.events, 'capital').find((e) => e.gain === 1);
+  assert.ok(capEv, 'a +1 capital event fired');
+});
+
+test('THE EXCHANGE: does not fire for a non-FINANCIAL asset', () => {
+  const s = newGame();
+  giveCapital(s, 0, 10);
+  addUnit(s, 0, 'ob_030');
+  const before = s.players[0].capital;
+  const idx = putInHand(s, 0, 'ntr_013'); // personnel, not financial
+  const r = applyAction(s, 0, { type: 'playCard', handIndex: idx, target: null, position: 1 });
+  assert.equal(r.ok, true);
+  assert.equal(s.players[0].capital, before - CARDS.ntr_013.cost, 'no bonus — not financial');
+  assert.equal(findAll(r.events, 'capital').filter((e) => e.gain).length, 0);
+});
+
+test('THE EXCHANGE: an enemy Exchange never reacts to your plays', () => {
+  const s = newGame();
+  addUnit(s, 1, 'ob_030'); // enemy's Exchange
+  giveCapital(s, 0, 10);
+  const before1 = s.players[1].capital;
+  const idx = putInHand(s, 0, 'ob_004'); // financial, but played by p0
+  const r = applyAction(s, 0, { type: 'playCard', handIndex: idx, target: null, position: 0 });
+  assert.equal(r.ok, true);
+  assert.equal(s.players[1].capital, before1, 'enemy Exchange unaffected — reacts only to its OWNER\'s plays');
+});
+
+test('THE EXCHANGE: two copies each grant their own Capital', () => {
+  const s = newGame();
+  giveCapital(s, 0, 10);
+  addUnit(s, 0, 'ob_030');
+  addUnit(s, 0, 'ob_030'); // a second copy (e.g. via Franchise)
+  const before = s.players[0].capital;
+  const idx = putInHand(s, 0, 'ob_004');
+  const r = applyAction(s, 0, { type: 'playCard', handIndex: idx, target: null, position: 2 });
+  assert.equal(r.ok, true);
+  assert.equal(s.players[0].capital, before - CARDS.ob_004.cost + 2, 'both Exchanges fired');
+});
+
+test('THE EXCHANGE: a silenced Exchange does not react', () => {
+  const s = newGame();
+  giveCapital(s, 0, 10);
+  const exch = addUnit(s, 0, 'ob_030');
+  exch.silenced = true;
+  const before = s.players[0].capital;
+  const idx = putInHand(s, 0, 'ob_004');
+  const r = applyAction(s, 0, { type: 'playCard', handIndex: idx, target: null, position: 1 });
+  assert.equal(r.ok, true);
+  assert.equal(s.players[0].capital, before - CARDS.ob_004.cost, 'silenced — no reaction');
+});
+
+test('THE EXCHANGE: is a valid Franchise copy target (Obsidian\'s own facility)', () => {
+  const s = newGame();
+  giveCapital(s, 0, 10);
+  const exch = addUnit(s, 0, 'ob_030');
+  const idx = putInHand(s, 0, 'ob_025'); // Franchise
+  const r = applyAction(s, 0, { type: 'playCard', handIndex: idx, target: exch.id, position: null });
+  assert.equal(r.ok, true);
+  assert.equal(s.players[0].board[1].cardId, 'ob_030', 'Franchise summoned a copy of The Exchange');
+});
+
+// ---------------------------------------------------------------------------
 // FIREWALL UPGRADE (ntr_036): grant FIREWALL to a friendly asset that lacks it.
 // ---------------------------------------------------------------------------
 test('FIREWALL UPGRADE: grants FIREWALL to a friendly asset', () => {

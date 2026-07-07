@@ -122,6 +122,13 @@ test('every referenced DSL op / special / token / keyword is implemented', () =>
         assert.ok(Number.isInteger(val.damage) && val.damage > 0, `${card.id} combatBonus.damage`);
         continue;
       }
+      if (key === 'onFriendlyAssetPlayed') {
+        assert.equal(card.type, 'ASSET', `${card.id} onFriendlyAssetPlayed is asset-only`);
+        assert.ok(val && typeof val === 'object', `${card.id} onFriendlyAssetPlayed object`);
+        assert.ok(val.match && TAG_VALUES.includes(val.match.tag), `${card.id} onFriendlyAssetPlayed match.tag`);
+        assert.ok(Number.isInteger(val.capital) && val.capital > 0, `${card.id} onFriendlyAssetPlayed.capital`);
+        continue;
+      }
       assert.ok(TRIGGERS.includes(key), `${card.id} unknown trigger ${key}`);
       assert.ok(Array.isArray(val), `${card.id} trigger ${key} must be an ops array`);
       for (const op of val) {
@@ -151,15 +158,17 @@ test('every referenced DSL op / special / token / keyword is implemented', () =>
   }
 });
 
-test('collectible counts match the contract (26 vulcan, 30 obsidian, 25 nexus/helix + 44 neutral = 150)', () => {
+test('collectible counts match the contract (26 vulcan, 33 obsidian, 25 nexus/helix + 44 neutral = 153)', () => {
   const byFaction = {};
   for (const c of collectible) byFaction[c.faction] = (byFaction[c.faction] || 0) + 1;
   assert.equal(byFaction.nexus, 25);
   assert.equal(byFaction.vulcan, 26); // + vx_c04 Retooling Order (counter aura)
   assert.equal(byFaction.helix, 25);
-  assert.equal(byFaction.obsidian, 30); // + ob_023 Counter Offer; + ob_024 Hedge Fund; + ob_025 Franchise; + ob_026 Executive Suite; + ob_027 Mega Yacht
+  assert.equal(byFaction.obsidian, 33); // + ob_023 Counter Offer; + ob_024 Hedge Fund; + ob_025 Franchise; + ob_026
+  // Executive Suite; + ob_027 Mega Yacht; + ob_028 Federal Reserve Annex; + ob_029 Cayman
+  // Clearinghouse; + ob_030 The Exchange
   assert.equal(byFaction.neutral, 44); // + ntr_035..ntr_040, ntr_c03 Regulatory Capture, ntr_c04 War Chest
-  assert.equal(collectible.length, 150);
+  assert.equal(collectible.length, 153);
   // CONTRACT cards: 3 per faction, plus vx_c04 (a 4th Vulcan, the counter card), plus
   // the neutral pair ntr_c03 Regulatory Capture and ntr_c04 War Chest
   const contracts = collectible.filter((c) => c.type === 'CONTRACT');

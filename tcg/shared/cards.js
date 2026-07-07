@@ -73,7 +73,8 @@ const ASSET_TAGS = {
   nx_010: ['facility'], nx_011: ['facility'], nx_020: ['facility'],
   vx_009: ['facility'], vx_013: ['facility'], vx_015: ['facility'],
   hx_007: ['facility'], hx_009: ['facility'], ntr_012: ['facility'],
-  ob_026: ['facility'], ob_027: ['facility'],
+  ob_026: ['facility'], ob_027: ['facility'], ob_028: ['facility'],
+  ob_029: ['facility'], ob_030: ['facility'],
   // organism
   hx_t_hydra: ['organism'], hx_t_spore: ['organism'], hx_t_labrat: ['organism'],
   hx_001: ['organism'], hx_004: ['organism'], hx_008: ['organism'], hx_012: ['organism'],
@@ -501,6 +502,18 @@ A('ob_027', 'Mega Yacht', 'obsidian', 6, 5, 7, { rarity: 'epic',
   text: 'GOLDEN PARACHUTE: Gain 3 Capital this turn.',
   flavor: 'When the company goes under, it’s the only thing that still floats.',
   effects: { parachute: [{ op: 'addCapital', amount: 3 }] } });
+A('ob_028', 'Federal Reserve Annex', 'obsidian', 3, 2, 5, { keywords: ['firewall'], rarity: 'epic',
+  text: 'FIREWALL. At the end of your turn, gain 1 permanent maximum Capital.',
+  flavor: 'Older than the company, sturdier than the company, and printing the whole time.',
+  effects: { endOfTurn: [{ op: 'addCapital', amount: 1, permanent: true }] } });
+A('ob_029', 'Cayman Clearinghouse', 'obsidian', 4, 3, 5, { rarity: 'epic',
+  text: 'GOLDEN PARACHUTE: Gain 1 Capital for each other FINANCIAL asset you control.',
+  flavor: 'No sign out front. No employees inside. Just numbers, moving.',
+  effects: { parachute: [{ op: 'addCapital', perFriendlyTag: 'financial' }] } });
+A('ob_030', 'The Exchange', 'obsidian', 5, 4, 5, { rarity: 'epic',
+  text: 'Whenever you play a FINANCIAL asset, gain 1 Capital.',
+  flavor: 'Every trade lights up a window. Most of the building is dark by noon.',
+  effects: { onFriendlyAssetPlayed: { match: { tag: 'financial' }, capital: 1 } } });
 
 // ---------------------------------------------------------------------------
 // NEUTRAL — Independent Contractors (ntr)

@@ -276,6 +276,33 @@ the client floats a "+N Capital" beat only on real gains.
   Capital this turn for each asset your opponent played last turn"). A reactive, cost-free ramp:
   a clean burst against a board-flooding opponent, a dead 0-cost card against a passive one.
 
+`addCapital` also has a `perFriendlyTag: <tag>` variant (as opposed to `perEnemyAsset`): it grants
+Capital equal to the number of the OWNER's own board units whose `tags` include `<tag>`. Typically
+fired from GOLDEN PARACHUTE — by the time a parachute runs, `sweepDeaths` has already spliced the
+dying unit out of the board array, so "each OTHER matching asset" falls out automatically with no
+special-casing.
+
+- **v1 card**: `ob_029` **Cayman Clearinghouse** — obsidian ASSET/FACILITY, cost 4, epic
+  ("GOLDEN PARACHUTE: Gain 1 Capital for each other FINANCIAL asset you control"). A payoff for
+  Obsidian's financial-tagged sub-theme (Toxic Asset, Vulture Fund, Holding Company, Hedge Fund).
+
+## 3f-quater. Reactive on-play trigger (The Exchange)
+
+An ASSET may carry `effects.onFriendlyAssetPlayed = { match: { tag }, capital }`. Unlike every
+other per-card mechanic in this document, this one is NOT baked into the played card's own
+data — it's read from the OWNER's board at the `playCard` callsite, right after the newly played
+ASSET is placed (and any onboarding effect resolves). `fireAssetPlayedTrigger` walks the owner's
+board, and for every non-silenced unit carrying this effect whose `match.tag` matches the just
+-played card's `tags` (reusing `auraMatches`, the same tag matcher as §3e/§3f), it grants
+`capital` Capital and stamps a `capital` event with `gain: capital`. Because it's evaluated per
+listener rather than per played-card, multiple copies of the same reactive facility (e.g. two
+Exchanges from a Franchise copy) each fire independently and stack.
+
+- **v1 card**: `ob_030` **The Exchange** — obsidian ASSET/FACILITY, cost 5, epic ("Whenever you
+  play a FINANCIAL asset, gain 1 Capital"). The most direct financial-tribal payoff of the three
+  new facilities — punishes/rewards every financial play in real time rather than at death or
+  end of turn.
+
 ## 3g. Capital Reserve (War Chest)
 
 A restricted capital reserve — the CapEx fund every board sets aside "for strategic
@@ -386,7 +413,7 @@ convention. The card data schema needs no art field.
 - `type: "CEO"` cards (one per faction, e.g. `nx_ceo`) define the hero: name, 40 health, `powerId`.
 - `type: "POWER"` cards define the CEO power: cost 2, `text`, effects.
 - Tokens (summoned units) are non-collectible ASSET cards in the same map.
-- **150 collectible cards total**: ~26 per faction (obsidian 30) + 44 neutral. Costs 0–10, all rarities.
+- **153 collectible cards total**: ~26 per faction (obsidian 33) + 44 neutral. Costs 0–10, all rarities.
 
 `STARTER_DECKS`: `{ nexus: {name, faction, cards:[40 ids]}, vulcan: {...}, helix: {...}, obsidian: {...} }`
 — four tuned, playable prebuilt decks.

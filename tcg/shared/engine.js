@@ -354,6 +354,23 @@ function combatTagBonus(attacker, defenderDef) {
   return 0;
 }
 
+// The Exchange (§onFriendlyAssetPlayed): reactive facilities watch every ASSET
+// the OWNER plays from hand (this fires from the play site, not baked into the
+// played card, so multiple listeners — e.g. two Exchanges via Franchise —
+// each grant their own Capital independently). Reuses auraMatches's tag check
+// against the PLAYED card's def, same matcher §3e/§3f already use. Silenced
+// listeners don't react — it's an ability, same as combatBonus/adjacencyBuff.
+function fireAssetPlayedTrigger(state, ev, player, playedCard) {
+  const p = state.players[player];
+  for (const u of p.board.slice()) {
+    if (u.silenced) continue;
+    const trig = CARDS[u.cardId].effects.onFriendlyAssetPlayed;
+    if (!trig || !auraMatches(trig.match, playedCard)) continue;
+    p.capital = Math.min(MAX_CAPITAL, p.capital + trig.capital);
+    ev.push({ e: 'capital', player, capital: p.capital, maxCapital: p.maxCapital, gain: trig.capital });
+  }
+}
+
 // THE one cost helper: view display, playable calc, applyAction validation and
 // capital deduction all go through here. opCostReduction (nx_c01) applies to
 // the owner's OPERATIONs only; contractCostReduction (Corporate Lobbyist)
@@ -780,9 +797,16 @@ export const OPS = {
     // Multilevel Marketing: `perEnemyAsset` scales the (temporary) gain to the
     // number of ASSETS the OPPONENT played on their last turn (their counter
     // hasn't reset yet — it only resets at the start of their own next turn).
+    // Cayman Clearinghouse: `perFriendlyTag` counts the OWNER's own board for
+    // a matching asset class. Fires from GOLDEN PARACHUTE, so the dying unit
+    // itself is already off the board by this point (sweepDeaths splices dead
+    // units out before running parachutes) — "each OTHER financial asset" is
+    // therefore automatic, not a special case.
     const amount = op.perEnemyAsset
       ? state.players[1 - ctx.player].assetsPlayedThisTurn
-      : op.amount;
+      : op.perFriendlyTag
+        ? state.players[ctx.player].board.filter((u) => (CARDS[u.cardId]?.tags || []).includes(op.perFriendlyTag)).length
+        : op.amount;
     if (amount <= 0) return; // nothing to grant (e.g. MLM vs an asset-less last turn) — no event
     if (op.permanent) {
       p.maxCapital = Math.min(MAX_CAPITAL, p.maxCapital + amount);
@@ -1105,6 +1129,7 @@ function applyActionInner(state, playerIndex, action) {
             player: playerIndex, sourceUnit: unit, target: tc.target, sourceCardId: cardId,
           });
         }
+        if (unit) fireAssetPlayedTrigger(state, ev, playerIndex, card);
       } else if (card.type === 'CONTRACT') {
         const contract = {
           id: 'c' + state.nextContract++,
