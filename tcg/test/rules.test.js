@@ -377,10 +377,14 @@ test('TOXIC does not destroy through a shield (0 damage dealt)', () => {
   assert.equal(s.players[1].board.length, 1, 'shielded unit survives toxic hit');
 });
 
+// Generic SIPHON-mechanic tests: force the keyword via override rather than
+// hardcoding a specific printed carrier — which card(s) actually print SIPHON
+// is a balance decision that shifts over time (see docs/DESIGN_CONTRACT.md
+// SIPHON density notes), and this test only cares about the keyword's rules.
 test('SIPHON heals your CEO for damage dealt (both attack and defense)', () => {
   const s = newGame();
   s.players[0].integrity = 20;
-  const leech = addUnit(s, 0, 'hx_012'); // 4/5 siphon
+  const leech = addUnit(s, 0, 'hx_012', { keywords: ['siphon'] }); // 4/5 + siphon
   const target = addUnit(s, 1, 'ntr_013'); // 4/5
   const r = applyAction(s, 0, { type: 'attack', attackerId: leech.id, targetId: target.id });
   assert.equal(r.ok, true);
@@ -391,7 +395,7 @@ test('SIPHON heals your CEO for damage dealt (both attack and defense)', () => {
 test('healing is uncapped: SIPHON overheals past base integrity', () => {
   const s = newGame();
   s.players[0].integrity = 29;
-  const leech = addUnit(s, 0, 'hx_012'); // 4/5 siphon
+  const leech = addUnit(s, 0, 'hx_012', { keywords: ['siphon'] }); // 4/5 + siphon
   applyAction(s, 0, { type: 'attack', attackerId: leech.id, targetId: 'hero1' });
   assert.equal(s.players[0].integrity, 33, '29 + 4 siphon = 33, no 30 cap');
 });

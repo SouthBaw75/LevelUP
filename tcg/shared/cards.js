@@ -364,9 +364,8 @@ A('hx_011', 'Enhancement Coach', 'helix', 4, 3, 3, { rarity: 'rare',
   text: 'ONBOARDING: Give a friendly asset +2/+2.',
   flavor: 'Performance improvement plan, injectable.',
   effects: { targeting: 'friendlyUnit', onboarding: [{ op: 'buff', attack: 2, health: 2, to: 'target' }] } });
-A('hx_012', 'Hemo Harvester', 'helix', 5, 4, 5, { keywords: ['siphon'], rarity: 'rare',
-  text: 'SIPHON.',
-  flavor: 'Blood from a stone? Amateurs. Blood from a competitor.' });
+A('hx_012', 'Hemo Harvester', 'helix', 5, 4, 5, { rarity: 'rare',
+  flavor: 'It doesn’t need to keep what it takes.' });
 O('hx_013', 'Rapid Evolution', 'helix', 5, { rarity: 'rare',
   text: 'Give your assets +2/+2.',
   flavor: 'Survival of the best-funded.',

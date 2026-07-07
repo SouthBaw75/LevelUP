@@ -76,6 +76,20 @@ battle for industry dominance. Tone: sleek corporate cyberpunk, dry satirical fl
 | `onboarding`     | ONBOARDING          | Effect when played from hand (Battlecry)                        |
 | `parachute`      | GOLDEN PARACHUTE    | Effect when destroyed (Deathrattle)                             |
 
+**SIPHON density (balance history):** AI-vs-AI playtesting showed Helix's combined
+sustain output (SIPHON lifesteal + Regrowth + Booster Shot + Field Medics + the CEO
+power) was strong enough to beat both a control deck (Nexus, 65%) and a race deck
+(Vulcan, 80%) — too strong against opposite game plans to be a fair matchup rather
+than Helix being generally overtuned. SIPHON alone traced to over half of total
+healing. Trimmed incrementally, highest-value carrier first: `hx_016` Symbiotic
+Titan (7-cost, stacked FIREWALL+SIPHON — the worst offender, tanking AND healing on
+the same body) lost SIPHON first (80% → 70% vs. Vulcan); `hx_012` Hemo Harvester
+(5-cost, 4/5, the higher-attack of the two remaining carriers) lost it next. Only
+`hx_004` Plasma Leech (2-cost, 1/3) still prints SIPHON, keeping the mechanic alive
+at the cheap end of the curve without the compounding density that made it
+overrunning. Re-test before cutting further — Regrowth's flat 8-heal-for-3 is the
+next-largest untouched contributor if the win rate is still off after this.
+
 ## 3b. CONTRACTS (v1)
 
 Persistent cards representing corporate agreements. Rules:
