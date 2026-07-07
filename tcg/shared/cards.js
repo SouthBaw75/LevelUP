@@ -72,7 +72,8 @@ const ASSET_TAGS = {
   // facility
   nx_010: ['facility'], nx_011: ['facility'], nx_020: ['facility'],
   vx_009: ['facility'], vx_013: ['facility'], vx_015: ['facility'],
-  hx_007: ['facility'], hx_009: ['facility'], ntr_012: ['facility'], ob_026: ['facility'],
+  hx_007: ['facility'], hx_009: ['facility'], ntr_012: ['facility'],
+  ob_026: ['facility'], ob_027: ['facility'],
   // organism
   hx_t_hydra: ['organism'], hx_t_spore: ['organism'], hx_t_labrat: ['organism'],
   hx_001: ['organism'], hx_004: ['organism'], hx_008: ['organism'], hx_012: ['organism'],
@@ -496,6 +497,10 @@ A('ob_026', 'Executive Suite', 'obsidian', 5, 4, 6, { rarity: 'epic',
   text: 'Adjacent FINANCIAL assets gain +1/+1.',
   flavor: 'Everyone at this table bills more per hour than you make per year.',
   effects: { adjacencyBuff: { attack: 1, health: 1, match: { tag: 'financial' } } } });
+A('ob_027', 'Mega Yacht', 'obsidian', 6, 5, 7, { rarity: 'epic',
+  text: 'GOLDEN PARACHUTE: Gain 3 Capital this turn.',
+  flavor: 'When the company goes under, it’s the only thing that still floats.',
+  effects: { parachute: [{ op: 'addCapital', amount: 3 }] } });
 
 // ---------------------------------------------------------------------------
 // NEUTRAL — Independent Contractors (ntr)

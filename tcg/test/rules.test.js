@@ -1997,6 +1997,55 @@ test('EXECUTIVE SUITE: is a valid Franchise copy target (Obsidian\'s own facilit
 });
 
 // ---------------------------------------------------------------------------
+// MEGA YACHT (ob_027): Obsidian's second facility. GOLDEN PARACHUTE: gain 3
+// Capital this turn when it dies — reuses the plain (non-permanent) addCapital
+// op, same path as MLM's temp-capital gain, capped at MAX_CAPITAL like any
+// other capital gain.
+// ---------------------------------------------------------------------------
+test('MEGA YACHT: GOLDEN PARACHUTE gains 3 Capital on death', () => {
+  const s = newGame();
+  const yacht = addUnit(s, 1, 'ob_027', { health: 1 }); // one hit kills it
+  const a = addUnit(s, 0, 'vx_013'); // 6/7, easily lethal
+  s.players[1].capital = 2;
+  const r = applyAction(s, 0, { type: 'attack', attackerId: a.id, targetId: yacht.id });
+  assert.equal(r.ok, true);
+  assert.equal(s.players[1].capital, 5, 'gained 3 Capital from the parachute');
+  const capEv = findAll(r.events, 'capital').find((e) => e.player === 1);
+  assert.ok(capEv && capEv.gain === 3, 'a +3 capital event was emitted');
+});
+
+test('MEGA YACHT: parachute Capital gain is temporary — does not raise maxCapital', () => {
+  const s = newGame();
+  const yacht = addUnit(s, 1, 'ob_027', { health: 1 });
+  const a = addUnit(s, 0, 'vx_013');
+  s.players[1].capital = 2;
+  s.players[1].maxCapital = 4;
+  const r = applyAction(s, 0, { type: 'attack', attackerId: a.id, targetId: yacht.id });
+  assert.equal(r.ok, true);
+  assert.equal(s.players[1].maxCapital, 4, 'maxCapital untouched — a temporary gain');
+});
+
+test('MEGA YACHT: parachute Capital gain is capped at 10', () => {
+  const s = newGame();
+  const yacht = addUnit(s, 1, 'ob_027', { health: 1 });
+  const a = addUnit(s, 0, 'vx_013');
+  s.players[1].capital = 9; s.players[1].maxCapital = 10;
+  const r = applyAction(s, 0, { type: 'attack', attackerId: a.id, targetId: yacht.id });
+  assert.equal(r.ok, true);
+  assert.equal(s.players[1].capital, 10, 'capped at 10, not 12');
+});
+
+test('MEGA YACHT: is a valid Franchise copy target (Obsidian\'s own facility)', () => {
+  const s = newGame();
+  giveCapital(s, 0, 10);
+  const yacht = addUnit(s, 0, 'ob_027'); // Mega Yacht — a facility on Obsidian's own board
+  const idx = putInHand(s, 0, 'ob_025'); // Franchise
+  const r = applyAction(s, 0, { type: 'playCard', handIndex: idx, target: yacht.id, position: null });
+  assert.equal(r.ok, true);
+  assert.equal(s.players[0].board[1].cardId, 'ob_027', 'Franchise summoned a copy of Mega Yacht');
+});
+
+// ---------------------------------------------------------------------------
 // FIREWALL UPGRADE (ntr_036): grant FIREWALL to a friendly asset that lacks it.
 // ---------------------------------------------------------------------------
 test('FIREWALL UPGRADE: grants FIREWALL to a friendly asset', () => {
