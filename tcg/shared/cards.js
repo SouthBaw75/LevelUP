@@ -423,6 +423,9 @@ O('ob_032', 'Margin Call', 'obsidian', 1, {
   text: 'Destroy an enemy asset with 2 or less Health.',
   flavor: 'Collateral shortfall. Liquidated before lunch.',
   effects: { targeting: 'enemyUnitLowHealth', play: [{ op: 'destroy', to: 'target' }] } });
+A('ob_033', 'Venture Strike Team', 'obsidian', 4, 4, 3, { keywords: ['fasttrack'], rarity: 'rare',
+  text: 'VESTED.',
+  flavor: 'By the time the board noticed, the locks were already changed.' });
 O('ob_006', 'Aggressive Expansion', 'obsidian', 2, { rarity: 'rare',
   text: 'Gain 1 permanent maximum Capital.',
   flavor: 'Growth strategy: buy the strategy department of a growth company.',
@@ -793,11 +796,18 @@ export const STARTER_DECKS = {
     // healthier 60/40 record against the same Nexus deck tracked with having
     // real cheap removal of its own (Shrapnel Burst et al.), not card-draw
     // parity — so this targets the actual lever, not a guess.
+    // -2 ob_003 (Junior Analyst, plain vanilla) / +2 ob_033 (Venture Strike
+    // Team — VESTED, attacks the turn it's played). Interaction was fixed by
+    // Margin Call, but Vulcan vs Obsidian was still 33/67 Vulcan-favored —
+    // Obsidian's draw/removal are now roughly at parity with Vulcan's, so the
+    // remaining gap looks like pace: Vulcan's race always gets a turn's head
+    // start over Obsidian's normal (summoning-sick) bodies. This closes that
+    // specific gap rather than adding more interaction Obsidian doesn't need.
     name: 'Obsidian Capital — Leveraged Everything',
     faction: 'obsidian',
-    cards: withContracts(['ob_001', 'ob_003', 'ob_005', 'ob_006', 'ob_007', 'ob_008', 'ob_009',
+    cards: withContracts(['ob_001', 'ob_005', 'ob_006', 'ob_007', 'ob_008', 'ob_009',
       'ob_010', 'ob_012', 'ob_013', 'ob_019', 'ob_022', 'ob_024', 'ob_023', 'ntr_037',
-      'ob_002', 'ob_011', 'ob_016', 'ob_017', 'ob_020', 'ob_032'],
+      'ob_002', 'ob_011', 'ob_016', 'ob_017', 'ob_020', 'ob_032', 'ob_033'],
     ['ob_024', 'ob_023', 'ob_022', 'ntr_037'], 'ob_c03'),
   },
 };

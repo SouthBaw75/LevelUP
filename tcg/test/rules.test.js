@@ -180,6 +180,21 @@ test('VESTED attacks the turn it is deployed', () => {
   assert.equal(s.players[1].integrity, 38);
 });
 
+test('Venture Strike Team (ob_033): VESTED, attacks the turn it is played', () => {
+  const s = newGame('obsidian', 'vulcan');
+  giveCapital(s, 0);
+  const idx = putInHand(s, 0, 'ob_033');
+  const r = applyAction(s, 0, { type: 'playCard', handIndex: idx, target: null, position: null });
+  assert.equal(r.ok, true);
+  const unit = s.players[0].board[0];
+  assert.equal(unit.attack, 4);
+  assert.equal(unit.health, 3);
+  assert.ok(unit.keywords.includes('fasttrack'));
+  const r2 = applyAction(s, 0, { type: 'attack', attackerId: unit.id, targetId: 'hero1' });
+  assert.equal(r2.ok, true, 'no summoning sickness — attacks the same turn');
+  assert.equal(s.players[1].integrity, 36);
+});
+
 test('OVERTIME allows exactly two attacks per turn', () => {
   const s = newGame();
   const u = addUnit(s, 0, 'vx_007'); // 2/3 overtime

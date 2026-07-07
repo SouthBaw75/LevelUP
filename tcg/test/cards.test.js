@@ -158,17 +158,18 @@ test('every referenced DSL op / special / token / keyword is implemented', () =>
   }
 });
 
-test('collectible counts match the contract (26 vulcan, 35 obsidian, 25 nexus/helix + 44 neutral = 155)', () => {
+test('collectible counts match the contract (26 vulcan, 36 obsidian, 25 nexus/helix + 44 neutral = 156)', () => {
   const byFaction = {};
   for (const c of collectible) byFaction[c.faction] = (byFaction[c.faction] || 0) + 1;
   assert.equal(byFaction.nexus, 25);
   assert.equal(byFaction.vulcan, 26); // + vx_c04 Retooling Order (counter aura)
   assert.equal(byFaction.helix, 25);
-  assert.equal(byFaction.obsidian, 35); // + ob_023 Counter Offer; + ob_024 Hedge Fund; + ob_025 Franchise; + ob_026
+  assert.equal(byFaction.obsidian, 36); // + ob_023 Counter Offer; + ob_024 Hedge Fund; + ob_025 Franchise; + ob_026
   // Executive Suite; + ob_027 Mega Yacht; + ob_028 Federal Reserve Annex; + ob_029 Cayman
-  // Clearinghouse; + ob_030 The Exchange; + ob_031 Talent Acquisition Center; + ob_032 Margin Call
+  // Clearinghouse; + ob_030 The Exchange; + ob_031 Talent Acquisition Center; + ob_032 Margin Call;
+  // + ob_033 Venture Strike Team
   assert.equal(byFaction.neutral, 44); // + ntr_035..ntr_040, ntr_c03 Regulatory Capture, ntr_c04 War Chest
-  assert.equal(collectible.length, 155);
+  assert.equal(collectible.length, 156);
   // CONTRACT cards: 3 per faction, plus vx_c04 (a 4th Vulcan, the counter card), plus
   // the neutral pair ntr_c03 Regulatory Capture and ntr_c04 War Chest
   const contracts = collectible.filter((c) => c.type === 'CONTRACT');
