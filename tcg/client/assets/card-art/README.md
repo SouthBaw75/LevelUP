@@ -17,9 +17,24 @@ client/assets/card-art/<cardId>.webp    (fallback)
 
 Examples: `vx_004.png`, `nx_ceo.jpg`, `ntr_subsidy.webp`.
 
+## Art style (IMPORTANT — keep consistent)
+
+**Painterly digital illustration, in the Magic: The Gathering tradition** — visible
+brushwork, dramatic *painted* lighting, rich stylized color, a clear focal subject.
+Think Chris Rahn / Volkan Bağa / Ryan Pancoast: it should read as a hand-painted
+oil illustration, **not** a photograph or a cinematic 3D render.
+
+- DO ask for: "painterly", "digital oil painting", "illustrated", "concept-art
+  style", "visible brushstrokes", "dramatic painterly lighting".
+- DON'T ask for: "photorealistic", "photograph", "cinematic photo", "octane/UE5
+  render", "hyperrealistic" — these break the deck's visual cohesion.
+- Tone stays on-theme: sleek corporate cyberpunk with dry satirical bite
+  (Bloomberg-terminal-meets-Blade-Runner-boardroom), just rendered *as a painting*.
+
 ## Recommended dimensions
 
-- **≥ 512 × 384 px**, roughly **4:3 landscape**.
+- **≥ 512 × 384 px**, roughly **4:3 landscape** (≈800–1000 px wide is plenty; the
+  frame is small, so don't ship needlessly huge files).
 - The image fills the frame with `object-fit: cover`, so anything close to 4:3
   works; edges may be cropped on other ratios. Keep the subject centered.
 
