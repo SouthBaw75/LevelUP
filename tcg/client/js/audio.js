@@ -24,6 +24,7 @@ let currentMusic = null; // name currently loaded into musicEl
 let wantMusic = null;    // name we want playing (for autoplay/settings-change retry)
 let fadeTimer = null;
 let gestureArmed = false;
+let currentTaunt = null; // the in-flight CEO taunt Audio, if any — see playCeoTaunt
 
 // Resolve <name> to the first assets/audio/<name>.<ext> that exists, else null.
 // Cached so a screen re-entry never re-probes the same files.
@@ -169,9 +170,20 @@ export async function playCeoTaunt(faction) {
     return { status: 'no-file', expected };
   }
   if (!sfxOn) return { status: 'muted' };
+  // Only one CEO taunt ever plays at once. A bigHit taunt from an earlier
+  // attack this turn and the victory taunt moments later come from separate
+  // actions/batches — the same-batch bigHit-vs-gameOver guard in anim.js
+  // only catches the case where a single lethal hit ALSO crosses the bigHit
+  // threshold, not "crossed it two attacks ago, then won this attack" — so
+  // without this, both play as independent, overlapping sounds. The newest
+  // taunt always wins by cutting off whatever's still playing.
+  if (currentTaunt && !currentTaunt.paused && !currentTaunt.ended) {
+    currentTaunt.pause();
+  }
   const url = urls[Math.floor(Math.random() * urls.length)];
   const a = new Audio(url);
   a.volume = SFX_VOL;
+  currentTaunt = a;
   try {
     await a.play();
     return { status: 'played', url };
