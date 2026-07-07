@@ -73,6 +73,15 @@ function faceGloss(k) {
   return KEYWORD_FACE_GLOSS[k] || KEYWORD_HELP[k] || '';
 }
 
+// Card ids currently "attached" to a board unit — rendered tucked underneath it
+// (on the board and in the hover preview) so you can see WHAT is affecting it.
+// v1: `distract` has exactly one source (Flirty Intern, ntr_037), so a
+// distracted unit is carrying that intern. Generalizes cleanly if more
+// attach-style cards are added later (return their ids here).
+export function attachmentsFor(unit) {
+  return unit && unit.distracted > 0 ? ['ntr_037'] : [];
+}
+
 /**
  * Render a full TCG card.
  * @param {object|string} defOrId card def or card id
@@ -496,6 +505,19 @@ export function renderUnit(unit, opts = {}) {
     el.appendChild(cb);
   }
 
+  // Attached cards (Flirty Intern) tuck in BEHIND the unit, a corner peeking out
+  // its lower-left so you can see something is stuck to it. Prepended so it sits
+  // behind the frame/name/chips in DOM order (no stacking context on .unit).
+  const attachments = attachmentsFor(unit);
+  if (attachments.length) {
+    el.classList.add('has-attachment');
+    for (const attId of attachments) {
+      const tuck = renderCard(attId, { width: 52, interactive: false });
+      tuck.classList.add('unit-attachment');
+      el.insertBefore(tuck, el.firstChild);
+    }
+  }
+
   // Flirty Intern: a distracted asset can't attack — show a rose countdown pip
   // (top-right) with the turns remaining, and tint the unit as charmed.
   if (unit.distracted > 0) {
@@ -567,6 +589,17 @@ export function showPreview(defOrId, anchorEl, overrides = {}) {
   const card = renderCard(defOrId, { width: 250, showFlavor: true, interactive: false, ...overrides });
   card.classList.add('preview-card');
   layer.appendChild(card);
+  // Attached cards (Flirty Intern on a distracted unit): show them tucked under
+  // the base card so the hover explains WHY the unit is affected. Keyed off the
+  // same `distracted` the board unit passes into its preview overrides.
+  const attachments = attachmentsFor(overrides);
+  attachments.forEach((attId, i) => {
+    const att = renderCard(attId, { width: 178, showFlavor: false, interactive: false });
+    att.classList.add('preview-attachment');
+    att.style.setProperty('--att-i', i);
+    layer.insertBefore(att, card); // behind the base card in DOM/stacking
+  });
+  layer.classList.toggle('has-attachment', attachments.length > 0);
   layer.style.display = 'block';
   // position beside the anchor, clamped to viewport. Reminder text can grow
   // the card past the nominal height, so measure the real rendered height.

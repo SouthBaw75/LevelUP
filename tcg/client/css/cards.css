@@ -279,8 +279,20 @@
 }
 @keyframes preview-in { from { opacity: 0; transform: scale(0.96); } }
 /* the inspect preview grows to fit reminder text instead of clipping it */
-.preview-card { height: auto; min-height: calc(var(--cw) * 1.45); }
+.preview-card { height: auto; min-height: calc(var(--cw) * 1.45); position: relative; z-index: 2; }
 .preview-card .card-body { overflow: visible; }
+/* attached card(s) in the hover preview — tucked behind-and-below the base card,
+   lower-right, so hovering a distracted unit shows BOTH what it is and what's
+   stuck to it. Offset per index in case a unit ever carries more than one. */
+#card-preview-layer.has-attachment { overflow: visible; }
+.preview-attachment {
+  position: absolute; z-index: 1;
+  top: calc(158px + var(--att-i, 0) * 22px);
+  left: calc(152px + var(--att-i, 0) * 26px);
+  transform: rotate(7deg);
+  filter: drop-shadow(5px 8px 12px rgba(0, 0, 0, 0.72)) brightness(0.92) saturate(1.05);
+  pointer-events: none;
+}
 
 /* ---------- board unit (compact in-play ASSET) ---------- */
 .unit {
@@ -323,6 +335,17 @@
 .unit .stat-chip { width: 26px; height: 26px; font-size: 13px; border-radius: 7px; bottom: 6px; }
 .unit .atk-chip { left: -6px; }
 .unit .hp-chip { right: -6px; }
+/* attached card (Flirty Intern) tucked behind the unit — a corner peeking out
+   the lower-left, tilted, so it reads as "a card slid underneath". Prepended
+   in the DOM so it sits behind the frame; pointer-events off so it never
+   steals the unit's hover/click. */
+.unit-attachment {
+  position: absolute; left: -17px; bottom: -7px; z-index: 0;
+  transform: rotate(-11deg);
+  filter: drop-shadow(2px 3px 5px rgba(0,0,0,0.65)) brightness(0.9) saturate(1.05);
+  pointer-events: none; cursor: default;
+}
+.unit.has-attachment { animation: distracted-sway 2.4s ease-in-out infinite; }
 /* §counters: asset-class aura bonus pip, top-left corner (gold, matches the
    payout/bonus motif). Static — no per-render pop, so board re-renders stay calm. */
 .unit-counter {

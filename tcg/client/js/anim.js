@@ -40,6 +40,16 @@ let gen = 0;
 // impact. Reset on every event so it never attaches to something unrelated.
 let pendingPowerCaster = null;
 
+// Attachment cards (Flirty Intern) whose cardPlayed reveal is HANDED OFF to the
+// following effect event, which flies the same revealed card onto its target
+// and tucks it under (instead of the normal reveal-then-slide-aside). The board
+// re-render then shows the persistent tuck (see components/card.js).
+const ATTACHMENT_CARD_IDS = new Set(['ntr_037']); // Flirty Intern
+let pendingAttachGhost = null;
+function clearAttachGhost() {
+  if (pendingAttachGhost) { pendingAttachGhost.remove(); pendingAttachGhost = null; }
+}
+
 export function initAnim(h) {
   gen++; // invalidate any in-flight drain/delayed fx from a previous game
   hooks = h;
@@ -53,6 +63,7 @@ export function initAnim(h) {
   playing = false;
   cancelled = false;
   pendingPowerCaster = null;
+  clearAttachGhost();
 }
 
 export function stopAnim() {
@@ -60,6 +71,7 @@ export function stopAnim() {
   cancelled = true;
   playing = false;
   queue.length = 0;
+  pendingAttachGhost = null; // fxLayer wipe below removes the node
   if (fxLayer) fxLayer.innerHTML = '';
 }
 
@@ -710,28 +722,37 @@ async function playEvent(ev) {
         ghost.style.transitionDuration = '160ms';
         ghost.style.opacity = '1';
         ghost.style.transform = 'translate(-50%,-50%) scale(1)';
-        // After the reveal beat, slide the ghost aside to the lower-left of
-        // the table (transform-only) so it never occludes summons/impacts at
-        // board center while it lingers.
-        const tr = hooks.tableEl()?.getBoundingClientRect();
-        const px = tr ? (tr.left + 120) - cx : -Math.round(innerWidth * 0.32);
-        const py = tr ? (tr.bottom - 245) - cy : Math.round(innerHeight * 0.22);
-        fxTimeout(() => {
-          ghost.style.transitionDuration = '420ms';
-          ghost.style.transform = `translate(-50%,-50%) translate(${px}px, ${py}px) scale(0.8) rotate(-5deg)`;
-        }, 340);
-        // Non-blocking: fades/removes itself well after the queue has moved
-        // on, so it lingers through the effect's own animation(s).
-        const linger = mine ? 1100 : 1500;
-        fxTimeout(() => {
-          ghost.style.transitionDuration = '220ms';
-          ghost.style.opacity = '0';
-          ghost.style.transform = `translate(-50%,-50%) translate(${px}px, ${py - 22}px) scale(0.72) rotate(-5deg)`;
-          setTimeout(() => ghost.remove(), 260);
-        }, linger);
-        // Only block long enough for the reveal pop-in plus a short beat to
-        // register the card before its effect starts playing.
-        await wait(320);
+        if (ATTACHMENT_CARD_IDS.has(ev.cardId)) {
+          // Hand the revealed card off to the following effect event (distract),
+          // which flies THIS same ghost onto the target and tucks it under.
+          clearAttachGhost(); // drop any stale leftover first
+          pendingAttachGhost = ghost;
+          ghost.dataset.cx = cx; ghost.dataset.cy = cy;
+          await wait(300);
+        } else {
+          // After the reveal beat, slide the ghost aside to the lower-left of
+          // the table (transform-only) so it never occludes summons/impacts at
+          // board center while it lingers.
+          const tr = hooks.tableEl()?.getBoundingClientRect();
+          const px = tr ? (tr.left + 120) - cx : -Math.round(innerWidth * 0.32);
+          const py = tr ? (tr.bottom - 245) - cy : Math.round(innerHeight * 0.22);
+          fxTimeout(() => {
+            ghost.style.transitionDuration = '420ms';
+            ghost.style.transform = `translate(-50%,-50%) translate(${px}px, ${py}px) scale(0.8) rotate(-5deg)`;
+          }, 340);
+          // Non-blocking: fades/removes itself well after the queue has moved
+          // on, so it lingers through the effect's own animation(s).
+          const linger = mine ? 1100 : 1500;
+          fxTimeout(() => {
+            ghost.style.transitionDuration = '220ms';
+            ghost.style.opacity = '0';
+            ghost.style.transform = `translate(-50%,-50%) translate(${px}px, ${py - 22}px) scale(0.72) rotate(-5deg)`;
+            setTimeout(() => ghost.remove(), 260);
+          }, linger);
+          // Only block long enough for the reveal pop-in plus a short beat to
+          // register the card before its effect starts playing.
+          await wait(320);
+        }
       }
       break;
     }
@@ -983,11 +1004,33 @@ async function playEvent(ev) {
       // the per-turn ticks just update the countdown pip via the re-render.
       const el = hooks.resolveTarget(ev.unitId);
       const applied = ev.turns >= 3;
-      if (el && applied) {
+      if (el && applied && pendingAttachGhost) {
+        // Fly the revealed intern from center onto the target and tuck it under
+        // (shrink to ~unit size, rotate to match the board tuck). After the
+        // batch's applyView re-renders the persistent tuck behind the unit, this
+        // flown ghost fades out — a seamless handoff to the real attachment.
+        const ghost = pendingAttachGhost; pendingAttachGhost = null;
+        const cx = Number(ghost.dataset.cx), cy = Number(ghost.dataset.cy);
+        const to = centerOf(el);
+        ghost.style.transitionDuration = '480ms';
+        ghost.style.transform =
+          `translate(-50%,-50%) translate(${to.x - cx}px, ${to.y - cy + 14}px) scale(0.42) rotate(-11deg)`;
+        fxTimeout(() => {
+          ghost.style.transitionDuration = '240ms';
+          ghost.style.opacity = '0';
+          setTimeout(() => ghost.remove(), 260);
+        }, 500); // after the flight AND the batch's re-render (tuck now behind the unit)
         pulseClass(el, 'distract-pop', 620);
         floatNum(el, '\u{1F48B}', 'distract-mark', { size: 'med' });
+        await wait(460);
+      } else {
+        if (el && applied) {
+          pulseClass(el, 'distract-pop', 620);
+          floatNum(el, '\u{1F48B}', 'distract-mark', { size: 'med' });
+        }
+        clearAttachGhost(); // safety: never let a handed-off ghost leak
+        await wait(applied ? 300 : 40);
       }
-      await wait(applied ? 300 : 40);
       break;
     }
     case 'layoff': {
