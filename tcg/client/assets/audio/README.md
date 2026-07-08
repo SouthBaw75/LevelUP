@@ -25,7 +25,7 @@ in the bottom-right corner, in the lobby or in-game (each choice is remembered).
 | `sfx-attack-laser.mp3` | SOFTWARE attackers (ion-beam projectile) — laser/zap | SFX — short |
 | `sfx-attack-bio.mp3` | ORGANISM attackers that lob pathogens — wet/organic | SFX — short |
 | `sfx-attack-claws.mp3` | Helix BEASTS that rake with claws — monster roar | SFX — short |
-| `sfx-attack-ledger.mp3` | FINANCIAL attackers (bullion volley) — coins/metallic *(no file yet: falls back to the generic pool — drop one in to give gold its own ring)* | SFX — short |
+| `sfx-attack-ledger.mp3` | FINANCIAL attackers (bullion volley) — coins/metallic (2 variants) | SFX — short |
 | `sfx-attack-artillery.mp3` | FACILITY attackers (siege shell) — heavy gun | SFX — short |
 | `sfx-destroy.mp3` | An asset being destroyed | SFX — short |
 | `sfx-ceo-damage.mp3` | A CEO (either player) taking damage | SFX — short |
