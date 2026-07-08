@@ -87,8 +87,10 @@ the same body) lost SIPHON first (80% → 70% vs. Vulcan); `hx_012` Hemo Harvest
 (5-cost, 4/5, the higher-attack of the two remaining carriers) lost it next. Only
 `hx_004` Plasma Leech (2-cost, 1/3) still prints SIPHON, keeping the mechanic alive
 at the cheap end of the curve without the compounding density that made it
-overrunning. Re-test before cutting further — Regrowth's flat 8-heal-for-3 is the
-next-largest untouched contributor if the win rate is still off after this.
+overrunning. `hx_019` Regrowth was the next-largest untouched contributor — its
+flat 8-heal-for-3 (2.67 integrity/mana, no body/card attached) was nearly double
+every other heal card's rate (Booster Shot 1.5/mana + a card; Field Medics
+0.67/mana on a 2/4 body). Trimmed to 5-heal-for-3 (1.67/mana) to bring it in line.
 
 ## 3b. CONTRACTS (v1)
 

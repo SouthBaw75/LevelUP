@@ -388,9 +388,9 @@ A('hx_018', 'Spore Pod', 'helix', 1, 1, 1, { keywords: ['layoff'],
   flavor: 'Severance package includes spores.',
   effects: { parachute: [{ op: 'summon', cardId: 'hx_t_spore' }] } });
 O('hx_019', 'Regrowth', 'helix', 3, {
-  text: 'Restore 8 Integrity to a CEO.',
+  text: 'Restore 5 Integrity to a CEO.',
   flavor: 'The board approved a new spine.',
-  effects: { targeting: 'anyHero', play: [{ op: 'heal', amount: 8, to: 'target' }] } });
+  effects: { targeting: 'anyHero', play: [{ op: 'heal', amount: 5, to: 'target' }] } });
 A('hx_020', 'Chimera Calf', 'helix', 4, 4, 5, {
   flavor: 'One-third lion, one-third goat, one-third intellectual property.' });
 O('hx_021', 'Forced Mutation', 'helix', 6, { rarity: 'rare',
