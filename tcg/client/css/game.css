@@ -324,10 +324,8 @@
   100% { opacity: 0; transform: translate(-50%, -50%) scale(1.4) rotate(24deg); }
 }
 
-.impact-flash { position: absolute; z-index: 155; width: 90px; height: 90px; transform: translate(-50%, -50%); border-radius: 50%; pointer-events: none;
-  background: radial-gradient(circle, rgba(255, 150, 158, 0.95), rgba(255, 80, 90, 0.3) 52%, transparent 70%);
-  animation: impact 0.38s ease-out forwards; }
-@keyframes impact { from { transform: translate(-50%, -50%) scale(0.3); opacity: 1; } to { transform: translate(-50%, -50%) scale(1.55); opacity: 0; } }
+/* spell/ability damage renders on the #fx-canvas particle system (see
+   anim.js impactAt → spawnEnergyStrike): crackling flash + shockwave + sparks. */
 
 /* white flash frame on the struck element: 2-frame full-brightness pulse.
    Applied to the inner frame/portrait so it never fights the knockback
@@ -409,18 +407,6 @@
    anim.js deathBurst → spawnDetonation): flash, shockwave, fireball, realistic
    cooling smoke, embers, and debris. The unit's own collapse is .unit.anim-death
    below. ---------- */
-/* lingering combat smoke puff: lighter, drifts up slowly after the blast */
-.smoke-puff {
-  position: absolute; z-index: 151; border-radius: 50%; pointer-events: none;
-  background: radial-gradient(circle, rgba(90, 96, 108, 0.55), rgba(50, 55, 66, 0.12) 70%);
-  animation: puff-drift 0.7s ease-out both;
-}
-@keyframes puff-drift {
-  0% { transform: translate(-50%, -50%) translate(0, 0) scale(0.5); opacity: 0; }
-  25% { opacity: 0.8; }
-  100% { transform: translate(-50%, -50%) translate(var(--dx, 0px), -34px) scale(2); opacity: 0; }
-}
-
 /* ---------- heal: radial bloom + rising plus-glyphs ---------- */
 .heal-bloom {
   position: absolute; z-index: 150; width: 96px; height: 96px; border-radius: 50%; pointer-events: none;
@@ -509,38 +495,8 @@
   background: radial-gradient(circle, #fff, #ffb347 60%, transparent);
   box-shadow: 0 0 10px #ff8c1a, 0 0 20px rgba(255, 90, 26, 0.7);
 }
-.explosion-flash {
-  position: absolute; z-index: 156; width: 160px; height: 160px; border-radius: 50%; pointer-events: none;
-  transform: translate(-50%, -50%);
-  background: radial-gradient(circle, #fff8ea 4%, rgba(255, 232, 170, 0.98) 16%, rgba(255, 140, 40, 0.65) 44%, transparent 72%);
-  animation: explosion 0.48s cubic-bezier(0.16, 1, 0.3, 1) forwards;
-}
-@keyframes explosion {
-  from { transform: translate(-50%, -50%) scale(0.2); opacity: 1; }
-  45% { opacity: 1; }
-  100% { transform: translate(-50%, -50%) scale(2.3); opacity: 0; }
-}
-/* expanding shockwave ring that trails the flash outward for a bigger, punchier hit */
-.explosion-ring {
-  position: absolute; z-index: 155; width: 40px; height: 40px; border-radius: 50%; pointer-events: none;
-  transform: translate(-50%, -50%);
-  border: 3px solid rgba(255, 176, 80, 0.85);
-  box-shadow: 0 0 18px rgba(255, 140, 40, 0.5), inset 0 0 14px rgba(255, 210, 140, 0.4);
-  animation: explosion-ring-expand 0.46s cubic-bezier(0.1, 0.7, 0.3, 1) forwards;
-}
-@keyframes explosion-ring-expand {
-  from { transform: translate(-50%, -50%) scale(0.3); opacity: 0.9; border-width: 4px; }
-  to { transform: translate(-50%, -50%) scale(3.6); opacity: 0; border-width: 1px; }
-}
-.shrapnel {
-  position: absolute; z-index: 156; width: 6px; height: 6px; border-radius: 50%; pointer-events: none;
-  background: #ffcf7a; box-shadow: 0 0 7px #ff9a2e, 0 0 14px rgba(255, 120, 26, 0.6);
-  animation: shrapnel-fly 0.52s cubic-bezier(0.2, 0.8, 0.4, 1) forwards;
-}
-@keyframes shrapnel-fly {
-  from { transform: translate(-50%, -50%) translate(0, 0) scale(1.2); opacity: 1; }
-  to { transform: translate(-50%, -50%) translate(var(--dx), var(--dy)) scale(0.5); opacity: 0; }
-}
+/* combat impact renders on the #fx-canvas particle system (see anim.js
+   explosionBurst → spawnImpact): flash, shockwave, sparks, debris, dust. */
 
 /* ---------- CEO power: energy arc from portrait to target ---------- */
 .power-beam {

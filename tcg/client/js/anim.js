@@ -187,20 +187,14 @@ export function floatNum(el, text, cls, opts = {}) {
   setTimeout(() => n.remove(), 1050);
 }
 
+/** Spell/ability damage: canvas energy-strike burst (see spawnEnergyStrike
+ *  below), scaled by the damage amount and colored by the struck unit/hero's
+ *  own faction so even a −1 poke reads as a real hit instead of a flat flash. */
 function impactAt(el, amount = 3) {
   if (!el) return;
   const { x, y } = centerOf(el);
-  const f = document.createElement('div');
-  f.className = 'impact-flash';
-  // scale the flash with the hit: small pokes get a tight, still-full-opacity
-  // flash (~60px) so even −1 lands with a visible beat
-  const sz = amount <= 2 ? 60 : 90;
-  f.style.width = sz + 'px';
-  f.style.height = sz + 'px';
-  f.style.left = x + 'px';
-  f.style.top = y + 'px';
-  fxLayer.appendChild(f);
-  setTimeout(() => f.remove(), 450);
+  const fc = getComputedStyle(el).getPropertyValue('--fc').trim() || '#94a3b8';
+  spawnEnergyStrike(x, y, amount, cssToRgb(fc));
 }
 
 /** Dust puff + double ground shockwave ring where a unit just materialized. */
@@ -390,6 +384,58 @@ function spawnDetonation(x, y, rad, rgb) {
     const a = (i / 8) * TAU + rf(0.5, -0.5), sp = rf(220, 80) * s;
     P.debris.push({ x, y, vx: Math.cos(a) * sp, vy: Math.sin(a) * sp - rf(150, 55) * s,
       w: rf(24, 11) * s, h: rf(19, 9) * s, rot: rf(TAU), vr: rf(9, -9), life: 0, dur: rf(1.1, 0.75), rgb });
+  }
+  startFxLoop();
+}
+
+/** Melee attack impact: sharp flash + tight shockwave + a spray of sparks and
+ *  a few chunky debris chips kicking off the struck unit, plus a brief puff
+ *  of dust — much shorter-lived than the death cloud so it never lingers
+ *  over a live board. Reuses spawnDetonation's particle pools/renderer, just
+ *  smaller and quicker since the unit survives the hit. Fires on every
+ *  attack, so this carries most of the game's combat "feel." */
+function spawnImpact(x, y, rad, rgb) {
+  ensureFxCanvas();
+  const s = rad / 140;
+  const P = fxPools;
+  P.flashes.push({ x, y, r: rad * 0.1, max: rad * 0.55, life: 0, dur: 0.11, rgb });
+  P.shocks.push({ x, y, r: rad * 0.08, max: rad * 0.85, life: 0, dur: 0.26, w: 2.4 * s, rgb });
+  for (let i = 0; i < 16; i++) {
+    const a = rf(TAU), sp = rf(300, 90) * s;
+    P.embers.push({ x, y, px: x, py: y, vx: Math.cos(a) * sp, vy: Math.sin(a) * sp - rf(40, 0) * s,
+      size: rf(3.6, 1.4) * s, life: 0, dur: rf(0.55, 0.22), flick: rf(TAU), drag: rf(2.2, 1.6), rgb });
+  }
+  for (let i = 0; i < 5; i++) {
+    const a = rf(TAU), sp = rf(150, 50) * s;
+    P.debris.push({ x, y, vx: Math.cos(a) * sp, vy: Math.sin(a) * sp - rf(90, 30) * s,
+      w: rf(10, 5) * s, h: rf(8, 4) * s, rot: rf(TAU), vr: rf(10, -10), life: 0, dur: rf(0.55, 0.4), rgb });
+  }
+  for (let i = 0; i < 6; i++) {
+    const a = rf(TAU), sp = rf(60, 10) * s;
+    P.smoke.push({ x: x + Math.cos(a) * rf(8, 0) * s, y: y + Math.sin(a) * rf(8, 0) * s,
+      vx: Math.cos(a) * sp, vy: Math.sin(a) * sp - rf(20, 6) * s,
+      size: rf(20, 12) * s, grow: rf(14, 8) * s, life: 0, dur: rf(0.42, 0.28),
+      rot: rf(TAU), vr: rf(0.6, -0.6), seed: (Math.random() * 3) | 0, turb: rf(10, 4) * s, phase: rf(TAU), buoy: rf(20, 8) * s });
+  }
+  startFxLoop();
+}
+
+/** Spell/ability damage: a sharper "energy strike" — crackling flash + tight
+ *  shockwave + a spray of sparks. No smoke, no debris: this damage comes from
+ *  an off-screen effect, not a physical unit-on-unit impact. Scales with the
+ *  amount so a 1 still lands as a beat and a big hit reads as a real crack. */
+function spawnEnergyStrike(x, y, amount, rgb) {
+  ensureFxCanvas();
+  const rad = amount >= 5 ? 100 : amount >= 3 ? 78 : 56;
+  const s = rad / 140;
+  const P = fxPools;
+  P.flashes.push({ x, y, r: rad * 0.14, max: rad * 0.6, life: 0, dur: 0.1, rgb });
+  P.shocks.push({ x, y, r: rad * 0.06, max: rad * 0.7, life: 0, dur: 0.22, w: 2.0 * s, rgb });
+  const n = amount >= 5 ? 18 : amount >= 3 ? 13 : 9;
+  for (let i = 0; i < n; i++) {
+    const a = rf(TAU), sp = rf(260, 80) * s;
+    P.embers.push({ x, y, px: x, py: y, vx: Math.cos(a) * sp, vy: Math.sin(a) * sp - rf(30, 0) * s,
+      size: rf(3.2, 1.3) * s, life: 0, dur: rf(0.42, 0.2), flick: rf(TAU), drag: rf(2.4, 1.8), rgb });
   }
   startFxLoop();
 }
@@ -621,52 +667,14 @@ function fireShell(fromEl, toEl, duration = 260) {
   setTimeout(() => shell.remove(), duration + 40);
 }
 
-/** Bigger artillery-style explosion: bright core flash + an expanding
- *  shockwave ring + flying shrapnel + lingering smoke puffs, for combat
- *  impacts. Scaled up for a punchier, more satisfying hit. */
+/** Melee attack impact: sparks/debris/dust kick off the struck unit itself
+ *  (canvas particle system — see spawnImpact above), colored by the target's
+ *  own faction, instead of a generic fixed-orange radial burst. */
 function explosionBurst(el) {
   if (!el) return;
-  const { x, y } = centerOf(el);
-  const flash = document.createElement('div');
-  flash.className = 'explosion-flash';
-  flash.style.left = x + 'px';
-  flash.style.top = y + 'px';
-  fxLayer.appendChild(flash);
-  setTimeout(() => flash.remove(), 480);
-  const ring = document.createElement('div');
-  ring.className = 'explosion-ring';
-  ring.style.left = x + 'px';
-  ring.style.top = y + 'px';
-  fxLayer.appendChild(ring);
-  setTimeout(() => ring.remove(), 460);
-  for (let i = 0; i < 11; i++) {
-    const p = document.createElement('div');
-    p.className = 'shrapnel';
-    const ang = (Math.PI * 2 * i) / 11 + (Math.random() * 0.4 - 0.2);
-    const dist = 48 + Math.random() * 40;
-    const size = 6 + Math.random() * 4;
-    p.style.width = size + 'px';
-    p.style.height = size + 'px';
-    p.style.left = x + 'px';
-    p.style.top = y + 'px';
-    p.style.setProperty('--dx', Math.cos(ang) * dist + 'px');
-    p.style.setProperty('--dy', Math.sin(ang) * dist + 'px');
-    fxLayer.appendChild(p);
-    setTimeout(() => p.remove(), 520);
-  }
-  for (let i = 0; i < 4; i++) {
-    const s = document.createElement('div');
-    s.className = 'smoke-puff';
-    const size = 30 + Math.random() * 22;
-    s.style.width = size + 'px';
-    s.style.height = size + 'px';
-    s.style.left = (x + Math.random() * 40 - 20) + 'px';
-    s.style.top = (y + Math.random() * 16 - 8) + 'px';
-    s.style.setProperty('--dx', (Math.random() * 24 - 12) + 'px');
-    s.style.animationDelay = (60 + i * 70) + 'ms';
-    fxLayer.appendChild(s);
-    setTimeout(() => s.remove(), 950);
-  }
+  const r = el.getBoundingClientRect();
+  const fc = getComputedStyle(el).getPropertyValue('--fc').trim() || '#94a3b8';
+  spawnImpact(r.left + r.width / 2, r.top + r.height / 2, Math.min(r.width, r.height), cssToRgb(fc));
 }
 
 /** Energy arc shot from a CEO portrait to the target of their power. */
