@@ -1233,6 +1233,7 @@ ATTACK_FX.claws = {
 const ATTACK_FX_OVERRIDE = {
   ob_021: 'ledger', // Bullion Golem
   vx_004: 'bullets', // Strike Battalion — soldiers open fire, they don't punch
+  nx_001: 'laser', // Intern Bot — a Nexus office bot zaps, it doesn't pack a gun
   hx_t_hydra: 'claws', hx_t_labrat: 'claws', // Hydra Clone, Lab Rat
   hx_004: 'claws', // Plasma Leech
   hx_012: 'claws', // Hemo Harvester
