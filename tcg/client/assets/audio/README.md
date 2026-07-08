@@ -20,7 +20,8 @@ in the bottom-right corner, in the lobby or in-game (each choice is remembered).
 | `select-obsidian.mp3` | Selecting **Obsidian Capital** | SFX — short |
 | `ui-select.mp3` *(optional)* | Fallback faction-select sound used for any faction that doesn't have its own `select-<faction>` file | SFX — short |
 | `sfx-play.mp3`    | Any card (asset or operation) being played from hand | SFX — short |
-| `sfx-attack.mp3`  | An asset attacking | SFX — short |
+| `sfx-attack.mp3`  | An asset attacking (any unit not tagged `robotic`) | SFX — short |
+| `sfx-attack-robotic.mp3` | An asset attacking whose card is tagged `robotic` (mechs, drones, golems) — falls back to `sfx-attack` if no robotic file/variant exists | SFX — short |
 | `sfx-destroy.mp3` | An asset being destroyed | SFX — short |
 | `sfx-ceo-damage.mp3` | A CEO (either player) taking damage | SFX — short |
 | `ceo-taunts/nexus.mp3` | The winning CEO's victory taunt, when Nexus Dynamics wins | SFX — voice line |

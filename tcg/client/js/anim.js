@@ -1025,8 +1025,12 @@ async function playEvent(ev) {
       break;
     }
     case 'attack': {
-      audio.playSfx('sfx-attack');
       const atk = hooks.resolveTarget(ev.attackerId);
+      // robotic-tagged attackers (mechs, drones, golems) get their own gunfire/
+      // servo sound pool; everything else falls back to the generic pool.
+      const atkDef = atk?.dataset.cardId ? getCard(atk.dataset.cardId) : null;
+      const robotic = atkDef?.tags?.includes('robotic');
+      audio.playSfx(robotic ? 'sfx-attack-robotic' : 'sfx-attack', 'sfx-attack');
       const tgt = hooks.resolveTarget(ev.targetId);
       const heroHit = typeof ev.targetId === 'string' && ev.targetId.startsWith('hero');
       const up = atk
