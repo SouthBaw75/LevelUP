@@ -2064,6 +2064,52 @@ test('COMPUTE CLUSTER: an enemy Compute Cluster never buffs your software', () =
 });
 
 // ---------------------------------------------------------------------------
+// ADJACENCY BUFF (class-gated) — War Factory (vx_013): +1/+1 to a ROBOTIC
+// asset placed immediately beside it. Completes the one-per-class adjacency
+// cycle (software/organism/financial/personnel/robotic) on the same engine
+// path; this suite guards the robotic class-gate.
+// ---------------------------------------------------------------------------
+test('WAR FACTORY: a ROBOTIC asset deployed beside it gains +1/+1', () => {
+  const s = newGame();
+  giveCapital(s, 0, 10);
+  addUnit(s, 0, 'vx_013'); // War Factory at index 0
+  const idx = putInHand(s, 0, 'vx_002'); // Rapid Response Drone — robotic
+  const r = applyAction(s, 0, { type: 'playCard', handIndex: idx, target: null, position: 1 });
+  assert.equal(r.ok, true);
+  const placed = s.players[0].board[1];
+  assert.equal(placed.cardId, 'vx_002');
+  assert.equal(placed.attack, CARDS.vx_002.attack + 1);
+  assert.equal(placed.health, CARDS.vx_002.health + 1);
+  const buff = findAll(r.events, 'buff').find((e) => e.unitId === placed.id);
+  assert.ok(buff && buff.attack === 1 && buff.health === 1, 'a +1/+1 buff was emitted');
+});
+
+test('WAR FACTORY: a non-ROBOTIC asset deployed beside it gets nothing', () => {
+  const s = newGame();
+  giveCapital(s, 0, 10);
+  addUnit(s, 0, 'vx_013'); // War Factory
+  const idx = putInHand(s, 0, 'ntr_013'); // personnel, not robotic
+  const r = applyAction(s, 0, { type: 'playCard', handIndex: idx, target: null, position: 1 });
+  assert.equal(r.ok, true);
+  const placed = s.players[0].board[1];
+  assert.equal(placed.attack, CARDS.ntr_013.attack, 'no bonus — wrong asset class');
+  assert.equal(placed.health, CARDS.ntr_013.health, 'no bonus — wrong asset class');
+  assert.equal(findAll(r.events, 'buff').length, 0);
+});
+
+test('WAR FACTORY: dropping it beside an existing ROBOTIC asset buffs both directions', () => {
+  const s = newGame();
+  giveCapital(s, 0, 10);
+  const bot = addUnit(s, 0, 'vx_002'); // Rapid Response Drone, index 0
+  const idx = putInHand(s, 0, 'vx_013'); // War Factory
+  const r = applyAction(s, 0, { type: 'playCard', handIndex: idx, target: null, position: 1 });
+  assert.equal(r.ok, true);
+  assert.equal(s.players[0].board[1].cardId, 'vx_013');
+  assert.equal(bot.attack, CARDS.vx_002.attack + 1, 'existing robotic neighbor buffed');
+  assert.equal(bot.health, CARDS.vx_002.health + 1, 'existing robotic neighbor buffed');
+});
+
+// ---------------------------------------------------------------------------
 // ADJACENCY BUFF (class-gated) — Executive Suite (ob_026): +1/+1 to a FINANCIAL
 // asset placed immediately beside it. Same engine path as Bioreactor/Compute
 // Cluster; also Obsidian's first facility of its own, so it's a valid target

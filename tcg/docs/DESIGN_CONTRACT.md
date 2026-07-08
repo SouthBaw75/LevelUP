@@ -267,7 +267,11 @@ the buff to neighbors of that asset class; omitting `match` buffs any neighbor u
   target. `ob_031` **Talent Acquisition Center** — class-gated,
   `{ attack: 1, health: 1, match: { tag: 'personnel' } }` ("+1/+1 to a PERSONNEL-class asset
   placed immediately beside it") — PERSONNEL is the default asset tag, so this reaches most of
-  Obsidian's non-financial roster.
+  Obsidian's non-financial roster. `vx_013` **War Factory** — class-gated,
+  `{ attack: 1, health: 1, match: { tag: 'robotic' } }` ("+1/+1 to a ROBOTIC-class asset placed
+  immediately beside it") — completes the one-buff-per-class cycle; Vulcan runs the game's
+  densest robotic roster (drones, mechs, Scrap Bot tokens), so it anchors that tribe. Kept its
+  full 6-cost 6/7 statline like Compute Cluster/Bioreactor (aura priced on-curve).
 
 ## 3f-bis. Combat bonus vs asset class
 

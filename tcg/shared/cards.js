@@ -290,7 +290,9 @@ O('vx_012', 'Railgun Prototype', 'vulcan', 4, { rarity: 'rare',
   flavor: 'The demo unit only works during demos to competitors.',
   effects: { targeting: 'anyUnit', play: [{ op: 'damage', amount: 5, to: 'target' }] } });
 A('vx_013', 'War Factory', 'vulcan', 6, 6, 7, {
-  flavor: 'Produces tanks, noise complaints, and shareholder value.' });
+  text: 'Adjacent ROBOTIC assets gain +1/+1.',
+  flavor: 'Produces tanks, noise complaints, and shareholder value.',
+  effects: { adjacencyBuff: { attack: 1, health: 1, match: { tag: 'robotic' } } } });
 A('vx_014', 'Plasma Trooper', 'vulcan', 6, 6, 5, { rarity: 'rare',
   text: 'ONBOARDING: Deal 3 damage to any target.',
   flavor: 'His onboarding packet was a target list.',
