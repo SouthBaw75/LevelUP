@@ -18,6 +18,9 @@ from the contract (DESIGN_CONTRACT.md §5) and animates `events`.
 | `{t:"joinPrivate", code, deck}` | | |
 | `{t:"cancelPrivate"}` | | host cancels an open private lobby |
 | `{t:"playBot", deck, difficulty}` | difficulty: `"normal"` \| `"hard"` | instant game vs AI |
+| `{t:"watchBots", factionA, factionB, matches, speed}` | factions: one of the 4; `matches` 1–50; `speed` scale (1=1×…0.02=max) | AI-vs-AI spectator run (starter decks) |
+| `{t:"watchSpeed", speed}` | scale as above | live-adjust the running sim's pace |
+| `{t:"watchStop"}` | | end the sim, tear down the watch room |
 | `{t:"action", action}` | action per contract §5 | only valid during a game |
 | `{t:"concede"}` | | (equivalent to action concede) |
 | `{t:"emote", id}` | id: `"greetings"|"wellplayed"|"threaten"|"oops"|"thanks"` | rate-limited by server |
@@ -42,6 +45,28 @@ from the contract (DESIGN_CONTRACT.md §5) and animates `events`.
 | `{t:"error", msg}` | protocol-level errors (bad deck, bad message, not in game) |
 | `{t:"pong"}` | |
 
+### AI-vs-AI watch mode (spectator only)
+
+A watch spectator has no seat; it receives a full-information god view (`view.players[0|1]`,
+both hands revealed) instead of the redacted `you`/`opp` shape.
+
+| message | payload |
+|---|---|
+| `{t:"watchStart", view, match, matches, factions:[a,b], firstSeat, tally}` | a match begins; `factions` map to fixed screen slots (`players[0]`=bottom) |
+| `{t:"watchState", view, events, turnDeadline}` | after every bot action |
+| `{t:"watchGameOver", view, winnerSeat, winnerFaction, reason, match, matches, tally, done}` | one match ended; `done` true on the last |
+| `{t:"watchComplete", tally, log}` | whole run finished; `log` is the downloadable play log (per-match action stream + summaries) |
+| `{t:"watchResume", view, match, matches, factions, tally, turnDeadline}` | sent instead of `watchStart` when a dropped connection reattaches mid-run (see below) — catches the client up to the live state |
+
+First player alternates each match (fair-alternation via `createGame`'s `firstPlayer`), so
+neither faction keeps the coin-flip edge; the win `tally` is keyed by faction (mirror-safe).
+
+The simulation never pauses for the spectator — bots keep playing through a dropped socket
+(sends are just no-ops with nobody listening). A disconnect gets a 30s reconnect grace
+(mirroring the PvP `Room` grace): reconnecting with the same `pid` within that window resends
+either `watchResume` (mid-run) or `watchComplete` again (if the whole run already finished
+while disconnected). No grace hit within 30s reaps the room — nobody's watching, no work lost.
+
 `turnDeadline`: epoch ms when the active player's turn auto-ends (90s timer). Server sends a
 fresh `state` (with a `turnStart` event) when it force-ends a turn.
 
@@ -53,8 +78,11 @@ fresh `state` (with a `turnStart` event) when it force-ends a turn.
 - Rooms: hold `state`, apply actions via `applyAction`, broadcast per-player redacted
   `{view, events}` after every accepted action. Auto-run bot turns.
 - Bot: picks from `legalActions` each step using `cloneState` + greedy evaluation
-  (normal = shallow/noisy, hard = deeper/greedy). Bot acts with small delays (600–1200 ms)
-  so its turns are watchable.
+  (normal = shallow/noisy, hard = deeper/greedy). Bot acts with small delays (600–1200 ms,
+  scaled by watch-mode speed) so its turns are watchable.
+- Watch rooms (AI-vs-AI): both seats bot-driven, no PvP grace/rematch/emote. Auto-runs N
+  matches, alternating first player, tallies wins by faction, records a downloadable play
+  log. Reaped when the spectator disconnects.
 - Reconnect: if a socket with the same `playerId` (sent as `?pid=` query param on the WS URL)
   reconnects within 30 s, reattach it to the running game and resend `gameStart` + current state.
 - Rate-limit: drop clients sending > 20 messages/second. Emotes max 1 per 3 s.

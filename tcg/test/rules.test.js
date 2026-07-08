@@ -153,7 +153,7 @@ test('cannot play a card you cannot afford', () => {
 });
 
 // ---------------------------------------------------------------------------
-// Summoning sickness / FAST-TRACK / OVERTIME
+// Summoning sickness / VESTED / OVERTIME
 // ---------------------------------------------------------------------------
 test('summoning sickness: freshly played assets cannot attack until next turn', () => {
   const s = newGame();
@@ -169,7 +169,7 @@ test('summoning sickness: freshly played assets cannot attack until next turn', 
   assert.equal(r2.ok, true);
 });
 
-test('FAST-TRACK attacks the turn it is deployed', () => {
+test('VESTED attacks the turn it is deployed', () => {
   const s = newGame();
   giveCapital(s, 0);
   const idx = putInHand(s, 0, 'vx_002');
@@ -178,6 +178,21 @@ test('FAST-TRACK attacks the turn it is deployed', () => {
   const r = applyAction(s, 0, { type: 'attack', attackerId: unit.id, targetId: 'hero1' });
   assert.equal(r.ok, true);
   assert.equal(s.players[1].integrity, 38);
+});
+
+test('Venture Strike Team (ob_033): VESTED, attacks the turn it is played', () => {
+  const s = newGame('obsidian', 'vulcan');
+  giveCapital(s, 0);
+  const idx = putInHand(s, 0, 'ob_033');
+  const r = applyAction(s, 0, { type: 'playCard', handIndex: idx, target: null, position: null });
+  assert.equal(r.ok, true);
+  const unit = s.players[0].board[0];
+  assert.equal(unit.attack, 4);
+  assert.equal(unit.health, 3);
+  assert.ok(unit.keywords.includes('fasttrack'));
+  const r2 = applyAction(s, 0, { type: 'attack', attackerId: unit.id, targetId: 'hero1' });
+  assert.equal(r2.ok, true, 'no summoning sickness — attacks the same turn');
+  assert.equal(s.players[1].integrity, 36);
 });
 
 test('OVERTIME allows exactly two attacks per turn', () => {
@@ -245,6 +260,61 @@ test('a stealthed FIREWALL cannot be attacked and does not force', () => {
   fw.keywords.push('stealth');
   assert.equal(applyAction(s, 0, { type: 'attack', attackerId: a.id, targetId: fw.id }).ok, false);
   assert.equal(applyAction(s, 0, { type: 'attack', attackerId: a.id, targetId: 'hero1' }).ok, true);
+});
+
+// ---------------------------------------------------------------------------
+// PRECISION STRIKE (vx_power): `anyRespectFirewall` targeting — identical to
+// `any`, except the enemy hero drops out of the legal target list while the
+// enemy has a live (non-stealth) FIREWALL asset, reusing the same
+// forcedTargets check the `attack` action already applies.
+// ---------------------------------------------------------------------------
+test('PRECISION STRIKE: cannot target the enemy hero while the enemy has a live FIREWALL asset', () => {
+  const s = newGame('vulcan', 'helix');
+  giveCapital(s, 0, 10);
+  const wall = addUnit(s, 1, 'ntr_007'); // 2/2 firewall
+  const r = applyAction(s, 0, { type: 'heroPower', target: 'hero1' });
+  assert.equal(r.ok, false, 'enemy hero is not a legal target while a firewall stands');
+  const acts = legalActions(s, 0).filter((a) => a.type === 'heroPower');
+  assert.ok(!acts.some((a) => a.target === 'hero1'), 'hero1 excluded from legalActions');
+  assert.ok(acts.some((a) => a.target === wall.id), 'the firewall unit itself is still a legal target');
+});
+
+test('PRECISION STRIKE: can still hit the FIREWALL asset itself', () => {
+  const s = newGame('vulcan', 'helix');
+  giveCapital(s, 0, 10);
+  const wall = addUnit(s, 1, 'ntr_007');
+  const r = applyAction(s, 0, { type: 'heroPower', target: wall.id });
+  assert.equal(r.ok, true);
+  assert.equal(wall.health, CARDS.ntr_007.health - 1);
+});
+
+test('PRECISION STRIKE: enemy hero is targetable again once the FIREWALL is destroyed', () => {
+  const s = newGame('vulcan', 'helix');
+  giveCapital(s, 0, 10);
+  addUnit(s, 1, 'ntr_007', { health: 1 }); // one hit kills it
+  const wall = s.players[1].board[0];
+  applyAction(s, 0, { type: 'heroPower', target: wall.id }); // kills the wall
+  assert.equal(s.players[1].board.length, 0, 'the firewall is dead');
+  end(s); giveCapital(s, 0, 10); end(s); // back to p0's turn, power resets
+  const r = applyAction(s, 0, { type: 'heroPower', target: 'hero1' });
+  assert.equal(r.ok, true, 'no firewall left — the enemy hero is targetable again');
+});
+
+test('PRECISION STRIKE: a stealthed FIREWALL does not block the enemy hero', () => {
+  const s = newGame('vulcan', 'helix');
+  giveCapital(s, 0, 10);
+  const wall = addUnit(s, 1, 'ntr_007');
+  wall.keywords.push('stealth');
+  const r = applyAction(s, 0, { type: 'heroPower', target: 'hero1' });
+  assert.equal(r.ok, true, 'a stealthed firewall does not force — same rule as the attack action');
+});
+
+test('PRECISION STRIKE: enemy hero is a normal target when there is no FIREWALL at all', () => {
+  const s = newGame('vulcan', 'helix');
+  giveCapital(s, 0, 10);
+  const r = applyAction(s, 0, { type: 'heroPower', target: 'hero1' });
+  assert.equal(r.ok, true);
+  assert.equal(s.players[1].integrity, 39);
 });
 
 // ---------------------------------------------------------------------------
@@ -322,10 +392,14 @@ test('TOXIC does not destroy through a shield (0 damage dealt)', () => {
   assert.equal(s.players[1].board.length, 1, 'shielded unit survives toxic hit');
 });
 
+// Generic SIPHON-mechanic tests: force the keyword via override rather than
+// hardcoding a specific printed carrier — which card(s) actually print SIPHON
+// is a balance decision that shifts over time (see docs/DESIGN_CONTRACT.md
+// SIPHON density notes), and this test only cares about the keyword's rules.
 test('SIPHON heals your CEO for damage dealt (both attack and defense)', () => {
   const s = newGame();
   s.players[0].integrity = 20;
-  const leech = addUnit(s, 0, 'hx_012'); // 4/5 siphon
+  const leech = addUnit(s, 0, 'hx_012', { keywords: ['siphon'] }); // 4/5 + siphon
   const target = addUnit(s, 1, 'ntr_013'); // 4/5
   const r = applyAction(s, 0, { type: 'attack', attackerId: leech.id, targetId: target.id });
   assert.equal(r.ok, true);
@@ -336,7 +410,7 @@ test('SIPHON heals your CEO for damage dealt (both attack and defense)', () => {
 test('healing is uncapped: SIPHON overheals past base integrity', () => {
   const s = newGame();
   s.players[0].integrity = 29;
-  const leech = addUnit(s, 0, 'hx_012'); // 4/5 siphon
+  const leech = addUnit(s, 0, 'hx_012', { keywords: ['siphon'] }); // 4/5 + siphon
   applyAction(s, 0, { type: 'attack', attackerId: leech.id, targetId: 'hero1' });
   assert.equal(s.players[0].integrity, 33, '29 + 4 siphon = 33, no 30 cap');
 });
@@ -494,7 +568,7 @@ test('CEO power rejected without capital; targeting exposed in view', () => {
   const s = newGame('vulcan', 'helix');
   assert.equal(s.players[0].capital, 1);
   assert.equal(applyAction(s, 0, { type: 'heroPower', target: 'hero1' }).ok, false);
-  assert.equal(getView(s, 0).you.power.targeting, 'any');
+  assert.equal(getView(s, 0).you.power.targeting, 'anyRespectFirewall'); // vulcan Precision Strike
   assert.equal(getView(s, 1).you.power.targeting, 'any'); // helix heal
   const s2 = newGame('nexus', 'obsidian');
   assert.equal(getView(s2, 0).you.power.targeting, null);
@@ -760,6 +834,66 @@ test('Counter Offer: enumerated only against eligible enemy assets', () => {
     .filter((a) => a.type === 'playCard' && a.handIndex === idx)
     .map((a) => a.target);
   assert.deepEqual(targets, [cheap.id], 'exactly the one eligible target');
+});
+
+test('Margin Call: destroys an enemy asset at 2 or less current Health', () => {
+  const s = newGame();
+  giveCapital(s, 0);
+  const weak = addUnit(s, 1, 'vx_013', { health: 2 }); // War Factory, printed 7 HP, damaged down to 2
+  const idx = putInHand(s, 0, 'ob_032');
+  const r = applyAction(s, 0, { type: 'playCard', handIndex: idx, target: weak.id, position: null });
+  assert.equal(r.ok, true);
+  assert.equal(s.players[1].board.length, 0, 'destroyed');
+});
+
+test('Margin Call: an asset above 2 current Health is NOT a legal target, even if cheap', () => {
+  const s = newGame();
+  giveCapital(s, 0);
+  const healthy = addUnit(s, 1, 'ob_001'); // Day Trader, printed 2/1 — 1 HP is fine, so bump it up
+  healthy.health = 3;
+  const idx = putInHand(s, 0, 'ob_032');
+  const legal = legalActions(s, 0)
+    .filter((a) => a.type === 'playCard' && a.handIndex === idx)
+    .map((a) => a.target);
+  assert.ok(!legal.includes(healthy.id), '3 HP asset not offered as a target');
+  const r = applyAction(s, 0, { type: 'playCard', handIndex: idx, target: healthy.id, position: null });
+  assert.equal(r.ok, false, 'engine rejects the illegal target');
+  assert.equal(s.players[1].board.length, 1, 'survives');
+});
+
+test('Margin Call: printed cost is irrelevant — only CURRENT Health gates targeting', () => {
+  const s = newGame();
+  giveCapital(s, 0);
+  // Monopoly Enforcer: cost 6, printed 6/7 — well above enemyUnitCost4's cost
+  // ceiling, but legal for Margin Call once its Health has been whittled down.
+  const bruised = addUnit(s, 1, 'ob_012', { health: 1 });
+  const idx = putInHand(s, 0, 'ob_032');
+  const r = applyAction(s, 0, { type: 'playCard', handIndex: idx, target: bruised.id, position: null });
+  assert.equal(r.ok, true, 'a big, expensive asset at 1 HP is still a legal kill');
+  assert.equal(s.players[1].board.length, 0);
+});
+
+test('Margin Call: a STEALTH enemy asset (even at low Health) is not targetable', () => {
+  const s = newGame();
+  giveCapital(s, 0);
+  const sneaky = addUnit(s, 1, 'ntr_021', { health: 1 }); // Corporate Spy, STEALTH
+  const idx = putInHand(s, 0, 'ob_032');
+  const legal = legalActions(s, 0)
+    .filter((a) => a.type === 'playCard' && a.handIndex === idx)
+    .map((a) => a.target);
+  assert.ok(!legal.includes(sneaky.id), 'stealth hides it from Margin Call');
+});
+
+test('Margin Call: enumerated only against eligible (low-Health) enemy assets', () => {
+  const s = newGame();
+  giveCapital(s, 0);
+  const weak = addUnit(s, 1, 'ob_001', { health: 1 }); // eligible
+  addUnit(s, 1, 'ob_012');                              // full health — not eligible
+  const idx = putInHand(s, 0, 'ob_032');
+  const targets = legalActions(s, 0)
+    .filter((a) => a.type === 'playCard' && a.handIndex === idx)
+    .map((a) => a.target);
+  assert.deepEqual(targets, [weak.id], 'exactly the one eligible target');
 });
 
 test('special summonCopy: Mitosis copies current stats', () => {
@@ -1714,7 +1848,7 @@ test('DYNAMIC attack: at 0 Capital, attack is 0 and it cannot attack', () => {
     'a 0-attack Hedge Fund has no attack action');
 });
 
-test('DYNAMIC attack: Hedge Fund carries STEALTH (corporate veil) — untargetable until it attacks', () => {
+test('DYNAMIC attack: Hedge Fund carries STEALTH (CORPORATE VEIL) — untargetable until it attacks', () => {
   const s = newGame(); // p0 nexus, p1 vulcan
   const hf = addUnit(s, 1, 'ob_024');   // owned by p1, stealthed
   const other = addUnit(s, 1, 'ntr_013'); // non-stealth enemy, for contrast

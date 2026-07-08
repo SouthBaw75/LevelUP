@@ -10,12 +10,12 @@ a faint `ART PENDING` tag). To replace a card's placeholder with real artwork,
 One file per card, named by the card id from the card database:
 
 ```
-client/assets/card-art/<cardId>.png     (checked first)
+client/assets/card-art/<cardId>.webp    (checked first — the shipped format)
+client/assets/card-art/<cardId>.png     (fallback for a not-yet-optimized master)
 client/assets/card-art/<cardId>.jpg     (fallback)
-client/assets/card-art/<cardId>.webp    (fallback)
 ```
 
-Examples: `vx_004.png`, `nx_ceo.jpg`, `ntr_subsidy.webp`.
+Examples: `vx_004.webp`, `nx_ceo.webp`, `ntr_subsidy.webp`.
 
 ## Art style (IMPORTANT — keep consistent)
 
@@ -33,15 +33,35 @@ oil illustration, **not** a photograph or a cinematic 3D render.
 
 ## Recommended dimensions
 
-- **≥ 512 × 384 px**, roughly **4:3 landscape** (≈800–1000 px wide is plenty; the
-  frame is small, so don't ship needlessly huge files).
-- The image fills the frame with `object-fit: cover`, so anything close to 4:3
-  works; edges may be cropped on other ratios. Keep the subject centered.
+- **≥ 512 × 384 px**, roughly **4:3 landscape**. Keep the subject centered —
+  the image fills the frame with `object-fit: cover`, so anything close to 4:3
+  works; edges may be cropped on other ratios.
+
+## Optimize before shipping (IMPORTANT)
+
+Cards never render larger than the ~250 px hover preview, so a full-res PNG
+master (2–3 MB) makes online players download 20–30× more than they see —
+that's the multi-second "art pops in late" lag. **Ship WebP, not PNG.**
+
+Drop your PNG/JPG masters in here, then from `client/assets/` run:
+
+```
+python3 optimize-art.py
+```
+
+It resizes to a web-sane resolution, writes `<id>.webp` (≈100 KB, visually
+identical at display size), and removes the source PNG/JPG. It's re-runnable:
+already-WebP files are skipped, so you can drop one new master and re-run to
+convert just the newcomer. Keep your PNG masters on your own machine. The
+script covers `card-art/`, `ceo-art/`, `faction-icons/` (alpha preserved), and
+`splash-screen/`.
 
 ## Behavior
 
-- The client probes `<cardId>.png` → `.jpg` → `.webp` once per card id and
-  caches the result for the session (missing files are only probed once).
+- The client probes `<cardId>.webp` → `.png` → `.jpg` once per card id and
+  caches the result for the session (missing files are only probed once). A
+  raw PNG dropped in still shows — it's just heavier until you run the
+  optimizer.
 - If an image is found it **fully replaces** the procedural placeholder
   (no watermark) everywhere the card appears: hand, board, deck builder grid,
   deck lists, and the enlarged hover preview.

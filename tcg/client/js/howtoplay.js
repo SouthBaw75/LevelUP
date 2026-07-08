@@ -52,7 +52,7 @@ const SECTIONS = [
     id: 'combat', title: 'Combat & defending your CEO',
     body: `
       <p>An asset can attack once per turn, but <b>not</b> the turn it's
-      deployed (it has to onboard first) — unless it has <b>FAST-TRACK</b>.
+      deployed (it has to onboard first) — unless it has <b>VESTED</b>.
       Click a ready asset, then click what you want it to hit: an enemy
       asset, or the enemy CEO directly.</p>
       <p>When two assets fight, they damage <i>each other</i> simultaneously.

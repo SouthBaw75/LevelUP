@@ -34,10 +34,13 @@ battle for industry dominance. Tone: sleek corporate cyberpunk, dry satirical fl
     SAME player-facing term used for a CEO's health; both are "Integrity" in all card text/UI,
     never "Durability". Internal field names stay `health`/`maxHealth` on units vs `integrity`/
     `maxIntegrity` on players — an implementation detail, invisible to players).
-    Summoning sickness: cannot attack the turn it's deployed unless it has FAST-TRACK.
+    Summoning sickness: cannot attack the turn it's deployed unless it has VESTED.
     Assets attack once per turn (twice with OVERTIME). Attackers can target enemy assets
-    or the enemy CEO — but must attack a FIREWALL asset if any exists (STEALTH ignores nothing;
-    firewall rule applies to attackers regardless).
+    or the enemy CEO — but must attack a FIREWALL asset if any exists (CORPORATE VEIL ignores nothing;
+    firewall rule applies to attackers regardless). FIREWALL otherwise only gates the `attack`
+    action — targeted damage effects ignore it by default (`any`) UNLESS a card opts into the
+    `anyRespectFirewall` targeting (currently only `vx_power` Precision Strike), which applies
+    the identical "hero blocked while a live firewall stands" rule to a targeted effect too.
   - **OPERATION** — a spell. One-time effect, then discarded.
   - **CONTRACT** — a persistent card filed to the owner's contract zone (see §3b).
 - Each faction's CEO has a **CEO POWER**: cost 2, usable once per turn (defined in card data).
@@ -49,7 +52,7 @@ battle for industry dominance. Tone: sleek corporate cyberpunk, dry satirical fl
 | id        | Name                     | Industry              | Identity / mechanics                                  | Accent color |
 |-----------|--------------------------|-----------------------|-------------------------------------------------------|--------------|
 | `nexus`   | Nexus Dynamics           | AI & software         | Tempo/control: card draw, bounce, cheap efficient ops  | cyan `#22d3ee` |
-| `vulcan`  | Vulcan Heavy Industries  | Manufacturing/defense | Aggro: direct damage, FAST-TRACK, big late-game assets | orange `#f97316` |
+| `vulcan`  | Vulcan Heavy Industries  | Manufacturing/defense | Aggro: direct damage, VESTED, big late-game assets     | orange `#f97316` |
 | `helix`   | Helix Biosystems         | Biotech               | Growth: healing, buffs, clone tokens, SIPHON           | green `#4ade80` |
 | `obsidian`| Obsidian Capital         | Finance/private equity| Greed: capital ramp, sacrifice, GOLDEN PARACHUTE value | violet-gold `#c084fc` |
 | `neutral` | Independent Contractors  | —                     | Usable in any deck                                     | gray `#94a3b8` |
@@ -59,8 +62,8 @@ battle for industry dominance. Tone: sleek corporate cyberpunk, dry satirical fl
 | Keyword id       | Display name        | Meaning (classic analog)                                        |
 |------------------|---------------------|-----------------------------------------------------------------|
 | `firewall`       | FIREWALL            | Enemies must attack this asset first (Taunt)                    |
-| `fasttrack`      | FAST-TRACK          | Can attack the turn it's deployed (Charge)                      |
-| `stealth`        | STEALTH MODE        | Can't be targeted/attacked until it deals damage (Stealth)      |
+| `fasttrack`      | VESTED              | Can attack the turn it's deployed (Charge). Uniform name across every faction — no per-card flavor rename. |
+| `stealth`        | CORPORATE VEIL      | Can't be targeted/attacked until it deals damage (Stealth). Uniform name across every faction — no per-card flavor rename. |
 | `shielded`       | PATENT PROTECTION   | Ignores the first damage it would take (Divine Shield)          |
 | `overtime`       | OVERTIME            | Can attack twice per turn (Windfury)                            |
 | `toxic`          | TOXIC ASSET         | Destroys any asset it damages (Poisonous)                       |
@@ -72,6 +75,20 @@ battle for industry dominance. Tone: sleek corporate cyberpunk, dry satirical fl
 | Triggered abilities (not stand-alone keywords, defined per-card in effect data):          |
 | `onboarding`     | ONBOARDING          | Effect when played from hand (Battlecry)                        |
 | `parachute`      | GOLDEN PARACHUTE    | Effect when destroyed (Deathrattle)                             |
+
+**SIPHON density (balance history):** AI-vs-AI playtesting showed Helix's combined
+sustain output (SIPHON lifesteal + Regrowth + Booster Shot + Field Medics + the CEO
+power) was strong enough to beat both a control deck (Nexus, 65%) and a race deck
+(Vulcan, 80%) — too strong against opposite game plans to be a fair matchup rather
+than Helix being generally overtuned. SIPHON alone traced to over half of total
+healing. Trimmed incrementally, highest-value carrier first: `hx_016` Symbiotic
+Titan (7-cost, stacked FIREWALL+SIPHON — the worst offender, tanking AND healing on
+the same body) lost SIPHON first (80% → 70% vs. Vulcan); `hx_012` Hemo Harvester
+(5-cost, 4/5, the higher-attack of the two remaining carriers) lost it next. Only
+`hx_004` Plasma Leech (2-cost, 1/3) still prints SIPHON, keeping the mechanic alive
+at the cheap end of the curve without the compounding density that made it
+overrunning. Re-test before cutting further — Regrowth's flat 8-heal-for-3 is the
+next-largest untouched contributor if the win rate is still off after this.
 
 ## 3b. CONTRACTS (v1)
 
@@ -395,7 +412,7 @@ The server exposes them to the client as JSON via `GET /api/cards`.
   "attack": 4,                 // ASSET only
   "health": 3,                 // ASSET only (CEO uses health: 40)
   "keywords": ["fasttrack"],  // stand-alone keywords only (section 3)
-  "text": "FAST-TRACK. Onboarding: deal 1 damage to the enemy CEO.",
+  "text": "VESTED. Onboarding: deal 1 damage to the enemy CEO.",
   "flavor": "Quarterly targets are not a suggestion.",
   "rarity": "common",          // common | rare | epic | legendary
   "collectible": true,          // false for tokens / CEO / POWER cards
@@ -416,7 +433,7 @@ convention. The card data schema needs no art field.
 - `type: "CEO"` cards (one per faction, e.g. `nx_ceo`) define the hero: name, 40 health, `powerId`.
 - `type: "POWER"` cards define the CEO power: cost 2, `text`, effects.
 - Tokens (summoned units) are non-collectible ASSET cards in the same map.
-- **154 collectible cards total**: ~26 per faction (obsidian 34) + 44 neutral. Costs 0–10, all rarities.
+- **155 collectible cards total**: ~26 per faction (obsidian 35) + 44 neutral. Costs 0–10, all rarities.
 
 `STARTER_DECKS`: `{ nexus: {name, faction, cards:[40 ids]}, vulcan: {...}, helix: {...}, obsidian: {...} }`
 — four tuned, playable prebuilt decks.
@@ -454,12 +471,19 @@ import { createGame, applyAction, legalActions, getView, redactEvents, cloneStat
 
 - Unit instance ids: `"u<N>"` unique per game. CEO target ids: `"hero0"`, `"hero1"` (by player index).
 - `target` is required by cards whose effect needs a target (`targeting` field in view hand cards
-  tells the client: `null | "any" | "anyUnit" | "enemyUnit" | "enemyUnitCost4" | "friendlyUnit" | "friendlyUnitNoFirewall" | "facilityUnit" | "enemyHero" | "anyHero" | "enemyContract"`).
+  tells the client: `null | "any" | "anyRespectFirewall" | "anyUnit" | "enemyUnit" | "enemyUnitCost4" | "enemyUnitLowHealth" | "friendlyUnit" | "friendlyUnitNoFirewall" | "facilityUnit" | "enemyHero" | "anyHero" | "enemyContract"`).
   `enemyUnitCost4` = enemy assets whose printed cost is ≤ 4 (Counter Offer's outbid-poach);
+  `enemyUnitLowHealth` = enemy assets at 2 or less CURRENT Health, live/post-damage — NOT printed
+  cost (Margin Call's cheap conditional kill — Obsidian's answer to small early threats);
   `friendlyUnitNoFirewall` = friendly assets that don't already have FIREWALL (Firewall Upgrade);
   `facilityUnit` = any FACILITY-class asset on EITHER board, enemy stealth excluded (Franchise's
   copy — it reaches across the table). Both the engine `validTargets` and the client highlighter
   apply the same filter (the client reads `tags` from the card payload, which is not stripped).
+  `anyRespectFirewall` = identical to `any`, except the enemy hero is removed from the legal
+  target list while the enemy has a live (non-stealth) FIREWALL asset — reuses the same
+  `forcedTargets` check the `attack` action already applies, extended to a targeted effect. The
+  firewall unit itself remains targetable (it's just an ordinary enemy unit in the list); only the
+  enemy hero is gated. `vx_power` **Precision Strike** is the only user (§3 keyword table).
 
 ### View shape (getView result — this exact shape goes over the wire)
 

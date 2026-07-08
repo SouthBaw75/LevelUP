@@ -673,12 +673,26 @@ function highlightTargets(targeting) {
   let targets = [];
   switch (targeting) {
     case 'any': targets = [...myUnits, ...oppTargetable, els['g-hero-me'], els['g-hero-opp']]; break;
+    // Precision Strike: like 'any', but the enemy hero doesn't light up while
+    // the enemy has a live FIREWALL asset — must hit the firewall first.
+    case 'anyRespectFirewall': {
+      const oppFirewall = oppTargetable.some((el) => el.classList.contains('has-firewall'));
+      targets = [...myUnits, ...oppTargetable, els['g-hero-me'], ...(oppFirewall ? [] : [els['g-hero-opp']])];
+      break;
+    }
     case 'anyUnit': targets = [...myUnits, ...oppTargetable]; break;
     case 'enemyUnit': targets = oppTargetable; break;
     // Counter Offer: only enemy assets whose printed cost is 4 or less light up.
     // Cost isn't modified in-game, so getCard(cardId).cost matches the server.
     case 'enemyUnitCost4':
       targets = oppTargetable.filter((el) => (getCard(el.dataset.cardId)?.cost ?? 0) <= 4); break;
+    // Margin Call: only enemy assets at 2 or less CURRENT Health light up —
+    // read live from `view` (server-authoritative), not the printed card def.
+    case 'enemyUnitLowHealth': {
+      const lowHealthIds = new Set((view.opp.board || []).filter((u) => u.health <= 2).map((u) => u.id));
+      targets = oppTargetable.filter((el) => lowHealthIds.has(el.dataset.unitId));
+      break;
+    }
     case 'friendlyUnit': targets = myUnits; break;
     // Firewall Upgrade: only friendly assets that don't already have FIREWALL
     case 'friendlyUnitNoFirewall':

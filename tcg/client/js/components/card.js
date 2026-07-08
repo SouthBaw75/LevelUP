@@ -25,10 +25,11 @@ const KEYWORD_FACE_GLOSS = {
   raid: 'Surviving an attack steals 1 enemy Capital.',
 };
 
-// Per-card keyword display label (flavor rename of a mechanic, e.g. Hedge Fund
-// shows STEALTH as "CORPORATE VEIL"). Mechanics still key off the real keyword id.
-function kwName(def, k) {
-  return (def && def.keywordLabels && def.keywordLabels[k]) || KEYWORD_NAMES[k] || k.toUpperCase();
+// Keyword display name: uniform across every card and faction — no per-card
+// overrides. The same mechanic must always read as the same name so a player's
+// knowledge of a keyword transfers between factions instead of resetting.
+function kwName(k) {
+  return KEYWORD_NAMES[k] || k.toUpperCase();
 }
 
 // Remove bare "<KEYWORD>." sentences from rules text (e.g. "FIREWALL. SIPHON.")
@@ -184,7 +185,7 @@ export function renderCard(defOrId, opts = {}) {
   // are stripped from the ability text first so nothing is said twice.
   const glossKws = def.keywords || [];
   const bodyText = stripKeywordSentences(def.text || '', glossKws);
-  const glossLen = glossKws.reduce((n, k) => n + faceGloss(k).length + kwName(def, k).length + 2, 0);
+  const glossLen = glossKws.reduce((n, k) => n + faceGloss(k).length + kwName(k).length + 2, 0);
 
   // Text + flavor share one vertical budget below the name plate — shrink
   // together once they'd otherwise overflow the body and get clipped.
@@ -202,7 +203,7 @@ export function renderCard(defOrId, opts = {}) {
       row.className = 'kwg-row';
       const nm = document.createElement('div');
       nm.className = 'kwg-name';
-      nm.textContent = kwName(def, k);
+      nm.textContent = kwName(k);
       const dc = document.createElement('div');
       dc.className = 'kwg-desc';
       dc.textContent = faceGloss(k);
@@ -263,8 +264,8 @@ export function renderCard(defOrId, opts = {}) {
       const granted = opts.keywords.filter((k) => !(def.keywords || []).includes(k));
       if (granted.length) {
         tags.push({
-          cls: '', text: granted.map((k) => kwName(def, k)).join(' · '),
-          title: granted.map((k) => kwName(def, k) + ' — ' + (KEYWORD_HELP[k] || faceGloss(k))).join('\n'),
+          cls: '', text: granted.map((k) => kwName(k)).join(' · '),
+          title: granted.map((k) => kwName(k) + ' — ' + (KEYWORD_HELP[k] || faceGloss(k))).join('\n'),
         });
       }
     }
@@ -456,7 +457,7 @@ export function renderUnit(unit, opts = {}) {
     for (const k of kws) {
       const ic = document.createElement('span');
       ic.className = 'unit-kw ukw-' + k;
-      ic.title = kwName(def, k) + ' — ' + (KEYWORD_HELP[k] || '');
+      ic.title = kwName(k) + ' — ' + (KEYWORD_HELP[k] || '');
       ic.textContent = UNIT_KW_GLYPH[k] || '•';
       row.appendChild(ic);
     }
@@ -603,15 +604,22 @@ export function showPreview(defOrId, anchorEl, overrides = {}) {
   layer.style.display = 'block';
   // position beside the anchor, clamped to viewport. Reminder text can grow
   // the card past the nominal height, so measure the real rendered height.
+  // An attachment reveals out to the side of the base card on hover (not
+  // below it, which used to spill into the hand/deck strip at the bottom of
+  // the screen) — reserve that extra width in the flip check so the reveal
+  // doesn't just run off the opposite edge instead.
   const r = anchorEl.getBoundingClientRect();
   const cw = 250, ch = card.offsetHeight || cw * 1.45;
+  const attachW = attachments.length ? 178 + 8 : 0;
   let x = r.right + 14;
-  if (x + cw > innerWidth - 8) x = r.left - cw - 14;
+  let flipped = false;
+  if (x + cw + attachW > innerWidth - 8) { x = r.left - cw - 14; flipped = true; }
   if (x < 8) x = Math.min(Math.max(8, r.left + r.width / 2 - cw / 2), innerWidth - cw - 8);
   let y = r.top + r.height / 2 - ch / 2;
   y = Math.max(8, Math.min(y, innerHeight - ch - 8));
   layer.style.left = x + 'px';
   layer.style.top = y + 'px';
+  layer.classList.toggle('attach-left', flipped);
   void key;
 }
 

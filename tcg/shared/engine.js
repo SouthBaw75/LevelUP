@@ -59,8 +59,9 @@ const POWER_COST = 2;
 const MAX_CONTRACTS = 3;
 const BIG_HIT_THRESHOLD = 10; // cumulative enemy hero damage in one game-turn that fires a CEO taunt
 const PLAYABLE_TYPES = ['ASSET', 'OPERATION', 'CONTRACT'];
-const TARGETINGS = [null, 'any', 'anyUnit', 'enemyUnit', 'enemyUnitCost4', 'friendlyUnit',
-  'friendlyUnitNoFirewall', 'facilityUnit', 'enemyHero', 'anyHero', 'enemyContract'];
+const TARGETINGS = [null, 'any', 'anyRespectFirewall', 'anyUnit', 'enemyUnit', 'enemyUnitCost4',
+  'enemyUnitLowHealth', 'friendlyUnit', 'friendlyUnitNoFirewall', 'facilityUnit', 'enemyHero',
+  'anyHero', 'enemyContract'];
 
 // ---------------------------------------------------------------------------
 // Seeded RNG (mulberry32 stepping state.rng)
@@ -106,12 +107,19 @@ export function validateDeck(deck) {
 // ---------------------------------------------------------------------------
 // Game creation
 // ---------------------------------------------------------------------------
-export function createGame({ decks, names, seed }) {
+// firstPlayer (0|1) chooses which seat takes the opening turn; the other seat
+// gets the going-second compensation (extra card + Government Subsidy). Defaults
+// to 0 so normal games and existing tests are unchanged; AI-vs-AI watch runs
+// alternate it each match to cancel first-player bias without moving either
+// faction off its fixed screen slot.
+export function createGame({ decks, names, seed, firstPlayer = 0 }) {
+  const first = firstPlayer === 1 ? 1 : 0;
+  const second = 1 - first;
   const state = {
     seed: seed >>> 0,
     rng: (seed ^ 0x9e3779b9) >>> 0,
     turn: 0,
-    activePlayer: 0,
+    activePlayer: first,
     over: false,
     winner: null,
     nextUnit: 1,
@@ -146,11 +154,11 @@ export function createGame({ decks, names, seed }) {
   }
   // opening hands: first player 3, second player 4 + Government Subsidy
   const scratch = [];
-  drawCards(state, 0, 3, scratch);
-  drawCards(state, 1, 4, scratch);
-  state.players[1].hand.push('ntr_subsidy');
-  // player 0's first turn begins immediately (includes their turn-1 draw)
-  startTurn(state, 0, scratch);
+  drawCards(state, first, 3, scratch);
+  drawCards(state, second, 4, scratch);
+  state.players[second].hand.push('ntr_subsidy');
+  // the first player's opening turn begins immediately (includes their turn-1 draw)
+  startTurn(state, first, scratch);
   return state;
 }
 
@@ -234,6 +242,14 @@ function validTargets(state, player, targeting) {
   const friendlyUnits = state.players[player].board.map((u) => u.id);
   switch (targeting) {
     case 'any': return [...friendlyUnits, ...enemyUnits, 'hero' + player, 'hero' + enemy];
+    // like 'any', but the enemy hero is off the table while the enemy has a
+    // live (non-stealth) FIREWALL asset — same forcedTargets check the
+    // `attack` action uses, extended to a targeted effect (Precision Strike).
+    // The firewall unit itself is still a legal target via enemyUnits.
+    case 'anyRespectFirewall': {
+      const heroBlocked = forcedTargets(state, enemy).length > 0;
+      return [...friendlyUnits, ...enemyUnits, 'hero' + player, ...(heroBlocked ? [] : ['hero' + enemy])];
+    }
     case 'anyUnit': return [...friendlyUnits, ...enemyUnits];
     case 'enemyUnit': return enemyUnits;
     // enemy assets printed cost ≤ 4 — for Counter Offer's outbid-poach (§Counter Offer).
@@ -241,6 +257,12 @@ function validTargets(state, player, targeting) {
     case 'enemyUnitCost4':
       return state.players[enemy].board
         .filter((u) => !hasKw(u, 'stealth') && (CARDS[u.cardId]?.cost ?? 0) <= 4)
+        .map((u) => u.id);
+    // enemy assets at 2 or less CURRENT Health (live, post-damage) — for
+    // Margin Call's cheap conditional kill.
+    case 'enemyUnitLowHealth':
+      return state.players[enemy].board
+        .filter((u) => !hasKw(u, 'stealth') && u.health <= 2)
         .map((u) => u.id);
     case 'friendlyUnit': return friendlyUnits;
     // friendly assets that don't already have FIREWALL (Firewall Upgrade)
@@ -1413,6 +1435,20 @@ export function getView(state, playerIndex) {
     opp: playerView(state, 1 - playerIndex, { self: false }),
     over: state.over,
     winner: state.winner,
+  };
+}
+
+// God-mode view for a non-playing spectator (AI-vs-AI watch mode): BOTH seats
+// rendered as `self`, so both hands and both reserves are fully visible. There
+// is no hidden information to redact — a watcher sees everything. players[0] and
+// players[1] map to engine seats 0 and 1 (fixed screen slots).
+export function getSpectatorView(state) {
+  return {
+    turn: state.turn,
+    activePlayer: state.activePlayer,
+    over: state.over,
+    winner: state.winner,
+    players: [playerView(state, 0, { self: true }), playerView(state, 1, { self: true })],
   };
 }
 

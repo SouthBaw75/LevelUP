@@ -121,9 +121,9 @@ C({ id: 'vx_ceo', name: 'Brock Hammond', faction: 'vulcan', type: 'CEO', cost: 0
   powerId: 'vx_power', collectible: false, rarity: 'legendary',
   text: 'CEO of Vulcan Heavy Industries.', flavor: 'His handshake has a recoil warning.' });
 C({ id: 'vx_power', name: 'Precision Strike', faction: 'vulcan', type: 'POWER', cost: 2,
-  collectible: false, text: 'Deal 1 damage to any target.',
+  collectible: false, text: 'Deal 1 damage to any target. Must target a FIREWALL asset first if the enemy has one.',
   flavor: 'Collateral is a line item.',
-  effects: { targeting: 'any', play: [{ op: 'damage', amount: 1, to: 'target' }] } });
+  effects: { targeting: 'anyRespectFirewall', play: [{ op: 'damage', amount: 1, to: 'target' }] } });
 
 C({ id: 'hx_ceo', name: 'Dr. Jin-Ho Park', faction: 'helix', type: 'CEO', cost: 0, health: 40,
   powerId: 'hx_power', collectible: false, rarity: 'legendary',
@@ -137,14 +137,14 @@ C({ id: 'ob_ceo', name: 'Sterling Voss', faction: 'obsidian', type: 'CEO', cost:
   powerId: 'ob_power', collectible: false, rarity: 'legendary',
   text: 'CEO of Obsidian Capital.', flavor: 'He shorted his own retirement party.' });
 C({ id: 'ob_power', name: 'Shell Company', faction: 'obsidian', type: 'POWER', cost: 2,
-  collectible: false, text: 'Summon a 1/1 Shell Corp.',
+  collectible: false, text: 'Summon a 1/2 Shell Corp.',
   flavor: 'Registered in a jurisdiction that is technically a boat.',
   effects: { targeting: null, play: [{ op: 'summon', cardId: 'ob_t_shell' }] } });
 
 // ---------------------------------------------------------------------------
 // Tokens (non-collectible)
 // ---------------------------------------------------------------------------
-A('ob_t_shell', 'Shell Corp', 'obsidian', 1, 1, 1, { collectible: false, keywords: ['firewall'],
+A('ob_t_shell', 'Shell Corp', 'obsidian', 1, 1, 2, { collectible: false, keywords: ['firewall'],
   text: 'FIREWALL.',
   flavor: 'One employee, zero products, immaculate paperwork, and a wall of liability nobody wants to touch first.' });
 A('vx_t_scrapbot', 'Scrap Bot', 'vulcan', 1, 2, 1, { collectible: false,
@@ -173,7 +173,7 @@ A('nx_002', 'Web Crawler', 'nexus', 2, 1, 1, {
   flavor: 'It respects robots.txt the way lawyers respect loopholes.',
   effects: { onboarding: [{ op: 'draw', count: 1 }] } });
 A('nx_003', 'Spyware Agent', 'nexus', 2, 2, 1, { keywords: ['stealth'],
-  text: 'STEALTH MODE.',
+  text: 'CORPORATE VEIL.',
   flavor: 'You agreed to this in section 47(b) of the EULA.' });
 A('nx_004', 'QA Analyst', 'nexus', 2, 2, 3, {
   flavor: 'Finds every bug except the one in production.' });
@@ -182,7 +182,7 @@ A('nx_005', 'Scrum Master', 'nexus', 3, 2, 3, { rarity: 'rare',
   flavor: 'Turns one meeting into three, and three cards into four.',
   effects: { onboarding: [{ op: 'draw', count: 1 }] } });
 A('nx_006', 'Silent Daemon', 'nexus', 3, 4, 2, { keywords: ['stealth'], rarity: 'rare',
-  text: 'STEALTH MODE.',
+  text: 'CORPORATE VEIL.',
   flavor: 'Runs in the background. Bills in the foreground.' });
 A('nx_007', 'Firewall Node', 'nexus', 3, 1, 6, { keywords: ['firewall'],
   text: 'FIREWALL.',
@@ -239,7 +239,7 @@ A('nx_020', 'Compute Cluster', 'nexus', 5, 5, 6, {
   flavor: 'Mines synergy at 4.2 exaflops.',
   effects: { adjacencyBuff: { attack: 1, health: 1, match: { tag: 'software' } } } });
 A('nx_021', 'Zero-Day Agent', 'nexus', 6, 5, 5, { keywords: ['stealth'], rarity: 'epic',
-  text: 'STEALTH MODE.',
+  text: 'CORPORATE VEIL.',
   flavor: 'Disclosed responsibly, deployed irresponsibly.' });
 O('nx_022', 'Mass Recall', 'nexus', 7, { rarity: 'epic',
   text: 'Return all enemy assets to their owner’s hand.',
@@ -247,19 +247,19 @@ O('nx_022', 'Mass Recall', 'nexus', 7, { rarity: 'epic',
   effects: { targeting: null, play: [{ op: 'returnToHand', to: 'allEnemyUnits' }] } });
 
 // ---------------------------------------------------------------------------
-// VULCAN HEAVY INDUSTRIES (vx) — manufacturing/defense. Aggro: damage, FAST-TRACK.
+// VULCAN HEAVY INDUSTRIES (vx) — manufacturing/defense. Aggro: damage, VESTED.
 // ---------------------------------------------------------------------------
 A('vx_001', 'Line Welder', 'vulcan', 1, 2, 1, {
   flavor: 'Sparks joy. Also just sparks.' });
 A('vx_002', 'Rapid Response Drone', 'vulcan', 2, 2, 1, { keywords: ['fasttrack'],
-  text: 'FAST-TRACK.',
+  text: 'VESTED.',
   flavor: 'Ships same-day. Explodes same-day.' });
 O('vx_003', 'Shrapnel Burst', 'vulcan', 1, {
   text: 'Deal 2 damage to an asset.',
   flavor: 'Now with 30% more plausible deniability.',
   effects: { targeting: 'anyUnit', play: [{ op: 'damage', amount: 2, to: 'target' }] } });
 A('vx_004', 'Strike Battalion', 'vulcan', 4, 4, 3, { keywords: ['fasttrack'], rarity: 'rare',
-  text: 'FAST-TRACK. Onboarding: deal 1 damage to the enemy CEO.',
+  text: 'VESTED. Onboarding: deal 1 damage to the enemy CEO.',
   flavor: 'Quarterly targets are not a suggestion.',
   effects: { onboarding: [{ op: 'damage', amount: 1, to: 'enemyHero' }] } });
 A('vx_005', 'Foundry Worker', 'vulcan', 2, 3, 2, {
@@ -272,7 +272,7 @@ A('vx_007', 'Double-Shift Foreman', 'vulcan', 3, 2, 3, { keywords: ['overtime'],
   text: 'OVERTIME.',
   flavor: 'Clocks out only to clock back in.' });
 A('vx_008', 'Repo Squad', 'vulcan', 3, 3, 1, { keywords: ['fasttrack'],
-  text: 'FAST-TRACK.',
+  text: 'VESTED.',
   flavor: 'They repossess first and read the paperwork in the truck.' });
 A('vx_009', 'Armor Plant', 'vulcan', 4, 4, 5, {
   text: 'When an asset is placed to the immediate left or right of this, it gains +1 Integrity.',
@@ -283,7 +283,7 @@ O('vx_010', 'Carpet Bombing', 'vulcan', 4, { rarity: 'rare',
   flavor: 'Restructuring, delivered by air.',
   effects: { targeting: null, play: [{ op: 'aoeDamage', amount: 2, side: 'enemy' }] } });
 A('vx_011', 'Blitz Mech', 'vulcan', 5, 5, 3, { keywords: ['fasttrack'], rarity: 'rare',
-  text: 'FAST-TRACK.',
+  text: 'VESTED.',
   flavor: 'Zero to liability in 1.8 seconds.' });
 O('vx_012', 'Railgun Prototype', 'vulcan', 4, { rarity: 'rare',
   text: 'Deal 5 damage to an asset.',
@@ -302,7 +302,7 @@ A('vx_016', 'Twin-Barrel Colossus', 'vulcan', 8, 8, 8, { keywords: ['overtime', 
   text: 'OVERTIME. BULLISH.',
   flavor: 'Why fire once when the invoice covers twice?' });
 A('vx_017', 'The Juggernaut', 'vulcan', 9, 8, 8, { keywords: ['fasttrack', 'bullish'], rarity: 'legendary',
-  text: 'FAST-TRACK. BULLISH.',
+  text: 'VESTED. BULLISH.',
   flavor: 'Line item: one (1) unstoppable object. Warranty void.' });
 O('vx_018', 'Overclock', 'vulcan', 1, {
   text: 'Give a friendly asset +2 Attack.',
@@ -351,7 +351,7 @@ A('hx_007', 'Bioreactor', 'helix', 3, 3, 4, {
   flavor: 'Feed it grant money and it produces more grant applications.',
   effects: { adjacencyBuff: { attack: 1, health: 1, match: { tag: 'organism' } } } });
 A('hx_008', 'Designer Pathogen', 'helix', 2, 1, 1, { keywords: ['toxic', 'stealth'], rarity: 'epic',
-  text: 'TOXIC ASSET. STEALTH MODE.',
+  text: 'TOXIC ASSET. CORPORATE VEIL.',
   flavor: 'Bespoke. Artisanal. Airborne.' });
 A('hx_009', 'Containment Unit', 'helix', 4, 2, 6, { keywords: ['firewall'],
   text: 'FIREWALL.',
@@ -364,9 +364,8 @@ A('hx_011', 'Enhancement Coach', 'helix', 4, 3, 3, { rarity: 'rare',
   text: 'ONBOARDING: Give a friendly asset +2/+2.',
   flavor: 'Performance improvement plan, injectable.',
   effects: { targeting: 'friendlyUnit', onboarding: [{ op: 'buff', attack: 2, health: 2, to: 'target' }] } });
-A('hx_012', 'Hemo Harvester', 'helix', 5, 4, 5, { keywords: ['siphon'], rarity: 'rare',
-  text: 'SIPHON.',
-  flavor: 'Blood from a stone? Amateurs. Blood from a competitor.' });
+A('hx_012', 'Hemo Harvester', 'helix', 5, 4, 5, { rarity: 'rare',
+  flavor: 'It doesn’t need to keep what it takes.' });
 O('hx_013', 'Rapid Evolution', 'helix', 5, { rarity: 'rare',
   text: 'Give your assets +2/+2.',
   flavor: 'Survival of the best-funded.',
@@ -377,9 +376,9 @@ O('hx_015', 'Airborne Strain', 'helix', 6, { rarity: 'rare',
   text: 'Deal 3 damage to all enemy assets.',
   flavor: 'Patient zero was the marketing department.',
   effects: { targeting: null, play: [{ op: 'aoeDamage', amount: 3, side: 'enemy' }] } });
-A('hx_016', 'Symbiotic Titan', 'helix', 7, 6, 8, { keywords: ['firewall', 'siphon'], rarity: 'epic',
-  text: 'FIREWALL. SIPHON.',
-  flavor: 'A mutually beneficial relationship, per its lawyers.' });
+A('hx_016', 'Symbiotic Titan', 'helix', 7, 6, 8, { keywords: ['firewall'], rarity: 'epic',
+  text: 'FIREWALL.',
+  flavor: 'It stopped needing to feed. Just needing to stand there.' });
 A('hx_017', 'The Hydra Initiative', 'helix', 8, 7, 7, { rarity: 'legendary',
   text: 'GOLDEN PARACHUTE: Summon two 3/3 Hydra Clones.',
   flavor: 'Terminate one department and two more appear in the budget.',
@@ -420,6 +419,13 @@ O('ob_005', 'Liquidation Order', 'obsidian', 5, {
   text: 'Destroy an enemy asset.',
   flavor: 'Everything must go. Especially you.',
   effects: { targeting: 'enemyUnit', play: [{ op: 'destroy', to: 'target' }] } });
+O('ob_032', 'Margin Call', 'obsidian', 1, {
+  text: 'Destroy an enemy asset with 2 or less Health.',
+  flavor: 'Collateral shortfall. Liquidated before lunch.',
+  effects: { targeting: 'enemyUnitLowHealth', play: [{ op: 'destroy', to: 'target' }] } });
+A('ob_033', 'Venture Strike Team', 'obsidian', 4, 4, 3, { keywords: ['fasttrack'], rarity: 'rare',
+  text: 'VESTED.',
+  flavor: 'By the time the board noticed, the locks were already changed.' });
 O('ob_006', 'Aggressive Expansion', 'obsidian', 2, { rarity: 'rare',
   text: 'Gain 1 permanent maximum Capital.',
   flavor: 'Growth strategy: buy the strategy department of a growth company.',
@@ -486,7 +492,6 @@ O('ob_023', 'Counter Offer', 'obsidian', 5, { rarity: 'epic',
   flavor: 'Name your price. They already did. We doubled it and kept the receipt.',
   effects: { targeting: 'enemyUnitCost4', play: [{ op: 'special', key: 'stealUnit' }] } });
 A('ob_024', 'Hedge Fund', 'obsidian', 5, 0, 5, { keywords: ['stealth'], rarity: 'epic',
-  keywordLabels: { stealth: 'CORPORATE VEIL' },
   text: 'This asset’s Attack always equals your current Capital.',
   flavor: 'It is long on everything and accountable for nothing.',
   effects: { dynamicAttack: 'capital' } });
@@ -575,7 +580,7 @@ A('ntr_020', 'Patent Troll', 'neutral', 2, 1, 1, { keywords: ['toxic'], rarity: 
   text: 'TOXIC ASSET.',
   flavor: 'Owns the patent on rounded corners and, somehow, grief.' });
 A('ntr_021', 'Corporate Spy', 'neutral', 3, 3, 2, { keywords: ['stealth'], rarity: 'rare',
-  text: 'STEALTH MODE.',
+  text: 'CORPORATE VEIL.',
   flavor: 'The janitor with the Harvard MBA.' });
 A('ntr_022', 'Picket Line', 'neutral', 4, 3, 5, { keywords: ['firewall'],
   text: 'FIREWALL.',
@@ -782,12 +787,27 @@ export const STARTER_DECKS = {
     // swaps: +1 ob_c03 (Liquidation Rights), +1 ntr_c02;
     // -2 ntr_016 (Teamsters Rep) / +1 ob_023 (Counter Offer, faction steal);
     // -1 ntr_013 (Middle Management) / +1 ob_024 (Hedge Fund);
-    // -1 ob_022 (Repo Crew, vanilla) / +1 ntr_037 (Flirty Intern)
+    // -1 ob_022 (Repo Crew, vanilla) / +1 ntr_037 (Flirty Intern);
+    // -2 ob_018 (Depreciation, a -2/-2 debuff that can't finish anything) / +2
+    // ob_032 (Margin Call — a cheap kill spell in the same "answer a small
+    // threat" slot, but it actually removes the body). AI-vs-AI playtesting
+    // (watch mode) showed Obsidian had no removal under 2 cost, while Nexus's
+    // cheap efficient removal + card draw ran away with the matchup; Vulcan's
+    // healthier 60/40 record against the same Nexus deck tracked with having
+    // real cheap removal of its own (Shrapnel Burst et al.), not card-draw
+    // parity — so this targets the actual lever, not a guess.
+    // -2 ob_003 (Junior Analyst, plain vanilla) / +2 ob_033 (Venture Strike
+    // Team — VESTED, attacks the turn it's played). Interaction was fixed by
+    // Margin Call, but Vulcan vs Obsidian was still 33/67 Vulcan-favored —
+    // Obsidian's draw/removal are now roughly at parity with Vulcan's, so the
+    // remaining gap looks like pace: Vulcan's race always gets a turn's head
+    // start over Obsidian's normal (summoning-sick) bodies. This closes that
+    // specific gap rather than adding more interaction Obsidian doesn't need.
     name: 'Obsidian Capital — Leveraged Everything',
     faction: 'obsidian',
-    cards: withContracts(['ob_001', 'ob_003', 'ob_005', 'ob_006', 'ob_007', 'ob_008', 'ob_009',
-      'ob_010', 'ob_012', 'ob_013', 'ob_018', 'ob_019', 'ob_022', 'ob_024', 'ob_023', 'ntr_037',
-      'ob_002', 'ob_011', 'ob_016', 'ob_017', 'ob_020'],
+    cards: withContracts(['ob_001', 'ob_005', 'ob_006', 'ob_007', 'ob_008', 'ob_009',
+      'ob_010', 'ob_012', 'ob_013', 'ob_019', 'ob_022', 'ob_024', 'ob_023', 'ntr_037',
+      'ob_002', 'ob_011', 'ob_016', 'ob_017', 'ob_020', 'ob_032', 'ob_033'],
     ['ob_024', 'ob_023', 'ob_022', 'ntr_037'], 'ob_c03'),
   },
 };

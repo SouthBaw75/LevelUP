@@ -324,10 +324,8 @@
   100% { opacity: 0; transform: translate(-50%, -50%) scale(1.4) rotate(24deg); }
 }
 
-.impact-flash { position: absolute; z-index: 155; width: 90px; height: 90px; transform: translate(-50%, -50%); border-radius: 50%; pointer-events: none;
-  background: radial-gradient(circle, rgba(255, 150, 158, 0.95), rgba(255, 80, 90, 0.3) 52%, transparent 70%);
-  animation: impact 0.38s ease-out forwards; }
-@keyframes impact { from { transform: translate(-50%, -50%) scale(0.3); opacity: 1; } to { transform: translate(-50%, -50%) scale(1.55); opacity: 0; } }
+/* spell/ability damage renders on the #fx-canvas particle system (see
+   anim.js impactAt → spawnEnergyStrike): crackling flash + shockwave + sparks. */
 
 /* white flash frame on the struck element: 2-frame full-brightness pulse.
    Applied to the inner frame/portrait so it never fights the knockback
@@ -405,42 +403,10 @@
   to { transform: translate(-50%, -50%) scale(2.3); opacity: 0; }
 }
 
-/* ---------- death: crack-apart shards + rising smoke ---------- */
-.death-shard {
-  position: absolute; z-index: 152; pointer-events: none; border-radius: 3px;
-  background: linear-gradient(150deg, color-mix(in srgb, var(--fc, #94a3b8) 45%, #1a2334), #0a0f18 80%);
-  border: 1px solid color-mix(in srgb, var(--fc, #94a3b8) 55%, #2b3a52);
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.7);
-  clip-path: polygon(12% 0, 100% 8%, 88% 100%, 0 84%);
-  animation: shard-fall 0.58s cubic-bezier(0.3, 0, 0.7, 1) forwards;
-}
-@keyframes shard-fall {
-  0% { transform: translate(-50%, -50%) translate(0, 0) rotate(0deg); opacity: 1; }
-  40% { transform: translate(-50%, -50%) translate(var(--dx), var(--dy)) rotate(calc(var(--rr, 60deg) * 0.55)); opacity: 1; }
-  100% { transform: translate(-50%, -50%) translate(calc(var(--dx) * 1.35), 58px) rotate(var(--rr, 60deg)); opacity: 0; }
-}
-.smoke-mote {
-  position: absolute; z-index: 151; border-radius: 50%; pointer-events: none;
-  background: radial-gradient(circle, rgba(40, 48, 62, 0.85), rgba(18, 22, 30, 0.2) 70%);
-  animation: smoke-rise 0.8s ease-out both;
-}
-@keyframes smoke-rise {
-  0% { transform: translate(-50%, -50%) translate(0, 0) scale(0.6); opacity: 0; }
-  20% { opacity: 0.85; }
-  100% { transform: translate(-50%, -50%) translate(var(--dx, 0px), var(--dy, -34px)) scale(1.8); opacity: 0; }
-}
-/* lingering combat smoke puff: lighter, drifts up slowly after the blast */
-.smoke-puff {
-  position: absolute; z-index: 151; border-radius: 50%; pointer-events: none;
-  background: radial-gradient(circle, rgba(90, 96, 108, 0.55), rgba(50, 55, 66, 0.12) 70%);
-  animation: puff-drift 0.7s ease-out both;
-}
-@keyframes puff-drift {
-  0% { transform: translate(-50%, -50%) translate(0, 0) scale(0.5); opacity: 0; }
-  25% { opacity: 0.8; }
-  100% { transform: translate(-50%, -50%) translate(var(--dx, 0px), -34px) scale(2); opacity: 0; }
-}
-
+/* ---------- death detonation renders on the #fx-canvas particle system (see
+   anim.js deathBurst → spawnDetonation): flash, shockwave, fireball, realistic
+   cooling smoke, embers, and debris. The unit's own collapse is .unit.anim-death
+   below. ---------- */
 /* ---------- heal: radial bloom + rising plus-glyphs ---------- */
 .heal-bloom {
   position: absolute; z-index: 150; width: 96px; height: 96px; border-radius: 50%; pointer-events: none;
@@ -529,38 +495,8 @@
   background: radial-gradient(circle, #fff, #ffb347 60%, transparent);
   box-shadow: 0 0 10px #ff8c1a, 0 0 20px rgba(255, 90, 26, 0.7);
 }
-.explosion-flash {
-  position: absolute; z-index: 156; width: 160px; height: 160px; border-radius: 50%; pointer-events: none;
-  transform: translate(-50%, -50%);
-  background: radial-gradient(circle, #fff8ea 4%, rgba(255, 232, 170, 0.98) 16%, rgba(255, 140, 40, 0.65) 44%, transparent 72%);
-  animation: explosion 0.48s cubic-bezier(0.16, 1, 0.3, 1) forwards;
-}
-@keyframes explosion {
-  from { transform: translate(-50%, -50%) scale(0.2); opacity: 1; }
-  45% { opacity: 1; }
-  100% { transform: translate(-50%, -50%) scale(2.3); opacity: 0; }
-}
-/* expanding shockwave ring that trails the flash outward for a bigger, punchier hit */
-.explosion-ring {
-  position: absolute; z-index: 155; width: 40px; height: 40px; border-radius: 50%; pointer-events: none;
-  transform: translate(-50%, -50%);
-  border: 3px solid rgba(255, 176, 80, 0.85);
-  box-shadow: 0 0 18px rgba(255, 140, 40, 0.5), inset 0 0 14px rgba(255, 210, 140, 0.4);
-  animation: explosion-ring-expand 0.46s cubic-bezier(0.1, 0.7, 0.3, 1) forwards;
-}
-@keyframes explosion-ring-expand {
-  from { transform: translate(-50%, -50%) scale(0.3); opacity: 0.9; border-width: 4px; }
-  to { transform: translate(-50%, -50%) scale(3.6); opacity: 0; border-width: 1px; }
-}
-.shrapnel {
-  position: absolute; z-index: 156; width: 6px; height: 6px; border-radius: 50%; pointer-events: none;
-  background: #ffcf7a; box-shadow: 0 0 7px #ff9a2e, 0 0 14px rgba(255, 120, 26, 0.6);
-  animation: shrapnel-fly 0.52s cubic-bezier(0.2, 0.8, 0.4, 1) forwards;
-}
-@keyframes shrapnel-fly {
-  from { transform: translate(-50%, -50%) translate(0, 0) scale(1.2); opacity: 1; }
-  to { transform: translate(-50%, -50%) translate(var(--dx), var(--dy)) scale(0.5); opacity: 0; }
-}
+/* combat impact renders on the #fx-canvas particle system (see anim.js
+   explosionBurst → spawnImpact): flash, shockwave, sparks, debris, dust. */
 
 /* ---------- CEO power: energy arc from portrait to target ---------- */
 .power-beam {
@@ -639,13 +575,16 @@
   background-position: 130% 0;
   animation: card-sheen 0.7s cubic-bezier(0.4, 0, 0.2, 1) 0.2s forwards;
 }
-/* death: white-out flash → crack + collapse in place (shards fly via fx layer) */
-.unit.anim-death { animation: unit-death 0.55s cubic-bezier(0.3, 0, 0.7, 1) forwards; pointer-events: none; }
+/* death: white-out flash → a quick over-pressure swell → blown apart (the
+   debris/flash/ring fly via the fx layer). The unit punches slightly bigger at
+   the flash peak, as if lit from within, then is torn away fast. */
+.unit.anim-death { animation: unit-death 0.55s cubic-bezier(0.32, 0, 0.68, 1) forwards; pointer-events: none; }
 @keyframes unit-death {
   0% { filter: brightness(1); }
-  10% { filter: brightness(3.4) saturate(0); }
-  20% { filter: brightness(1.6) saturate(0.3); transform: scale(1.03); }
-  100% { opacity: 0; transform: translateY(8px) scale(0.68) rotate(2deg); filter: brightness(0.25) blur(3px); }
+  9% { filter: brightness(3.8) saturate(0) contrast(1.2); transform: scale(1.09); }
+  20% { filter: brightness(1.7) saturate(0.3); transform: scale(1.12); }
+  46% { opacity: 1; }
+  100% { opacity: 0; transform: translateY(10px) scale(0.55) rotate(3deg); filter: brightness(0.2) blur(4px); }
 }
 /* attack anticipation: pull back away from the target with a slight tilt */
 .unit.anim-windup-up { animation: windup-up 0.13s cubic-bezier(0.5, 0, 1, 0.5) both; z-index: 40; }

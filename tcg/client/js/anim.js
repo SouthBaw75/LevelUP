@@ -63,6 +63,8 @@ export function initAnim(h) {
     document.body.appendChild(fxLayer);
   }
   fxLayer.innerHTML = '';
+  ensureFxCanvas();
+  resetFx(); // clear any lingering explosion particles from a previous game
   queue.length = 0;
   playing = false;
   cancelled = false;
@@ -77,6 +79,7 @@ export function stopAnim() {
   queue.length = 0;
   pendingAttachGhost = null; // fxLayer wipe below removes the node
   if (fxLayer) fxLayer.innerHTML = '';
+  resetFx(); // wipe any in-flight explosion particles from the canvas
 }
 
 export function fxRoot() { return fxLayer; }
@@ -184,20 +187,14 @@ export function floatNum(el, text, cls, opts = {}) {
   setTimeout(() => n.remove(), 1050);
 }
 
+/** Spell/ability damage: canvas energy-strike burst (see spawnEnergyStrike
+ *  below), scaled by the damage amount and colored by the struck unit/hero's
+ *  own faction so even a −1 poke reads as a real hit instead of a flat flash. */
 function impactAt(el, amount = 3) {
   if (!el) return;
   const { x, y } = centerOf(el);
-  const f = document.createElement('div');
-  f.className = 'impact-flash';
-  // scale the flash with the hit: small pokes get a tight, still-full-opacity
-  // flash (~60px) so even −1 lands with a visible beat
-  const sz = amount <= 2 ? 60 : 90;
-  f.style.width = sz + 'px';
-  f.style.height = sz + 'px';
-  f.style.left = x + 'px';
-  f.style.top = y + 'px';
-  fxLayer.appendChild(f);
-  setTimeout(() => f.remove(), 450);
+  const fc = getComputedStyle(el).getPropertyValue('--fc').trim() || '#94a3b8';
+  spawnEnergyStrike(x, y, amount, cssToRgb(fc));
 }
 
 /** Dust puff + double ground shockwave ring where a unit just materialized. */
@@ -235,41 +232,302 @@ function dustBurst(el) {
   setTimeout(() => inner.remove(), 340);
 }
 
-/** Death: unit cracks into faction-tinted shards that fly out and fall, plus
- *  dark smoke motes drifting up. Fired just after the white-out flash. */
+// ===================== canvas detonation system (unit death) =====================
+// A single viewport-covering <canvas> renders the death explosion: concussion
+// flash + shockwave, a churning additive fireball, realistic GRAY smoke that
+// expands and cools as it rises, glowing embers with trails, and tumbling card
+// debris. Each faction drives the blast's energy color (fire/flash/embers/ring)
+// while the smoke stays realistically neutral. Ported from the approved FX demo,
+// scaled to board-unit size and tuned a touch shorter for in-play readability.
+//
+// The canvas runs its OWN rAF loop that sleeps when idle, so smoke lingers
+// naturally after the death event's 550ms timeline has already moved on — the
+// two are decoupled. Cleared on initAnim/stopAnim like the DOM fx layer.
+let fxCanvas = null, fxCtx = null, fxRunning = false, fxLast = 0;
+const fxPools = { smoke: [], fire: [], debris: [], embers: [], shocks: [], flashes: [] };
+const TAU = Math.PI * 2;
+const rf = (a = 1, b = 0) => b + Math.random() * (a - b);
+
+// --- css color → [r,g,b] (handles hex / rgb() / color-mix output) ---
+const _rgbProbe = document.createElement('canvas').getContext('2d', { willReadFrequently: true });
+const _rgbCache = new Map();
+function cssToRgb(str) {
+  const key = str || '#94a3b8';
+  let v = _rgbCache.get(key);
+  if (v) return v;
+  _rgbProbe.fillStyle = '#94a3b8';
+  _rgbProbe.fillStyle = key; // invalid strings silently keep the fallback
+  _rgbProbe.fillRect(0, 0, 1, 1);
+  const d = _rgbProbe.getImageData(0, 0, 1, 1).data;
+  v = [d[0], d[1], d[2]];
+  _rgbCache.set(key, v);
+  return v;
+}
+
+// --- sprite factories (offscreen canvases, drawn many times per frame) ---
+function makePuff(rgb, seed) {
+  const S = 128, c = document.createElement('canvas'); c.width = c.height = S;
+  const g = c.getContext('2d'); let s = seed * 1000;
+  const rand = () => { s = (s * 9301 + 49297) % 233280; return s / 233280; };
+  const lobes = 4 + ((seed * 3) | 0) % 3;
+  for (let i = 0; i < lobes; i++) {
+    const lx = S / 2 + (rand() - 0.5) * S * 0.34, ly = S / 2 + (rand() - 0.5) * S * 0.34;
+    const lr = S * (0.24 + rand() * 0.2);
+    const gr = g.createRadialGradient(lx, ly, 0, lx, ly, lr);
+    gr.addColorStop(0, `rgba(${rgb[0]},${rgb[1]},${rgb[2]},0.9)`);
+    gr.addColorStop(0.55, `rgba(${rgb[0]},${rgb[1]},${rgb[2]},0.32)`);
+    gr.addColorStop(1, `rgba(${rgb[0]},${rgb[1]},${rgb[2]},0)`);
+    g.fillStyle = gr; g.beginPath(); g.arc(lx, ly, lr, 0, TAU); g.fill();
+  }
+  return c;
+}
+function makeFire(rgb) {
+  const S = 128, c = document.createElement('canvas'); c.width = c.height = S;
+  const g = c.getContext('2d');
+  const gr = g.createRadialGradient(S / 2, S / 2, 0, S / 2, S / 2, S / 2);
+  gr.addColorStop(0, 'rgba(255,255,255,0.95)');
+  gr.addColorStop(0.28, `rgba(${Math.min(255, rgb[0] + 120)},${Math.min(255, rgb[1] + 90)},${Math.min(255, rgb[2] + 70)},0.8)`);
+  gr.addColorStop(0.6, `rgba(${rgb[0]},${rgb[1]},${rgb[2]},0.32)`);
+  gr.addColorStop(1, `rgba(${rgb[0]},${rgb[1]},${rgb[2]},0)`);
+  g.fillStyle = gr; g.fillRect(0, 0, S, S);
+  return c;
+}
+function makeDot(rgb) {
+  const S = 32, c = document.createElement('canvas'); c.width = c.height = S;
+  const g = c.getContext('2d');
+  const gr = g.createRadialGradient(S / 2, S / 2, 0, S / 2, S / 2, S / 2);
+  gr.addColorStop(0, 'rgba(255,255,255,1)');
+  gr.addColorStop(0.4, `rgba(${Math.min(255, rgb[0] + 80)},${Math.min(255, rgb[1] + 60)},${Math.min(255, rgb[2] + 40)},0.9)`);
+  gr.addColorStop(1, `rgba(${rgb[0]},${rgb[1]},${rgb[2]},0)`);
+  g.fillStyle = gr; g.fillRect(0, 0, S, S);
+  return c;
+}
+// Smoke sprites are faction-INDEPENDENT (realistic gray, cooling ramp) → built
+// once. Fire/ember sprites carry the energy color → cached per color.
+let SMOKE_SPR = null;
+function smokeSprites() {
+  if (!SMOKE_SPR) {
+    const ramp = [[150, 140, 128], [96, 90, 84], [66, 66, 72], [44, 45, 52], [28, 30, 37], [17, 19, 25]];
+    SMOKE_SPR = ramp.map((rgb, i) => [0, 1, 2].map((v) => makePuff(rgb, i * 7 + v + 1)));
+  }
+  return SMOKE_SPR;
+}
+const _fireCache = new Map(), _dotCache = new Map();
+const fireFor = (rgb) => { const k = rgb.join(','); let s = _fireCache.get(k); if (!s) { s = makeFire(rgb); _fireCache.set(k, s); } return s; };
+const dotFor = (rgb) => { const k = rgb.join(','); let s = _dotCache.get(k); if (!s) { s = makeDot(rgb); _dotCache.set(k, s); } return s; };
+
+function ensureFxCanvas() {
+  if (fxCanvas) return;
+  fxCanvas = document.createElement('canvas');
+  fxCanvas.id = 'fx-canvas';
+  // just under #fx-layer (z 150) so DOM floats (damage numbers) stay readable
+  // over the smoke; above the board so the blast reads as being in front.
+  fxCanvas.style.cssText = 'position:fixed;inset:0;z-index:148;pointer-events:none;';
+  document.body.appendChild(fxCanvas);
+  fxCtx = fxCanvas.getContext('2d');
+  sizeFxCanvas();
+  addEventListener('resize', sizeFxCanvas);
+}
+function sizeFxCanvas() {
+  if (!fxCanvas) return;
+  const dpr = Math.min(2, window.devicePixelRatio || 1);
+  fxCanvas.width = Math.round(innerWidth * dpr);
+  fxCanvas.height = Math.round(innerHeight * dpr);
+  fxCanvas.style.width = innerWidth + 'px';
+  fxCanvas.style.height = innerHeight + 'px';
+  fxCtx.setTransform(dpr, 0, 0, dpr, 0, 0);
+}
+function resetFx() {
+  for (const k in fxPools) fxPools[k].length = 0;
+  if (fxCtx) fxCtx.clearRect(0, 0, innerWidth, innerHeight);
+}
+function startFxLoop() {
+  if (fxRunning) return;
+  fxRunning = true; fxLast = performance.now();
+  requestAnimationFrame(fxTick);
+}
+
+/** Spawn a full detonation at viewport (x,y). rad = unit min-dimension (blast
+ *  scale); rgb = faction energy color. Wakes the canvas loop. */
+function spawnDetonation(x, y, rad, rgb) {
+  ensureFxCanvas();
+  const s = rad / 140; // scale vs the approved demo (its card min-dim ~150)
+  const P = fxPools;
+  // flash + shockwaves (radii keyed to unit size)
+  P.flashes.push({ x, y, r: rad * 0.12, max: rad * 1.0, life: 0, dur: 0.16, rgb });
+  P.flashes.push({ x, y, r: rad * 0.05, max: rad * 0.5, life: 0, dur: 0.09, rgb });
+  P.shocks.push({ x, y, r: rad * 0.1, max: rad * 1.5, life: 0, dur: 0.42, w: 3.0 * s, rgb });
+  P.shocks.push({ x, y, r: rad * 0.06, max: rad * 0.9, life: 0, dur: 0.26, w: 2.0 * s, rgb });
+  // fireball
+  for (let i = 0; i < 20; i++) {
+    const a = rf(TAU), sp = rf(190, 40) * s;
+    P.fire.push({ x: x + Math.cos(a) * 6, y: y + Math.sin(a) * 6, vx: Math.cos(a) * sp, vy: Math.sin(a) * sp - 30 * s,
+      size: rf(52, 28) * s, grow: rf(2.4, 1.3), life: 0, dur: rf(0.58, 0.32), rot: rf(TAU), vr: rf(3, -3), rgb });
+  }
+  // smoke (all at once; velocity/size variance gives the churn). Shorter life
+  // than the demo so it doesn't linger over a live board.
+  for (let i = 0; i < 40; i++) {
+    const a = rf(TAU), sp = rf(140, 18) * s;
+    P.smoke.push({ x: x + Math.cos(a) * rf(12, 0) * s, y: y + Math.sin(a) * rf(12, 0) * s,
+      vx: Math.cos(a) * sp, vy: Math.sin(a) * sp - rf(38, 10) * s,
+      size: rf(44, 24) * s, grow: rf(32, 18) * s, life: -rf(0.14, 0), dur: rf(2.0, 1.1),
+      rot: rf(TAU), vr: rf(0.8, -0.8), seed: (Math.random() * 3) | 0, turb: rf(24, 12) * s, phase: rf(TAU), buoy: rf(48, 24) * s });
+  }
+  // embers with trails
+  for (let i = 0; i < 30; i++) {
+    const a = rf(TAU), sp = rf(340, 70) * s;
+    P.embers.push({ x, y, px: x, py: y, vx: Math.cos(a) * sp, vy: Math.sin(a) * sp - rf(56, 0) * s,
+      size: rf(4.2, 1.5) * s, life: 0, dur: rf(1.4, 0.5), flick: rf(TAU), drag: rf(1.6, 1.1), rgb });
+  }
+  // card debris
+  for (let i = 0; i < 8; i++) {
+    const a = (i / 8) * TAU + rf(0.5, -0.5), sp = rf(220, 80) * s;
+    P.debris.push({ x, y, vx: Math.cos(a) * sp, vy: Math.sin(a) * sp - rf(150, 55) * s,
+      w: rf(24, 11) * s, h: rf(19, 9) * s, rot: rf(TAU), vr: rf(9, -9), life: 0, dur: rf(1.1, 0.75), rgb });
+  }
+  startFxLoop();
+}
+
+/** Melee attack impact: sharp flash + tight shockwave + a spray of sparks and
+ *  a few chunky debris chips kicking off the struck unit, plus a brief puff
+ *  of dust — much shorter-lived than the death cloud so it never lingers
+ *  over a live board. Reuses spawnDetonation's particle pools/renderer, just
+ *  smaller and quicker since the unit survives the hit. Fires on every
+ *  attack, so this carries most of the game's combat "feel." */
+function spawnImpact(x, y, rad, rgb) {
+  ensureFxCanvas();
+  const s = rad / 140;
+  const P = fxPools;
+  P.flashes.push({ x, y, r: rad * 0.1, max: rad * 0.55, life: 0, dur: 0.11, rgb });
+  P.shocks.push({ x, y, r: rad * 0.08, max: rad * 0.85, life: 0, dur: 0.26, w: 2.4 * s, rgb });
+  for (let i = 0; i < 16; i++) {
+    const a = rf(TAU), sp = rf(300, 90) * s;
+    P.embers.push({ x, y, px: x, py: y, vx: Math.cos(a) * sp, vy: Math.sin(a) * sp - rf(40, 0) * s,
+      size: rf(3.6, 1.4) * s, life: 0, dur: rf(0.55, 0.22), flick: rf(TAU), drag: rf(2.2, 1.6), rgb });
+  }
+  for (let i = 0; i < 5; i++) {
+    const a = rf(TAU), sp = rf(150, 50) * s;
+    P.debris.push({ x, y, vx: Math.cos(a) * sp, vy: Math.sin(a) * sp - rf(90, 30) * s,
+      w: rf(10, 5) * s, h: rf(8, 4) * s, rot: rf(TAU), vr: rf(10, -10), life: 0, dur: rf(0.55, 0.4), rgb });
+  }
+  for (let i = 0; i < 6; i++) {
+    const a = rf(TAU), sp = rf(60, 10) * s;
+    P.smoke.push({ x: x + Math.cos(a) * rf(8, 0) * s, y: y + Math.sin(a) * rf(8, 0) * s,
+      vx: Math.cos(a) * sp, vy: Math.sin(a) * sp - rf(20, 6) * s,
+      size: rf(20, 12) * s, grow: rf(14, 8) * s, life: 0, dur: rf(0.42, 0.28),
+      rot: rf(TAU), vr: rf(0.6, -0.6), seed: (Math.random() * 3) | 0, turb: rf(10, 4) * s, phase: rf(TAU), buoy: rf(20, 8) * s });
+  }
+  startFxLoop();
+}
+
+/** Spell/ability damage: a sharper "energy strike" — crackling flash + tight
+ *  shockwave + a spray of sparks. No smoke, no debris: this damage comes from
+ *  an off-screen effect, not a physical unit-on-unit impact. Scales with the
+ *  amount so a 1 still lands as a beat and a big hit reads as a real crack. */
+function spawnEnergyStrike(x, y, amount, rgb) {
+  ensureFxCanvas();
+  const rad = amount >= 5 ? 100 : amount >= 3 ? 78 : 56;
+  const s = rad / 140;
+  const P = fxPools;
+  P.flashes.push({ x, y, r: rad * 0.14, max: rad * 0.6, life: 0, dur: 0.1, rgb });
+  P.shocks.push({ x, y, r: rad * 0.06, max: rad * 0.7, life: 0, dur: 0.22, w: 2.0 * s, rgb });
+  const n = amount >= 5 ? 18 : amount >= 3 ? 13 : 9;
+  for (let i = 0; i < n; i++) {
+    const a = rf(TAU), sp = rf(260, 80) * s;
+    P.embers.push({ x, y, px: x, py: y, vx: Math.cos(a) * sp, vy: Math.sin(a) * sp - rf(30, 0) * s,
+      size: rf(3.2, 1.3) * s, life: 0, dur: rf(0.42, 0.2), flick: rf(TAU), drag: rf(2.4, 1.8), rgb });
+  }
+  startFxLoop();
+}
+
+function fxTick(now) {
+  if (!fxRunning || !fxCtx) return;
+  const dt = Math.min(0.05, (now - fxLast) / 1000); fxLast = now;
+  const ctx = fxCtx, P = fxPools;
+  ctx.clearRect(0, 0, innerWidth, innerHeight);
+  const SM = smokeSprites();
+
+  // SMOKE (source-over, behind everything)
+  for (let i = P.smoke.length - 1; i >= 0; i--) {
+    const p = P.smoke[i]; p.life += dt; if (p.life < 0) continue;
+    const t = p.life / p.dur; if (t >= 1) { P.smoke.splice(i, 1); continue; }
+    p.phase += dt * 1.4;
+    p.vx += Math.sin(p.phase + p.y * 0.012) * p.turb * dt;
+    p.vy += (Math.cos(p.phase * 0.9 + p.x * 0.012) * p.turb - p.buoy * (0.4 + t)) * dt;
+    p.vx *= (1 - 1.1 * dt); p.vy *= (1 - 1.0 * dt);
+    p.x += p.vx * dt; p.y += p.vy * dt; p.rot += p.vr * dt;
+    const sz = p.size + p.grow * p.life * (1 + t);
+    const step = Math.min(SM.length - 1, (t * SM.length) | 0);
+    const spr = SM[step][p.seed % SM[step].length];
+    ctx.globalAlpha = Math.min(1, t / 0.09) * (1 - Math.pow(t, 1.7)) * 0.5;
+    ctx.globalCompositeOperation = 'source-over';
+    ctx.save(); ctx.translate(p.x, p.y); ctx.rotate(p.rot); ctx.drawImage(spr, -sz, -sz, sz * 2, sz * 2); ctx.restore();
+  }
+  // FIRE (additive)
+  ctx.globalCompositeOperation = 'lighter';
+  for (let i = P.fire.length - 1; i >= 0; i--) {
+    const p = P.fire[i]; p.life += dt; const t = p.life / p.dur; if (t >= 1) { P.fire.splice(i, 1); continue; }
+    p.vx *= (1 - 2.6 * dt); p.vy = (p.vy - 46 * dt) * (1 - 2.6 * dt);
+    p.x += p.vx * dt; p.y += p.vy * dt; p.rot += p.vr * dt;
+    const sz = (p.size + p.grow * p.life * 40) * (1 - 0.15 * t);
+    ctx.globalAlpha = (1 - t) * (1 - t) * 0.9;
+    ctx.save(); ctx.translate(p.x, p.y); ctx.rotate(p.rot); ctx.drawImage(fireFor(p.rgb), -sz, -sz, sz * 2, sz * 2); ctx.restore();
+  }
+  // DEBRIS (source-over)
+  ctx.globalCompositeOperation = 'source-over';
+  for (let i = P.debris.length - 1; i >= 0; i--) {
+    const p = P.debris[i]; p.life += dt; const t = p.life / p.dur; if (t >= 1) { P.debris.splice(i, 1); continue; }
+    p.vy += 620 * dt; p.vx *= (1 - 0.6 * dt);
+    p.x += p.vx * dt; p.y += p.vy * dt; p.rot += p.vr * dt;
+    const a = 1 - Math.pow(t, 2.2);
+    ctx.globalAlpha = a; ctx.save(); ctx.translate(p.x, p.y); ctx.rotate(p.rot);
+    ctx.fillStyle = '#0a0f18'; ctx.fillRect(-p.w / 2, -p.h / 2, p.w, p.h);
+    ctx.globalAlpha = a * 0.85; ctx.strokeStyle = `rgb(${p.rgb[0]},${p.rgb[1]},${p.rgb[2]})`; ctx.lineWidth = 1.3;
+    ctx.strokeRect(-p.w / 2, -p.h / 2, p.w, p.h); ctx.restore();
+  }
+  // EMBERS (additive, short trail)
+  ctx.globalCompositeOperation = 'lighter'; ctx.lineCap = 'round';
+  for (let i = P.embers.length - 1; i >= 0; i--) {
+    const p = P.embers[i]; p.life += dt; const t = p.life / p.dur; if (t >= 1) { P.embers.splice(i, 1); continue; }
+    p.px = p.x; p.py = p.y;
+    p.vy += 300 * dt; p.vx *= (1 - p.drag * dt); p.vy *= (1 - p.drag * dt * 0.6);
+    p.x += p.vx * dt; p.y += p.vy * dt; p.flick += dt * 30;
+    const fl = 0.6 + 0.4 * Math.sin(p.flick), sz = p.size * (1 - 0.5 * t);
+    ctx.globalAlpha = (1 - t) * 0.35 * fl;
+    ctx.strokeStyle = `rgb(${Math.min(255, p.rgb[0] + 120)},${Math.min(255, p.rgb[1] + 90)},${Math.min(255, p.rgb[2] + 70)})`;
+    ctx.lineWidth = sz * 0.9; ctx.beginPath(); ctx.moveTo(p.px, p.py); ctx.lineTo(p.x, p.y); ctx.stroke();
+    ctx.globalAlpha = (1 - t) * fl; ctx.drawImage(dotFor(p.rgb), p.x - sz * 1.6, p.y - sz * 1.6, sz * 3.2, sz * 3.2);
+  }
+  // SHOCKWAVE (additive ring)
+  for (let i = P.shocks.length - 1; i >= 0; i--) {
+    const p = P.shocks[i]; p.life += dt; const t = p.life / p.dur; if (t >= 1) { P.shocks.splice(i, 1); continue; }
+    const r = p.r + (p.max - p.r) * (1 - Math.pow(1 - t, 2));
+    ctx.globalAlpha = (1 - t) * 0.8;
+    ctx.strokeStyle = `rgb(${Math.min(255, p.rgb[0] + 90)},${Math.min(255, p.rgb[1] + 70)},${Math.min(255, p.rgb[2] + 60)})`;
+    ctx.lineWidth = Math.max(0.4, p.w * (1 - t)); ctx.beginPath(); ctx.arc(p.x, p.y, r, 0, TAU); ctx.stroke();
+  }
+  // FLASH (additive, on top)
+  for (let i = P.flashes.length - 1; i >= 0; i--) {
+    const p = P.flashes[i]; p.life += dt; const t = p.life / p.dur; if (t >= 1) { P.flashes.splice(i, 1); continue; }
+    const r = p.r + (p.max - p.r) * t;
+    ctx.globalAlpha = 1 - t; ctx.drawImage(fireFor(p.rgb), p.x - r, p.y - r, r * 2, r * 2);
+  }
+
+  ctx.globalAlpha = 1; ctx.globalCompositeOperation = 'source-over';
+  const alive = P.smoke.length + P.fire.length + P.debris.length + P.embers.length + P.shocks.length + P.flashes.length;
+  if (alive === 0) { fxRunning = false; return; } // sleep until the next blast
+  requestAnimationFrame(fxTick);
+}
+
+/** Unit death: fire the canvas detonation at the unit's center in its faction
+ *  color, plus a small screen kick. Fired just after the unit's white-out flash;
+ *  the smoke lingers via the canvas loop after the unit itself is removed. */
 function deathBurst(el) {
   if (!el) return;
   const r = el.getBoundingClientRect();
-  const x = r.left + r.width / 2, y = r.top + r.height / 2;
   const fc = getComputedStyle(el).getPropertyValue('--fc').trim() || '#94a3b8';
-  for (let i = 0; i < 3; i++) {
-    const s = document.createElement('div');
-    s.className = 'death-shard';
-    s.style.left = x + 'px';
-    s.style.top = y + 'px';
-    s.style.setProperty('--fc', fc);
-    s.style.width = (r.width * (0.26 + Math.random() * 0.14)) + 'px';
-    s.style.height = (r.height * (0.22 + Math.random() * 0.14)) + 'px';
-    s.style.setProperty('--dx', ((i - 1) * 36 + (Math.random() * 16 - 8)) + 'px');
-    s.style.setProperty('--dy', (-(16 + Math.random() * 18)) + 'px');
-    s.style.setProperty('--rr', ((Math.random() * 150 - 75) | 0) + 'deg');
-    fxLayer.appendChild(s);
-    setTimeout(() => s.remove(), 620);
-  }
-  for (let i = 0; i < 4; i++) {
-    const m = document.createElement('div');
-    m.className = 'smoke-mote';
-    const size = 8 + Math.random() * 8;
-    m.style.width = size + 'px';
-    m.style.height = size + 'px';
-    m.style.left = (x + Math.random() * r.width * 0.6 - r.width * 0.3) + 'px';
-    m.style.top = (y + Math.random() * 16 - 8) + 'px';
-    m.style.setProperty('--dy', (-(26 + Math.random() * 22)) + 'px');
-    m.style.setProperty('--dx', (Math.random() * 20 - 10) + 'px');
-    m.style.animationDelay = (i * 45) + 'ms';
-    fxLayer.appendChild(m);
-    setTimeout(() => m.remove(), 900);
-  }
+  spawnDetonation(r.left + r.width / 2, r.top + r.height / 2, Math.min(r.width, r.height), cssToRgb(fc));
+  screenShake('small');
 }
 
 /** Heal: soft radial bloom + 2-3 rising green plus-glyphs. */
@@ -409,52 +667,14 @@ function fireShell(fromEl, toEl, duration = 260) {
   setTimeout(() => shell.remove(), duration + 40);
 }
 
-/** Bigger artillery-style explosion: bright core flash + an expanding
- *  shockwave ring + flying shrapnel + lingering smoke puffs, for combat
- *  impacts. Scaled up for a punchier, more satisfying hit. */
+/** Melee attack impact: sparks/debris/dust kick off the struck unit itself
+ *  (canvas particle system — see spawnImpact above), colored by the target's
+ *  own faction, instead of a generic fixed-orange radial burst. */
 function explosionBurst(el) {
   if (!el) return;
-  const { x, y } = centerOf(el);
-  const flash = document.createElement('div');
-  flash.className = 'explosion-flash';
-  flash.style.left = x + 'px';
-  flash.style.top = y + 'px';
-  fxLayer.appendChild(flash);
-  setTimeout(() => flash.remove(), 480);
-  const ring = document.createElement('div');
-  ring.className = 'explosion-ring';
-  ring.style.left = x + 'px';
-  ring.style.top = y + 'px';
-  fxLayer.appendChild(ring);
-  setTimeout(() => ring.remove(), 460);
-  for (let i = 0; i < 11; i++) {
-    const p = document.createElement('div');
-    p.className = 'shrapnel';
-    const ang = (Math.PI * 2 * i) / 11 + (Math.random() * 0.4 - 0.2);
-    const dist = 48 + Math.random() * 40;
-    const size = 6 + Math.random() * 4;
-    p.style.width = size + 'px';
-    p.style.height = size + 'px';
-    p.style.left = x + 'px';
-    p.style.top = y + 'px';
-    p.style.setProperty('--dx', Math.cos(ang) * dist + 'px');
-    p.style.setProperty('--dy', Math.sin(ang) * dist + 'px');
-    fxLayer.appendChild(p);
-    setTimeout(() => p.remove(), 520);
-  }
-  for (let i = 0; i < 4; i++) {
-    const s = document.createElement('div');
-    s.className = 'smoke-puff';
-    const size = 30 + Math.random() * 22;
-    s.style.width = size + 'px';
-    s.style.height = size + 'px';
-    s.style.left = (x + Math.random() * 40 - 20) + 'px';
-    s.style.top = (y + Math.random() * 16 - 8) + 'px';
-    s.style.setProperty('--dx', (Math.random() * 24 - 12) + 'px');
-    s.style.animationDelay = (60 + i * 70) + 'ms';
-    fxLayer.appendChild(s);
-    setTimeout(() => s.remove(), 950);
-  }
+  const r = el.getBoundingClientRect();
+  const fc = getComputedStyle(el).getPropertyValue('--fc').trim() || '#94a3b8';
+  spawnImpact(r.left + r.width / 2, r.top + r.height / 2, Math.min(r.width, r.height), cssToRgb(fc));
 }
 
 /** Energy arc shot from a CEO portrait to the target of their power. */
