@@ -71,6 +71,11 @@ export function mount(el) {
   `;
   ambient = el.querySelector('.lobby-ambient');
   root = el.querySelector('.lobby-content');
+  // clicking anywhere outside the deck row collapses the CHANGE flyout
+  document.addEventListener('click', (ev) => {
+    const flyout = root?.querySelector('#deck-flyout.open');
+    if (flyout && !ev.target.closest('#deck-current')) flyout.classList.remove('open');
+  });
 }
 
 export function enter() {
@@ -93,9 +98,11 @@ export function onOnline(n) {
 }
 
 export function onKey(ev, typing) {
+  void typing;
   if (howToPlayOpen()) return false; // howtoplay.js owns its own Escape handling
   if (ev.key === 'Escape' && modal) { cancelModalAction(); return true; }
-  if (ev.key === 'Enter' && modalMode === 'privateJoin' && typing) { submitJoinCode(); return true; }
+  const flyout = root?.querySelector('#deck-flyout.open');
+  if (ev.key === 'Escape' && flyout) { flyout.classList.remove('open'); return true; }
   return false;
 }
 
@@ -131,11 +138,32 @@ function requireValidDeck() {
 }
 
 // ---------- render ----------
+// Engage panel state — module-level so faction-click re-renders keep your
+// place (active tab, chosen mode per tab, bot difficulty).
+const engage = { tab: 'play', sel: { play: 'queue', private: 'host', watch: 'watch' }, diff: 'normal' };
+
+// One mode = one radio card. The single launch CTA's label always states
+// exactly what pressing it will do.
+const ENGAGE_MODES = {
+  play: [
+    { id: 'queue', title: 'Ranked Queue', sub: 'Find an opponent online', cta: () => 'ENTER QUEUE' },
+    { id: 'bot', title: 'VS Bot', sub: 'Practice against the AI', seg: true, cta: () => 'START VS BOT · ' + engage.diff.toUpperCase() },
+  ],
+  private: [
+    { id: 'host', title: 'Host Match', sub: 'Get a 4-character code to share with a friend', cta: () => 'HOST PRIVATE MATCH' },
+    { id: 'join', title: 'Join Match', sub: 'Enter a code from a friend', code: true, cta: () => 'JOIN MATCH' },
+  ],
+  watch: [
+    { id: 'watch', title: 'AI vs AI', sub: 'Auto-run bot matches for playtesting — alternates who goes first, records a downloadable play log', watch: true, cta: () => 'START SIMULATION' },
+  ],
+};
+
 function render() {
   const sel = selectedChoice();
   const selFaction = sel ? sel.faction : 'nexus';
+  const fcColor = factionMeta(selFaction).color;
   // tint the ambient horizon glow toward the selected conglomerate
-  if (ambient) ambient.style.setProperty('--amb', factionMeta(selFaction).color);
+  if (ambient) ambient.style.setProperty('--amb', fcColor);
 
   root.innerHTML = `
     <div class="lobby-top">
@@ -151,21 +179,17 @@ function render() {
         <div class="section-head"><span class="tag">Select your conglomerate</span></div>
         <div class="faction-grid" id="faction-grid"></div>
       </div>
-      <div class="lobby-right">
+      <div class="lobby-right" style="--fc:${fcColor}">
         <div class="section-head"><span class="tag">Deck</span></div>
-        <div class="deck-select" id="deck-select" style="max-height:200px"></div>
-        <button class="btn ghost small" id="btn-builder">⛭ &nbsp;DECK BUILDER</button>
+        <div class="deck-current" id="deck-current"></div>
         <div class="section-head" style="margin-top:6px"><span class="tag">Engage</span></div>
-        <div class="play-buttons">
-          <button class="btn" id="btn-queue">▸ RANKED QUEUE <span class="sub">casual matchmaking</span></button>
-          <button class="btn" id="btn-create">▸ PRIVATE MATCH <span class="sub">host — share a code</span></button>
-          <button class="btn" id="btn-join">▸ JOIN PRIVATE <span class="sub">enter a code</span></button>
-          <div class="bot-row">
-            <button class="btn" id="btn-bot-normal">VS BOT · NORMAL</button>
-            <button class="btn" id="btn-bot-hard">VS BOT · HARD</button>
-          </div>
-          <button class="btn" id="btn-watch">▸ WATCH AI vs AI <span class="sub">playtest — two bots, auto-run</span></button>
+        <div class="mode-tabs" role="tablist">
+          <button class="mode-tab" data-tab="play" role="tab">Play</button>
+          <button class="mode-tab" data-tab="private" role="tab">Private</button>
+          <button class="mode-tab" data-tab="watch" role="tab">Watch</button>
         </div>
+        <div class="mode-list" id="mode-list" role="radiogroup"></div>
+        <button class="btn cta" id="btn-go"></button>
       </div>
     </div>
   `;
@@ -195,57 +219,201 @@ function render() {
     grid.appendChild(card);
   }
 
-  // deck rows
-  const list = root.querySelector('#deck-select');
-  const choices = allDeckChoices();
-  if (!choices.length) {
-    list.innerHTML = '<div class="tag" style="padding:12px">card database loading…</div>';
-  }
-  for (const c of choices) {
-    const m = factionMeta(c.faction);
-    const v = deckValidity(c.faction, c.cards);
-    const row = document.createElement('button');
-    row.className = 'deck-row' + (sel && c.selId === sel.selId ? ' selected' : '');
-    row.style.setProperty('--fc', m.color);
-    row.innerHTML = `
-      <span class="dr-swatch"></span>
-      <span><span class="dr-name">${escapeHtml(c.name)}</span><br>
-      <span class="dr-sub">${escapeHtml(m.name)} · ${c.starter ? 'STARTER' : 'CUSTOM'}</span></span>
-      <span class="dr-flag ${v.ok ? '' : 'invalid'}">${v.ok ? '40/40' : v.error.toUpperCase()}</span>
-    `;
-    row.addEventListener('click', () => { setSelectedDeckId(c.selId); render(); });
-    list.appendChild(row);
-  }
+  renderDeckCurrent();
+  renderEngage();
 
-  // buttons
   root.querySelector('#btn-howto').addEventListener('click', () => openHowToPlay());
-  root.querySelector('#btn-builder').addEventListener('click', () => showScreen('builder'));
-  root.querySelector('#btn-queue').addEventListener('click', () => {
+  root.querySelector('.mode-tabs').addEventListener('click', (ev) => {
+    const t = ev.target.closest('.mode-tab');
+    if (!t || t.dataset.tab === engage.tab) return;
+    engage.tab = t.dataset.tab;
+    renderEngage();
+  });
+  root.querySelector('#btn-go').addEventListener('click', goEngage);
+}
+
+/** Compact current-deck row: swatch + name + validity, with a CHANGE flyout
+ *  listing every deck (starters + custom) and a deck-builder shortcut. */
+function renderDeckCurrent() {
+  const wrap = root.querySelector('#deck-current');
+  const sel = selectedChoice();
+  if (!sel) {
+    wrap.innerHTML = '<div class="tag" style="padding:12px">card database loading…</div>';
+    return;
+  }
+  const m = factionMeta(sel.faction);
+  const v = deckValidity(sel.faction, sel.cards);
+  wrap.style.setProperty('--fc', m.color);
+  wrap.innerHTML = `
+    <span class="dr-swatch"></span>
+    <span class="dc-meta"><span class="dr-name">${escapeHtml(sel.name)}</span><br>
+    <span class="dr-sub">${escapeHtml(m.name)} · ${sel.starter ? 'STARTER' : 'CUSTOM'}</span></span>
+    <span class="dr-flag ${v.ok ? 'ok' : 'invalid'}">${v.ok ? '40/40' : v.error.toUpperCase()}</span>
+    <button class="btn ghost small" id="btn-deck-change" aria-haspopup="listbox" aria-expanded="false">CHANGE ▾</button>
+    <button class="btn ghost small" id="btn-builder" title="Open the deck builder">⛭</button>
+    <div class="deck-flyout" id="deck-flyout" role="listbox"></div>
+  `;
+  const flyout = wrap.querySelector('#deck-flyout');
+  for (const c of allDeckChoices()) {
+    const cm = factionMeta(c.faction);
+    const cv = deckValidity(c.faction, c.cards);
+    const opt = document.createElement('button');
+    opt.className = 'deck-opt' + (c.selId === sel.selId ? ' selected' : '');
+    opt.style.setProperty('--fc', cm.color);
+    opt.setAttribute('role', 'option');
+    opt.setAttribute('aria-selected', c.selId === sel.selId);
+    opt.innerHTML = `
+      <span class="dr-swatch"></span>
+      <span class="do-meta"><span class="dr-name">${escapeHtml(c.name)}</span><br>
+      <span class="dr-sub">${escapeHtml(cm.name)} · ${c.starter ? 'STARTER' : 'CUSTOM'}</span></span>
+      <span class="dr-flag ${cv.ok ? '' : 'invalid'}">${cv.ok ? '40/40' : cv.error.toUpperCase()}</span>
+    `;
+    opt.addEventListener('click', () => { setSelectedDeckId(c.selId); render(); });
+    flyout.appendChild(opt);
+  }
+  wrap.querySelector('#btn-deck-change').addEventListener('click', (ev) => {
+    ev.stopPropagation();
+    const open = flyout.classList.toggle('open');
+    wrap.querySelector('#btn-deck-change').setAttribute('aria-expanded', open);
+  });
+  wrap.querySelector('#btn-builder').addEventListener('click', () => showScreen('builder'));
+}
+
+/** Tab strip + radio mode cards + the single launch CTA. */
+function renderEngage() {
+  for (const t of root.querySelectorAll('.mode-tab')) {
+    t.classList.toggle('active', t.dataset.tab === engage.tab);
+  }
+  const list = root.querySelector('#mode-list');
+  const keepCode = list.querySelector('#join-code')?.value || '';
+  list.innerHTML = '';
+  const selId = engage.sel[engage.tab];
+  for (const m of ENGAGE_MODES[engage.tab]) {
+    const card = document.createElement('div');
+    card.className = 'mode-card' + (m.id === selId ? ' selected' : '');
+    card.setAttribute('role', 'radio');
+    card.setAttribute('aria-checked', m.id === selId);
+    card.tabIndex = 0;
+    let html = `<span class="m-radio"></span><span class="m-meta"><span class="m-title">${m.title}</span><div class="m-sub">${m.sub}</div>`;
+    if (m.code) {
+      html += `<div class="m-code"><input class="input code-input" id="join-code" maxlength="4"
+        autocomplete="off" spellcheck="false" placeholder="····" aria-label="boardroom code"></div>`;
+    }
+    if (m.watch) html += `<div class="m-watch" id="m-watch"></div>`;
+    html += `</span>`;
+    if (m.seg) {
+      html += `<span class="m-seg">
+        <button data-d="normal" class="${engage.diff === 'normal' ? 'on' : ''}">NORMAL</button>
+        <button data-d="hard" class="${engage.diff === 'hard' ? 'on' : ''}">HARD</button></span>`;
+    }
+    card.innerHTML = html;
+    card.addEventListener('click', (ev) => {
+      const seg = ev.target.closest('.m-seg button');
+      if (seg) {
+        engage.diff = seg.dataset.d;
+        renderEngage();
+        return;
+      }
+      // clicks on inner controls of the already-selected card mustn't rebuild
+      // (it would blur the code input / reset watch chips mid-interaction)
+      if (m.id === engage.sel[engage.tab]) return;
+      engage.sel[engage.tab] = m.id;
+      renderEngage();
+      root.querySelector('#join-code')?.focus();
+    });
+    card.addEventListener('keydown', (ev) => {
+      if ((ev.key === 'Enter' || ev.key === ' ') && ev.target === card) {
+        ev.preventDefault();
+        engage.sel[engage.tab] = m.id;
+        renderEngage();
+      }
+    });
+    list.appendChild(card);
+  }
+  const inp = root.querySelector('#join-code');
+  if (inp) {
+    inp.value = keepCode;
+    inp.addEventListener('keydown', (ev) => {
+      if (ev.key === 'Enter') { ev.preventDefault(); goEngage(); }
+    });
+  }
+  const mw = root.querySelector('#m-watch');
+  if (mw) buildWatchInline(mw);
+
+  const cur = ENGAGE_MODES[engage.tab].find((m) => m.id === engage.sel[engage.tab]) || ENGAGE_MODES[engage.tab][0];
+  const go = root.querySelector('#btn-go');
+  go.disabled = false;
+  go.textContent = cur.cta();
+}
+
+/** Inline AI-vs-AI config (sides + match count) inside the Watch tab —
+ *  replaces the old pre-launch modal. */
+function buildWatchInline(mw) {
+  mw.innerHTML = `
+    <div class="ws-sides">
+      <div class="ws-side"><div class="ws-label">SIDE A</div><div class="ws-factions" id="ws-a"></div></div>
+      <div class="ws-vs">vs</div>
+      <div class="ws-side"><div class="ws-label">SIDE B</div><div class="ws-factions" id="ws-b"></div></div>
+    </div>
+    <div class="ws-matches">
+      <label for="ws-count">MATCHES</label>
+      <input class="input" id="ws-count" type="number" min="1" max="50" value="${watchPick.matches}" inputmode="numeric">
+      <span class="ws-hint">1–50</span>
+    </div>
+  `;
+  for (const key of ['a', 'b']) {
+    const wrapEl = mw.querySelector('#ws-' + key);
+    for (const f of WATCH_FACTIONS) {
+      const m = factionMeta(f);
+      const chip = document.createElement('button');
+      chip.className = 'ws-chip' + (watchPick[key] === f ? ' selected' : '');
+      chip.style.setProperty('--fc', m.color);
+      chip.textContent = m.name;
+      chip.addEventListener('click', () => {
+        watchPick[key] = f;
+        for (const c of wrapEl.querySelectorAll('.ws-chip')) c.classList.remove('selected');
+        chip.classList.add('selected');
+      });
+      wrapEl.appendChild(chip);
+    }
+  }
+  mw.querySelector('#ws-count').addEventListener('change', (ev) => {
+    watchPick.matches = Math.max(1, Math.min(50, parseInt(ev.target.value, 10) || 5));
+  });
+}
+
+/** The single launch button: dispatch on (tab, selected mode). */
+function goEngage() {
+  const mode = engage.sel[engage.tab];
+  if (engage.tab === 'play' && mode === 'queue') {
     const deck = requireValidDeck();
     if (!deck) return;
     if (!ensureConnected()) return;
     net.send({ t: 'queue', deck });
     openModal('searching');
-  });
-  root.querySelector('#btn-create').addEventListener('click', () => {
+  } else if (engage.tab === 'play' && mode === 'bot') {
+    startBot(engage.diff);
+  } else if (engage.tab === 'private' && mode === 'host') {
     const deck = requireValidDeck();
     if (!deck) return;
     if (!ensureConnected()) return;
     net.send({ t: 'createPrivate', deck });
     openModal('privateHost');
-  });
-  root.querySelector('#btn-join').addEventListener('click', () => {
-    const deck = requireValidDeck();
-    if (!deck) return;
+  } else if (engage.tab === 'private' && mode === 'join') {
+    submitJoinCode();
+  } else if (engage.tab === 'watch') {
+    const count = Math.max(1, Math.min(50, parseInt(root.querySelector('#ws-count')?.value, 10) || 5));
+    watchPick.matches = count;
     if (!ensureConnected()) return;
-    openModal('privateJoin');
-  });
-  root.querySelector('#btn-bot-normal').addEventListener('click', () => startBot('normal'));
-  root.querySelector('#btn-bot-hard').addEventListener('click', () => startBot('hard'));
-  root.querySelector('#btn-watch').addEventListener('click', () => {
-    if (!ensureConnected()) return;
-    openWatchSetup();
-  });
+    net.send({
+      t: 'watchBots',
+      factionA: watchPick.a,
+      factionB: watchPick.b,
+      matches: count,
+      speed: 0.5, // default 2×; adjustable live in the watch screen
+      difficulty: 'hard',
+    });
+  }
 }
 
 function ensureConnected() {
@@ -264,79 +432,9 @@ function startBot(difficulty) {
   net.send({ t: 'playBot', deck, difficulty });
 }
 
-// ---------- AI-vs-AI watch setup ----------
+// ---------- AI-vs-AI watch config (rendered inline in the Watch tab) ----------
 const WATCH_FACTIONS = ['nexus', 'vulcan', 'helix', 'obsidian'];
 const watchPick = { a: 'nexus', b: 'obsidian', matches: 5 };
-
-function openWatchSetup() {
-  closeModal(false);
-  modalMode = 'watchSetup';
-  modal = document.createElement('div');
-  modal.className = 'modal-veil';
-  const box = document.createElement('div');
-  box.className = 'modal watch-setup';
-  box.innerHTML = `
-    <h3>WATCH AI vs AI</h3>
-    <div class="modal-sub">Two bots play their faction starter decks. Auto-runs your chosen number of matches, alternating who goes first, and records a downloadable play log.</div>
-    <div class="ws-sides">
-      <div class="ws-side">
-        <div class="ws-label">SIDE A</div>
-        <div class="ws-factions" id="ws-a"></div>
-      </div>
-      <div class="ws-vs">vs</div>
-      <div class="ws-side">
-        <div class="ws-label">SIDE B</div>
-        <div class="ws-factions" id="ws-b"></div>
-      </div>
-    </div>
-    <div class="ws-matches">
-      <label for="ws-count">MATCHES</label>
-      <input class="input" id="ws-count" type="number" min="1" max="50" value="${watchPick.matches}" inputmode="numeric">
-      <span class="ws-hint">1–50</span>
-    </div>
-    <div style="display:flex;gap:10px;margin-top:4px">
-      <button class="btn ghost" id="modal-cancel">BACK</button>
-      <button class="btn primary" id="ws-start">START SIMULATION</button>
-    </div>
-  `;
-  modal.appendChild(box);
-
-  for (const key of ['a', 'b']) {
-    const wrap = box.querySelector('#ws-' + key);
-    for (const f of WATCH_FACTIONS) {
-      const m = factionMeta(f);
-      const chip = document.createElement('button');
-      chip.className = 'ws-chip' + (watchPick[key] === f ? ' selected' : '');
-      chip.style.setProperty('--fc', m.color);
-      chip.textContent = m.name;
-      chip.addEventListener('click', () => {
-        watchPick[key] = f;
-        for (const c of wrap.querySelectorAll('.ws-chip')) c.classList.remove('selected');
-        chip.classList.add('selected');
-      });
-      wrap.appendChild(chip);
-    }
-  }
-
-  box.querySelector('#modal-cancel').addEventListener('click', cancelModalAction);
-  box.querySelector('#ws-start').addEventListener('click', () => {
-    const count = Math.max(1, Math.min(50, parseInt(box.querySelector('#ws-count').value, 10) || 5));
-    watchPick.matches = count;
-    if (!ensureConnected()) return;
-    net.send({
-      t: 'watchBots',
-      factionA: watchPick.a,
-      factionB: watchPick.b,
-      matches: count,
-      speed: 0.5, // default 2×; adjustable live in the watch screen
-      difficulty: 'hard',
-    });
-    closeModal(false);
-  });
-
-  modal.addEventListener('mousedown', (ev) => { if (ev.target === modal) cancelModalAction(); });
-  document.body.appendChild(modal);
-}
 
 // ---------- modals ----------
 function openModal(mode) {
@@ -365,19 +463,6 @@ function openModal(mode) {
       <button class="btn danger" id="modal-cancel">CANCEL LOBBY</button>
     `;
     box.querySelector('#modal-cancel').addEventListener('click', cancelModalAction);
-  } else if (mode === 'privateJoin') {
-    box.innerHTML = `
-      <h3>JOIN PRIVATE MATCH</h3>
-      <div class="modal-sub">Enter the 4-character boardroom code.</div>
-      <input class="input code-input" id="join-code" maxlength="4" autocomplete="off" spellcheck="false" placeholder="····">
-      <div style="display:flex;gap:10px">
-        <button class="btn ghost" id="modal-cancel">BACK</button>
-        <button class="btn primary" id="modal-join">JOIN</button>
-      </div>
-    `;
-    box.querySelector('#modal-cancel').addEventListener('click', cancelModalAction);
-    box.querySelector('#modal-join').addEventListener('click', submitJoinCode);
-    setTimeout(() => box.querySelector('#join-code')?.focus(), 60);
   }
 
   modal.addEventListener('mousedown', (ev) => { if (ev.target === modal) cancelModalAction(); });
@@ -396,15 +481,16 @@ function cancelModalAction() {
 }
 
 function submitJoinCode() {
-  const input = modal?.querySelector('#join-code');
+  const input = root.querySelector('#join-code');
   const code = (input?.value || '').trim().toUpperCase();
   if (code.length !== 4) { toast('Code must be 4 characters.', 'warn'); input?.focus(); return; }
   const deck = requireValidDeck();
   if (!deck) return;
+  if (!ensureConnected()) return;
   net.send({ t: 'joinPrivate', code, deck });
-  // stay in modal until gameStart or error
-  const box = modal.querySelector('.modal');
-  if (box) box.querySelector('#modal-join').disabled = true;
+  // hold the CTA until gameStart (screen switches) or error (re-enabled below)
+  const go = root.querySelector('#btn-go');
+  if (go) { go.disabled = true; go.textContent = 'JOINING…'; }
 }
 
 // ---------- net events ----------
@@ -426,9 +512,9 @@ net.on('privateCreated', (msg) => {
 });
 net.on('gameStart', () => closeModal(false));
 net.on('error', () => {
-  // re-enable join button so the user can retry a bad code
-  const joinBtn = modal?.querySelector('#modal-join');
-  if (joinBtn) joinBtn.disabled = false;
+  // re-enable the launch button so the user can retry a bad private code
+  const go = root?.querySelector('#btn-go');
+  if (go && go.disabled) renderEngage();
 });
 
 function escapeHtml(s) {
