@@ -1976,8 +1976,11 @@ async function playEvent(ev) {
       break;
     }
     case 'death': {
-      audio.playSfx('sfx-destroy');
       const el = hooks.resolveTarget(ev.unitId);
+      // robotic-tagged units get their own destruction sound (scrap/short-circuit)
+      const def = el?.dataset.cardId ? getCard(el.dataset.cardId) : null;
+      const robotic = def?.tags?.includes('robotic');
+      audio.playSfx(robotic ? 'sfx-destroy-robotic' : 'sfx-destroy', 'sfx-destroy');
       if (el && el.classList.contains('unit')) {
         el.classList.add('anim-death'); // white-out flash, then crack + collapse
         fxTimeout(() => deathBurst(el), 100); // shards fly right after the flash peak

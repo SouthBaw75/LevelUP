@@ -27,7 +27,8 @@ in the bottom-right corner, in the lobby or in-game (each choice is remembered).
 | `sfx-attack-claws.mp3` | Helix BEASTS that rake with claws — monster roar | SFX — short |
 | `sfx-attack-ledger.mp3` | FINANCIAL attackers (bullion volley) — coins/metallic (2 variants) | SFX — short |
 | `sfx-attack-artillery.mp3` | FACILITY attackers (siege shell) — heavy gun | SFX — short |
-| `sfx-destroy.mp3` | An asset being destroyed | SFX — short |
+| `sfx-destroy.mp3` | An asset being destroyed (any unit not tagged `robotic`) | SFX — short |
+| `sfx-destroy-robotic.mp3` | An asset being destroyed whose card is tagged `robotic` — falls back to `sfx-destroy` if missing | SFX — short |
 | `sfx-ceo-damage.mp3` | A CEO (either player) taking damage | SFX — short |
 | `ceo-taunts/nexus.mp3` | The winning CEO's victory taunt, when Nexus Dynamics wins | SFX — voice line |
 | `ceo-taunts/vulcan.mp3` | Same, when Vulcan Heavy Industries wins | SFX — voice line |
