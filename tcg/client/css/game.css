@@ -488,15 +488,10 @@
   100% { filter: brightness(1.25); }
 }
 
-/* ---------- attack: artillery shell + explosion ---------- */
-.shell-projectile {
-  position: absolute; z-index: 150; width: 10px; height: 10px; border-radius: 50%; pointer-events: none;
-  transform: translate(-50%, -50%);
-  background: radial-gradient(circle, #fff, #ffb347 60%, transparent);
-  box-shadow: 0 0 10px #ff8c1a, 0 0 20px rgba(255, 90, 26, 0.7);
-}
-/* combat impact renders on the #fx-canvas particle system (see anim.js
-   explosionBurst → spawnImpact): flash, shockwave, sparks, debris, dust. */
+/* ---------- attack projectiles + combat impact render on the #fx-canvas
+   particle system (see anim.js ATTACK_FX registry → launchAttackFx): per
+   asset class — comet, tracer burst, ion beam, bio lob, claw rend, bullion
+   volley, siege shell — landing in a flash/shockwave/spark/debris burst. */
 
 /* ---------- CEO power: energy arc from portrait to target ---------- */
 .power-beam {

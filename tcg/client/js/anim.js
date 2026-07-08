@@ -244,7 +244,7 @@ function dustBurst(el) {
 // naturally after the death event's 550ms timeline has already moved on — the
 // two are decoupled. Cleared on initAnim/stopAnim like the DOM fx layer.
 let fxCanvas = null, fxCtx = null, fxRunning = false, fxLast = 0;
-const fxPools = { smoke: [], fire: [], debris: [], embers: [], shocks: [], flashes: [] };
+const fxPools = { smoke: [], fire: [], debris: [], embers: [], shocks: [], flashes: [], glints: [] };
 const TAU = Math.PI * 2;
 const rf = (a = 1, b = 0) => b + Math.random() * (a - b);
 
@@ -316,6 +316,78 @@ const _fireCache = new Map(), _dotCache = new Map();
 const fireFor = (rgb) => { const k = rgb.join(','); let s = _fireCache.get(k); if (!s) { s = makeFire(rgb); _fireCache.set(k, s); } return s; };
 const dotFor = (rgb) => { const k = rgb.join(','); let s = _dotCache.get(k); if (!s) { s = makeDot(rgb); _dotCache.set(k, s); } return s; };
 
+// --- additional sprites/helpers for the attack-projectile archetypes ---
+const mix = (a, b, t) => [Math.round(a[0] + (b[0] - a[0]) * t), Math.round(a[1] + (b[1] - a[1]) * t), Math.round(a[2] + (b[2] - a[2]) * t)];
+function makeCore(rgb) {
+  // elongated white-hot comet/tracer head, points +x
+  const W = 64, H = 32, c = document.createElement('canvas'); c.width = W; c.height = H;
+  const g = c.getContext('2d');
+  const gr = g.createRadialGradient(W * 0.62, H / 2, 0, W * 0.62, H / 2, W * 0.42);
+  gr.addColorStop(0, 'rgba(255,255,255,1)');
+  gr.addColorStop(0.35, `rgba(${Math.min(255, rgb[0] + 100)},${Math.min(255, rgb[1] + 80)},${Math.min(255, rgb[2] + 60)},0.95)`);
+  gr.addColorStop(0.7, `rgba(${rgb[0]},${rgb[1]},${rgb[2]},0.5)`);
+  gr.addColorStop(1, `rgba(${rgb[0]},${rgb[1]},${rgb[2]},0)`);
+  g.save(); g.translate(W / 2, H / 2); g.scale(1, 0.55); g.translate(-W / 2, -H / 2);
+  g.fillStyle = gr; g.fillRect(0, 0, W, H); g.restore();
+  return c;
+}
+function makeGlint(rgb) {
+  // anamorphic lens-flare star: dominant horizontal ray, shorter vertical,
+  // minor diagonals, hot center — the "expensive light" read on bright cores
+  const S = 128, c = document.createElement('canvas'); c.width = c.height = S;
+  const g = c.getContext('2d');
+  const hot = 'rgba(255,255,255,0.95)';
+  const tint = `rgba(${Math.min(255, rgb[0] + 70)},${Math.min(255, rgb[1] + 55)},${Math.min(255, rgb[2] + 45)},0.5)`;
+  const ray = (ang, len, w, alpha) => {
+    g.save(); g.translate(S / 2, S / 2); g.rotate(ang); g.globalAlpha = alpha;
+    const gr = g.createLinearGradient(-len, 0, len, 0);
+    gr.addColorStop(0, 'rgba(255,255,255,0)'); gr.addColorStop(0.28, tint);
+    gr.addColorStop(0.5, hot); gr.addColorStop(0.72, tint); gr.addColorStop(1, 'rgba(255,255,255,0)');
+    g.fillStyle = gr; g.fillRect(-len, -w / 2, len * 2, w);
+    g.restore();
+  };
+  ray(0, S * 0.5, 3, 0.95); ray(0, S * 0.5, 9, 0.3);
+  ray(Math.PI / 2, S * 0.28, 2.5, 0.85); ray(Math.PI / 2, S * 0.28, 7, 0.25);
+  ray(Math.PI / 4, S * 0.14, 2, 0.5); ray(-Math.PI / 4, S * 0.14, 2, 0.5);
+  const gr = g.createRadialGradient(S / 2, S / 2, 0, S / 2, S / 2, 10);
+  gr.addColorStop(0, hot); gr.addColorStop(1, 'rgba(255,255,255,0)');
+  g.fillStyle = gr; g.beginPath(); g.arc(S / 2, S / 2, 10, 0, TAU); g.fill();
+  return c;
+}
+const _coreCache = new Map(), _glintCache = new Map(), _puffCache = new Map();
+const coreFor = (rgb) => { const k = rgb.join(','); let s = _coreCache.get(k); if (!s) { s = makeCore(rgb); _coreCache.set(k, s); } return s; };
+const glintFor = (rgb) => { const k = rgb.join(','); let s = _glintCache.get(k); if (!s) { s = makeGlint(rgb); _glintCache.set(k, s); } return s; };
+const puffFor = (rgb) => { const k = rgb.join(','); let s = _puffCache.get(k); if (!s) { s = makePuff(rgb, 4); _puffCache.set(k, s); } return s; };
+const bezier = (t, a, c, b) => { const mt = 1 - t; return { x: mt * mt * a.x + 2 * mt * t * c.x + t * t * b.x, y: mt * mt * a.y + 2 * mt * t * c.y + t * t * b.y }; };
+const bezierDir = (t, a, c, b) => { const mt = 1 - t; return { x: 2 * mt * (c.x - a.x) + 2 * t * (b.x - c.x), y: 2 * mt * (c.y - a.y) + 2 * t * (b.y - c.y) }; };
+
+// Custom per-frame projectile logic (beams, shells, globs, rakes). Each entry:
+// { update(dt, now)->bool alive, drawUnder?(ctx, now), draw?(ctx, now) }.
+// drawUnder runs in the source-over pass, draw in the additive pass.
+const fxUpdaters = [];
+
+// immediate-mode helpers — call only from an updater's draw() (additive pass)
+function lightCast(x, y, radius, rgb, alpha) {
+  fxCtx.globalAlpha = alpha;
+  fxCtx.drawImage(fireFor(rgb), x - radius, y - radius, radius * 2, radius * 2);
+}
+function glintDraw(x, y, size, rgb, alpha) {
+  fxCtx.globalAlpha = alpha;
+  fxCtx.drawImage(glintFor(rgb), x - size, y - size, size * 2, size * 2);
+}
+/** Launch pop at the attacker's edge: flash + glint + smoke pushed forward. */
+function muzzle(x, y, rgb, dir, scale = 1) {
+  const P = fxPools;
+  P.flashes.push({ x, y, r: 3 * scale, max: 20 * scale, life: 0, dur: 0.09, rgb });
+  P.glints.push({ x, y, s: 20 * scale, life: 0, dur: 0.18, rgb, rot: 0 });
+  for (let i = 0; i < 4; i++) {
+    P.smoke.push({ x: x + rf(4, -4), y: y + rf(4, -4),
+      vx: dir.x * rf(55, 18) + rf(14, -14), vy: dir.y * rf(55, 18) - rf(18, 4),
+      size: rf(7, 4) * scale, grow: rf(14, 8), life: 0, dur: rf(0.5, 0.3),
+      rot: rf(TAU), vr: rf(0.7, -0.7), seed: (Math.random() * 3) | 0 });
+  }
+}
+
 function ensureFxCanvas() {
   if (fxCanvas) return;
   fxCanvas = document.createElement('canvas');
@@ -339,6 +411,7 @@ function sizeFxCanvas() {
 }
 function resetFx() {
   for (const k in fxPools) fxPools[k].length = 0;
+  fxUpdaters.length = 0;
   if (fxCtx) fxCtx.clearRect(0, 0, innerWidth, innerHeight);
 }
 function startFxLoop() {
@@ -394,14 +467,17 @@ function spawnDetonation(x, y, rad, rgb) {
  *  over a live board. Reuses spawnDetonation's particle pools/renderer, just
  *  smaller and quicker since the unit survives the hit. Fires on every
  *  attack, so this carries most of the game's combat "feel." */
-function spawnImpact(x, y, rad, rgb) {
+function spawnImpact(x, y, rad, rgb, dir = null) {
   ensureFxCanvas();
   const s = rad / 140;
   const P = fxPools;
   P.flashes.push({ x, y, r: rad * 0.1, max: rad * 0.55, life: 0, dur: 0.11, rgb });
   P.shocks.push({ x, y, r: rad * 0.08, max: rad * 0.85, life: 0, dur: 0.26, w: 2.4 * s, rgb });
+  P.glints.push({ x, y, s: rad * 0.28, life: 0, dur: 0.22, rgb, rot: 0 });
   for (let i = 0; i < 16; i++) {
-    const a = rf(TAU), sp = rf(300, 90) * s;
+    // with an incoming flight vector, most sparks spray back away from it
+    const a = dir && Math.random() < 0.6 ? Math.atan2(-dir.y, -dir.x) + rf(1.1, -1.1) : rf(TAU);
+    const sp = rf(300, 90) * s;
     P.embers.push({ x, y, px: x, py: y, vx: Math.cos(a) * sp, vy: Math.sin(a) * sp - rf(40, 0) * s,
       size: rf(3.6, 1.4) * s, life: 0, dur: rf(0.55, 0.22), flick: rf(TAU), drag: rf(2.2, 1.6), rgb });
   }
@@ -440,6 +516,755 @@ function spawnEnergyStrike(x, y, amount, rgb) {
   startFxLoop();
 }
 
+// ===================== attack projectile archetypes =====================
+// Every attack fires a projectile (or melee rake) picked by the ATTACKER's
+// asset class — approved in the standalone FX demo, ported here with tighter
+// game pacing. Each launch(a, b, rgb) spawns everything on the fx canvas and
+// returns the ms until the payload visually lands, so the attack event can
+// sync the target's flash/knockback/shake to the actual arrival instead of a
+// fixed delay. Target reaction (hitTarget in the demo) stays in playEvent.
+//
+//   personnel → kinetic   white-hot comet, energy ribbon + smoke stream
+//   robotic   → bullets   3-round tracer burst, shell casings
+//   software  → laser     charge → instant beam w/ chromatic edges → collapse
+//   organism  → bio       lobbed wobbling glob, acid splash  (pathogens)
+//               claws     three jagged rakes across the card (beasts, override)
+//   financial → ledger    five spinning gilded shards, ricochet glints
+//   facility  → artillery heavy arcing shell, thick smoke, double shockwave
+const ATTACK_FX = {};
+
+ATTACK_FX.kinetic = {
+  launch(a, b, rgb) {
+    const dist = Math.hypot(b.x - a.x, b.y - a.y) || 1;
+    const dur = Math.max(0.17, Math.min(0.3, 0.15 + dist * 0.0002));
+    const arc = Math.min(48, 12 + dist * 0.085);
+    const c = { x: (a.x + b.x) / 2, y: Math.min(a.y, b.y) - arc };
+    const d0 = bezierDir(0, a, c, b), l0 = Math.hypot(d0.x, d0.y) || 1;
+    muzzle(a.x + (d0.x / l0) * 46, a.y + (d0.y / l0) * 46, rgb, { x: d0.x / l0, y: d0.y / l0 });
+    fxUpdaters.push({
+      t: 0, acc: 0, pts: [], phase: rf(TAU), pos: null, dir: null,
+      update(dt) {
+        this.t += dt / dur;
+        if (this.t >= 1) {
+          const dE = bezierDir(1, a, c, b), lE = Math.hypot(dE.x, dE.y) || 1;
+          spawnImpact(b.x, b.y, 100, rgb, { x: dE.x / lE, y: dE.y / lE });
+          return false;
+        }
+        const p = bezier(this.t, a, c, b);
+        const d = bezierDir(this.t, a, c, b), l = Math.hypot(d.x, d.y) || 1;
+        this.pos = p; this.dir = { x: d.x / l, y: d.y / l };
+        this.pts.unshift({ x: p.x, y: p.y }); if (this.pts.length > 15) this.pts.pop();
+        this.acc += dt;
+        while (this.acc > 0.014) {
+          this.acc -= 0.014;
+          fxPools.smoke.push({ x: p.x - this.dir.x * 8 + rf(3, -3), y: p.y - this.dir.y * 8 + rf(3, -3),
+            vx: -this.dir.x * rf(34, 12) + rf(12, -12), vy: -this.dir.y * rf(34, 12) - rf(10, 2),
+            size: rf(8, 4.5), grow: rf(15, 9), life: 0, dur: rf(0.55, 0.3),
+            rot: rf(TAU), vr: rf(0.6, -0.6), seed: (Math.random() * 3) | 0 });
+          if (Math.random() < 0.5) {
+            const ba = Math.atan2(this.dir.y, this.dir.x) + Math.PI + rf(0.7, -0.7);
+            fxPools.embers.push({ x: p.x, y: p.y, px: p.x, py: p.y,
+              vx: Math.cos(ba) * rf(70, 20), vy: Math.sin(ba) * rf(70, 20),
+              size: rf(2.4, 1), life: 0, dur: rf(0.3, 0.15), flick: rf(TAU), drag: rf(2, 1.4), rgb });
+          }
+        }
+        return true;
+      },
+      drawUnder(ctx) {
+        for (let i = 2; i < this.pts.length - 1; i++) {
+          const q0 = this.pts[i], q1 = this.pts[i + 1], f = 1 - i / this.pts.length;
+          ctx.globalAlpha = 0.16 * f;
+          ctx.strokeStyle = 'rgb(110,112,120)';
+          ctx.lineCap = 'round'; ctx.lineWidth = 9 * f + 2;
+          ctx.beginPath(); ctx.moveTo(q0.x, q0.y); ctx.lineTo(q1.x, q1.y); ctx.stroke();
+        }
+      },
+      draw(ctx, now) {
+        if (!this.pos) return;
+        const { x, y } = this.pos;
+        const ang = Math.atan2(this.dir.y, this.dir.x);
+        const pulse = 1 + Math.sin(now / 48 + this.phase) * 0.14;
+        lightCast(x, y, 85, rgb, 0.13);
+        for (let i = 0; i < this.pts.length - 1 && i < 9; i++) {
+          const q0 = this.pts[i], q1 = this.pts[i + 1], f = 1 - i / 9;
+          ctx.globalAlpha = 0.34 * f;
+          ctx.strokeStyle = `rgb(${rgb[0]},${rgb[1]},${rgb[2]})`;
+          ctx.lineCap = 'round'; ctx.lineWidth = 6 * f + 1;
+          ctx.beginPath(); ctx.moveTo(q0.x, q0.y); ctx.lineTo(q1.x, q1.y); ctx.stroke();
+        }
+        const gr = 26 * pulse;
+        ctx.globalAlpha = 0.9;
+        ctx.drawImage(fireFor(rgb), x - gr, y - gr, gr * 2, gr * 2);
+        ctx.save(); ctx.translate(x, y); ctx.rotate(ang);
+        ctx.globalAlpha = 1;
+        ctx.drawImage(coreFor(rgb), -20, -7, 27, 14);
+        ctx.restore();
+        glintDraw(x, y, 15 * pulse, rgb, 0.85);
+      },
+    });
+    return dur * 1000;
+  },
+};
+
+ATTACK_FX.bullets = {
+  launch(a, b, rgb) {
+    const baseDist = Math.hypot(b.x - a.x, b.y - a.y) || 1;
+    const dur = Math.max(0.1, Math.min(0.13, 0.08 + baseDist * 0.00008));
+    const fireRound = (last) => {
+      const tb = { x: b.x + rf(5, -5), y: b.y + rf(5, -5) };
+      const c = { x: (a.x + tb.x) / 2, y: (a.y + tb.y) / 2 - rf(6, 3) };
+      const d0 = bezierDir(0, a, c, tb), l0 = Math.hypot(d0.x, d0.y) || 1;
+      const fdir = { x: d0.x / l0, y: d0.y / l0 };
+      const mx = a.x + fdir.x * 46, my = a.y + fdir.y * 46;
+      muzzle(mx, my, rgb, fdir, 0.7);
+      // ejected brass casing
+      fxPools.debris.push({ x: mx, y: my,
+        vx: -fdir.x * rf(90, 45) + rf(24, -24), vy: -fdir.y * rf(90, 45) - rf(120, 60),
+        w: 4, h: 2.5, rot: rf(TAU), vr: rf(16, -16), life: 0, dur: rf(0.55, 0.4),
+        rgb: mix(rgb, [255, 210, 120], 0.5) });
+      fxUpdaters.push({
+        t: 0, pos: null, prev: { x: mx, y: my }, dir: fdir,
+        update(dt) {
+          this.t += dt / dur;
+          if (this.t >= 1) {
+            const dE = bezierDir(1, a, c, tb), lE = Math.hypot(dE.x, dE.y) || 1;
+            const dir = { x: dE.x / lE, y: dE.y / lE };
+            if (last) {
+              spawnImpact(tb.x, tb.y, 90, rgb, dir);
+            } else {
+              fxPools.flashes.push({ x: tb.x, y: tb.y, r: 3, max: 16, life: 0, dur: 0.08, rgb });
+              fxPools.glints.push({ x: tb.x, y: tb.y, s: 12, life: 0, dur: 0.14, rgb, rot: 0 });
+              for (let i = 0; i < 5; i++) {
+                const ba = Math.atan2(-dir.y, -dir.x) + rf(0.9, -0.9), sp = rf(180, 60);
+                fxPools.embers.push({ x: tb.x, y: tb.y, px: tb.x, py: tb.y,
+                  vx: Math.cos(ba) * sp, vy: Math.sin(ba) * sp - rf(25, 0),
+                  size: rf(2.6, 1.1), life: 0, dur: rf(0.35, 0.18), flick: rf(TAU), drag: rf(2.2, 1.6), rgb });
+              }
+            }
+            return false;
+          }
+          if (this.pos) this.prev = this.pos;
+          const p = bezier(this.t, a, c, tb);
+          const d = bezierDir(this.t, a, c, tb), l = Math.hypot(d.x, d.y) || 1;
+          this.pos = p; this.dir = { x: d.x / l, y: d.y / l };
+          return true;
+        },
+        draw(ctx) {
+          if (!this.pos) return;
+          const { x, y } = this.pos;
+          lightCast(x, y, 50, rgb, 0.08);
+          ctx.globalAlpha = 0.75;
+          ctx.strokeStyle = `rgb(${Math.min(255, rgb[0] + 120)},${Math.min(255, rgb[1] + 90)},${Math.min(255, rgb[2] + 70)})`;
+          ctx.lineCap = 'round'; ctx.lineWidth = 2.4;
+          ctx.beginPath(); ctx.moveTo(this.prev.x, this.prev.y); ctx.lineTo(x, y); ctx.stroke();
+          ctx.globalAlpha = 0.8;
+          ctx.drawImage(fireFor(rgb), x - 12, y - 12, 24, 24);
+          ctx.save(); ctx.translate(x, y); ctx.rotate(Math.atan2(this.dir.y, this.dir.x));
+          ctx.globalAlpha = 1;
+          ctx.drawImage(coreFor(rgb), -26, -4, 34, 8);
+          ctx.restore();
+        },
+      });
+    };
+    fireRound(false);
+    fxTimeout(() => { fireRound(false); startFxLoop(); }, 55);
+    fxTimeout(() => { fireRound(true); startFxLoop(); }, 110);
+    return 110 + dur * 1000;
+  },
+};
+
+ATTACK_FX.laser = {
+  launch(a, b, rgb) {
+    const dx = b.x - a.x, dy = b.y - a.y, dist = Math.hypot(dx, dy) || 1;
+    const u = { x: dx / dist, y: dy / dist };
+    const n = { x: -u.y, y: u.x };
+    const mx = a.x + u.x * 46, my = a.y + u.y * 46;
+    const hx = b.x, hy = b.y;
+    const CHG = 0.11, BEAM = 0.2, COL = 0.1;
+    const redEdge = mix(rgb, [255, 80, 80], 0.6);
+    const bluEdge = mix(rgb, [90, 140, 255], 0.6);
+    const innerC = mix(rgb, [255, 255, 255], 0.45);
+    const coreC = mix(rgb, [255, 255, 255], 0.88);
+    muzzle(mx, my, rgb, u, 0.8);
+    fxUpdaters.push({
+      t: 0, acc: 0, popped: false, phase: rf(TAU), jx: 0, jy: 0,
+      update(dt, now) {
+        this.t += dt;
+        const j = rf(0.8, -0.8);
+        this.jx = n.x * j; this.jy = n.y * j;
+        if (this.t < CHG) {
+          // suction embers converging on the muzzle (energy gathering)
+          this.acc += dt;
+          while (this.acc > 0.028) {
+            this.acc -= 0.028;
+            const ea = rf(TAU), er = rf(28, 20), ed = rf(0.18, 0.12);
+            const ex = mx + Math.cos(ea) * er, ey = my + Math.sin(ea) * er;
+            fxPools.embers.push({ x: ex, y: ey, px: ex, py: ey,
+              vx: (mx - ex) / ed * 0.92, vy: (my - ey) / ed * 0.92 - 14,
+              size: rf(1.9, 0.9), life: 0, dur: ed, flick: rf(TAU), drag: 0, rgb });
+          }
+          return true;
+        }
+        if (this.t < CHG + BEAM) {
+          // spark fountain off the hit point while the beam burns
+          this.acc += dt;
+          while (this.acc > 0.025) {
+            this.acc -= 0.025;
+            for (let i = 0; i < 2; i++) {
+              const ba = Math.atan2(-u.y, -u.x) + rf(0.8, -0.8), sp = rf(160, 60);
+              fxPools.embers.push({ x: hx, y: hy, px: hx, py: hy,
+                vx: Math.cos(ba) * sp, vy: Math.sin(ba) * sp - rf(90, 30),
+                size: rf(2.6, 1.1), life: 0, dur: rf(0.4, 0.18), flick: rf(TAU), drag: rf(2, 1.4), rgb });
+            }
+          }
+          return true;
+        }
+        if (!this.popped) {
+          this.popped = true;
+          spawnImpact(hx, hy, 85, rgb, u);
+        }
+        if (this.t < CHG + BEAM + COL) return true;
+        for (let i = 0; i < 3; i++) { // scorch smoke wisps on exit
+          fxPools.smoke.push({ x: hx + rf(8, -8), y: hy + rf(6, -6),
+            vx: rf(16, -16), vy: -rf(34, 14),
+            size: rf(7, 4), grow: rf(14, 8), life: -i * 0.04, dur: rf(0.6, 0.4),
+            rot: rf(TAU), vr: rf(0.6, -0.6), seed: (Math.random() * 3) | 0 });
+        }
+        return false;
+      },
+      draw(ctx, now) {
+        const flick = 0.85 + 0.15 * Math.sin(now * 0.56 + this.phase);
+        if (this.t < CHG) {
+          const cp = this.t / CHG, r = 18 * cp * flick;
+          ctx.globalAlpha = 0.9 * cp * flick;
+          ctx.drawImage(fireFor(rgb), mx - r, my - r, r * 2, r * 2);
+          glintDraw(mx, my, 16 * cp, rgb, 0.85 * cp * flick);
+          lightCast(mx, my, 44 * cp, rgb, 0.1 * cp);
+          return;
+        }
+        const bt = this.t - CHG;
+        const k = bt < BEAM ? 0 : Math.min(1, (bt - BEAM) / COL);
+        const w = 1 - k;
+        if (w <= 0) return;
+        const x0 = mx + this.jx, y0 = my + this.jy;
+        const x1 = hx + this.jx, y1 = hy + this.jy;
+        const line = (ox, oy, wid, style, alpha) => {
+          ctx.globalAlpha = alpha; ctx.strokeStyle = style;
+          ctx.lineCap = 'round'; ctx.lineWidth = wid;
+          ctx.beginPath(); ctx.moveTo(x0 + ox, y0 + oy); ctx.lineTo(x1 + ox, y1 + oy); ctx.stroke();
+        };
+        line(0, 0, (11 + Math.sin(now / 85 + this.phase) * 1.6) * w, `rgb(${rgb[0]},${rgb[1]},${rgb[2]})`, 0.22 * w);
+        line(n.x * 2, n.y * 2, 1 * w, `rgb(${redEdge[0]},${redEdge[1]},${redEdge[2]})`, 0.35 * w);
+        line(-n.x * 2, -n.y * 2, 1 * w, `rgb(${bluEdge[0]},${bluEdge[1]},${bluEdge[2]})`, 0.35 * w);
+        line(0, 0, 4 * w, `rgb(${innerC[0]},${innerC[1]},${innerC[2]})`, 0.85 * w);
+        line(0, 0, 1.6 * rf(1.15, 0.85) * w, `rgb(${coreC[0]},${coreC[1]},${coreC[2]})`, 1 * w);
+        const dot = dotFor(rgb);
+        for (let i = 0; i < 3; i++) {
+          const f = (bt * 2.4 + i / 3) % 1;
+          const kx = x0 + (x1 - x0) * f, ky = y0 + (y1 - y0) * f;
+          ctx.globalAlpha = 0.9 * w;
+          ctx.drawImage(dot, kx - 5, ky - 5, 10, 10);
+        }
+        glintDraw(x0, y0, 14 * w, rgb, 0.8 * w * flick);
+        glintDraw(x1, y1, 20 * (1 + 0.22 * Math.sin(now / 42 + this.phase)) * w, rgb, 0.9 * w);
+        lightCast((x0 + x1) / 2, (y0 + y1) / 2, 90, rgb, 0.1 * w);
+        lightCast(x1, y1, 60, rgb, 0.14 * w);
+        if (k === 0) {
+          const fr = 14 * flick;
+          ctx.globalAlpha = 0.95;
+          ctx.drawImage(fireFor(rgb), x1 - fr, y1 - fr, fr * 2, fr * 2);
+        }
+      },
+    });
+    return CHG * 1000;
+  },
+};
+
+ATTACK_FX.bio = {
+  launch(a, b, rgb) {
+    const dist = Math.hypot(b.x - a.x, b.y - a.y) || 1;
+    const dur = Math.max(0.26, Math.min(0.36, 0.2 + dist * 0.0003));
+    const arc = Math.min(90, 40 + dist * 0.22);
+    const c = { x: (a.x + b.x) / 2, y: Math.min(a.y, b.y) - arc };
+    const dark = mix(rgb, [0, 0, 0], 0.25);
+    const d0 = bezierDir(0, a, c, b), l0 = Math.hypot(d0.x, d0.y) || 1;
+    muzzle(a.x + (d0.x / l0) * 46, a.y + (d0.y / l0) * 46, rgb, { x: d0.x / l0, y: d0.y / l0 }, 0.8);
+    fxUpdaters.push({
+      t: 0, acc: 0, drip: 0, pos: null,
+      ph: [rf(TAU), rf(TAU), rf(TAU)],
+      sats: [{ rad: rf(13, 9), rate: rf(0.011, 0.007), ph: rf(TAU) },
+             { rad: rf(13, 9), rate: -rf(0.011, 0.007), ph: rf(TAU) }],
+      lobes(now) {
+        return [
+          { dx: Math.sin(now / 92 + this.ph[0]) * 2.5, dy: Math.cos(now / 121 + this.ph[0]) * 2.2, r: 7 },
+          { dx: Math.cos(now / 68 + this.ph[1]) * 2.6, dy: Math.sin(now / 103 + this.ph[1]) * 2.5, r: 5.5 },
+          { dx: Math.sin(now / 57 + this.ph[2]) * 2.3, dy: Math.cos(now / 84 + this.ph[2]) * 2.6, r: 4.5 },
+        ];
+      },
+      update(dt) {
+        this.t += dt / dur;
+        if (this.t >= 1) {
+          const dE = bezierDir(1, a, c, b), lE = Math.hypot(dE.x, dE.y) || 1;
+          const ex = dE.x / lE, ey = dE.y / lE;
+          // acid splash: flattened double ring, up-and-out droplets, sizzle
+          fxPools.shocks.push({ x: b.x, y: b.y, r: 5, max: 44, life: 0, dur: 0.24, w: 3, rgb });
+          fxPools.shocks.push({ x: b.x, y: b.y, r: 8, max: 60, life: 0, dur: 0.3, w: 1.6, rgb });
+          fxPools.flashes.push({ x: b.x, y: b.y, r: 6, max: 30, life: 0, dur: 0.1, rgb });
+          const dn = 10 + ((Math.random() * 3) | 0);
+          for (let i = 0; i < dn; i++) {
+            const ua = -Math.PI / 2 + rf(1.1, -1.1), sp = rf(180, 60);
+            fxPools.embers.push({ x: b.x, y: b.y, px: b.x, py: b.y,
+              vx: Math.cos(ua) * sp - ex * sp * 0.45, vy: Math.sin(ua) * sp - ey * sp * 0.45,
+              size: rf(2.8, 1.4), life: 0, dur: rf(0.5, 0.3), flick: rf(TAU), drag: rf(2, 1.4), rgb });
+          }
+          for (let i = 0; i < 3; i++) {
+            const da = rf(TAU), sp = rf(90, 30);
+            fxPools.debris.push({ x: b.x, y: b.y, vx: Math.cos(da) * sp, vy: Math.sin(da) * sp - rf(90, 40),
+              w: rf(7, 3), h: rf(6, 3), rot: rf(TAU), vr: rf(8, -8), life: 0, dur: rf(0.45, 0.3), rgb });
+          }
+          fxUpdaters.push({
+            t: 0, acc: 0,
+            update(dt2) {
+              this.t += dt2; this.acc += dt2;
+              while (this.acc >= 0.05) {
+                this.acc -= 0.05;
+                fxPools.smoke.push({ x: b.x + rf(14, -14), y: b.y + rf(8, -8),
+                  vx: rf(10, -10), vy: -rf(26, 12), size: rf(4, 2), grow: rf(6, 3),
+                  life: 0, dur: rf(0.35, 0.2), rot: rf(TAU), vr: rf(0.6, -0.6), rgb });
+              }
+              return this.t < 0.45;
+            },
+          });
+          return false;
+        }
+        const p = bezier(this.t, a, c, b);
+        this.pos = p;
+        this.acc += dt;
+        while (this.acc > 0.03) {
+          this.acc -= 0.03;
+          fxPools.embers.push({ x: p.x + rf(4, -4), y: p.y + rf(4, -4), px: p.x, py: p.y,
+            vx: rf(20, -20), vy: rf(20, -20),
+            size: rf(2.6, 1.2), life: 0, dur: rf(0.4, 0.25), flick: rf(TAU), drag: rf(2, 1.4), rgb });
+          if (Math.random() < 0.45) {
+            fxPools.smoke.push({ x: p.x + rf(3, -3), y: p.y + rf(3, -3),
+              vx: rf(14, -14), vy: rf(6, -14), size: rf(6, 3.5), grow: rf(8, 4),
+              life: 0, dur: rf(0.4, 0.25), rot: rf(TAU), vr: rf(0.6, -0.6), rgb });
+          }
+        }
+        this.drip += dt;
+        while (this.drip > 0.04) {
+          this.drip -= 0.04;
+          fxPools.embers.push({ x: p.x + rf(3, -3), y: p.y + 4, px: p.x, py: p.y + 4,
+            vx: rf(4, -4), vy: rf(30, 10),
+            size: rf(2.2, 1), life: 0, dur: rf(0.4, 0.25), flick: rf(TAU), drag: rf(1.2, 0.8), rgb });
+        }
+        return true;
+      },
+      drawUnder(ctx, now) {
+        if (!this.pos) return;
+        const { x, y } = this.pos;
+        ctx.globalAlpha = 0.9;
+        ctx.fillStyle = `rgb(${dark[0]},${dark[1]},${dark[2]})`;
+        for (const l of this.lobes(now)) {
+          ctx.beginPath(); ctx.arc(x + l.dx, y + l.dy, l.r, 0, TAU); ctx.fill();
+        }
+      },
+      draw(ctx, now) {
+        if (!this.pos) return;
+        const { x, y } = this.pos;
+        lightCast(x, y, 55, rgb, 0.09);
+        ctx.globalAlpha = 0.85;
+        ctx.drawImage(fireFor(rgb), x - 13, y - 13, 26, 26);
+        for (const s of this.sats) {
+          const sx = x + Math.cos(now * s.rate + s.ph) * s.rad;
+          const sy = y + Math.sin(now * s.rate + s.ph) * s.rad;
+          ctx.globalAlpha = 0.8;
+          ctx.drawImage(dotFor(rgb), sx - 4, sy - 4, 8, 8);
+        }
+        glintDraw(x, y, 8, rgb, 0.7);
+      },
+    });
+    return dur * 1000;
+  },
+};
+
+ATTACK_FX.ledger = {
+  launch(a, b, rgb) {
+    const gold = mix(rgb, [255, 208, 96], 0.65);
+    const bright = mix(gold, [255, 255, 255], 0.5);
+    const dist = Math.hypot(b.x - a.x, b.y - a.y) || 1;
+    const dur = Math.max(0.22, Math.min(0.3, 0.19 + dist * 0.0002));
+    const arc = Math.min(40, 12 + dist * 0.07);
+    const c = { x: (a.x + b.x) / 2, y: Math.min(a.y, b.y) - arc };
+    const d0 = bezierDir(0, a, c, b), l0 = Math.hypot(d0.x, d0.y) || 1;
+    muzzle(a.x + (d0.x / l0) * 46, a.y + (d0.y / l0) * 46, gold, { x: d0.x / l0, y: d0.y / l0 }, 0.8);
+    const shards = [];
+    for (let i = 0; i < 5; i++) {
+      shards.push({
+        t: -(i * 0.0125) / dur,
+        bx: b.x + rf(7, -7), by: b.y + rf(7, -7),
+        amp: rf(9, 4), phase: rf(TAU), freq: rf(3.2, 2.2),
+        rot: rf(TAU), spin: rf(14, 9) * (Math.random() < 0.5 ? -1 : 1),
+        gAcc: rf(0.09), eAcc: rf(0.05), pos: null, done: false,
+      });
+    }
+    fxUpdaters.push({
+      update(dt) {
+        for (const s of shards) {
+          if (s.done) continue;
+          s.t += dt / dur;
+          if (s.t < 0) continue;
+          if (s.t >= 1) {
+            s.done = true;
+            if (shards.some((o) => !o.done)) {
+              fxPools.flashes.push({ x: s.bx, y: s.by, r: 2, max: 12, life: 0, dur: 0.07, rgb: gold });
+              fxPools.glints.push({ x: s.bx, y: s.by, s: 10, life: 0, dur: 0.13, rgb: gold, rot: rf(0.6, -0.6) });
+              for (let i = 0; i < 3; i++) {
+                const pa = rf(TAU), sp = rf(120, 50);
+                fxPools.embers.push({ x: s.bx, y: s.by, px: s.bx, py: s.by,
+                  vx: Math.cos(pa) * sp, vy: Math.sin(pa) * sp - rf(40, 10),
+                  size: rf(2.2, 1), life: 0, dur: rf(0.3, 0.16), flick: rf(TAU), drag: rf(2.2, 1.6), rgb: gold });
+              }
+            } else {
+              const tb = { x: s.bx, y: s.by };
+              const dE = bezierDir(1, a, c, tb), lE = Math.hypot(dE.x, dE.y) || 1;
+              spawnImpact(s.bx, s.by, 80, gold, { x: dE.x / lE, y: dE.y / lE });
+              const hx = s.bx, hy = s.by;
+              // ricochet glints pinging up off the hit point
+              fxUpdaters.push({
+                acc: 0.04, n: 0,
+                update(dt2) {
+                  this.acc += dt2;
+                  while (this.acc >= 0.04 && this.n < 3) {
+                    this.acc -= 0.04; this.n++;
+                    fxPools.glints.push({ x: hx + rf(18, -18), y: hy - rf(20, 10),
+                      s: rf(13, 8), life: 0, dur: 0.16, rgb: gold, rot: rf(0.6, -0.6) });
+                  }
+                  return this.n < 3;
+                },
+              });
+            }
+            continue;
+          }
+          const tb = { x: s.bx, y: s.by };
+          const p = bezier(s.t, a, c, tb);
+          const d = bezierDir(s.t, a, c, tb), l = Math.hypot(d.x, d.y) || 1;
+          const wob = Math.sin(s.t * Math.PI * s.freq + s.phase) * s.amp * Math.sin(s.t * Math.PI);
+          s.pos = { x: p.x - (d.y / l) * wob, y: p.y + (d.x / l) * wob };
+          s.rot += dt * s.spin;
+          s.gAcc += dt;
+          while (s.gAcc > 0.09) {
+            s.gAcc -= 0.09;
+            fxPools.glints.push({ x: s.pos.x, y: s.pos.y, s: rf(10, 6), life: 0, dur: 0.16, rgb: gold, rot: rf(0.6, -0.6) });
+          }
+          s.eAcc += dt;
+          while (s.eAcc > 0.05) {
+            s.eAcc -= 0.05;
+            if (Math.random() < 0.6) {
+              fxPools.embers.push({ x: s.pos.x + rf(3, -3), y: s.pos.y + rf(3, -3), px: s.pos.x, py: s.pos.y,
+                vx: rf(18, -18), vy: rf(12, -18),
+                size: rf(1.8, 0.8), life: 0, dur: rf(0.25, 0.12), flick: rf(TAU), drag: rf(2.4, 1.8), rgb: gold });
+            }
+          }
+        }
+        return shards.some((s) => !s.done);
+      },
+      draw(ctx) {
+        let mx = 0, my = 0, m = 0;
+        for (const s of shards) {
+          if (s.done || !s.pos) continue;
+          mx += s.pos.x; my += s.pos.y; m++;
+          ctx.globalAlpha = 0.9;
+          ctx.drawImage(dotFor(gold), s.pos.x - 8, s.pos.y - 8, 16, 16);
+          ctx.save(); ctx.translate(s.pos.x, s.pos.y); ctx.rotate(s.rot);
+          ctx.globalAlpha = 0.95;
+          ctx.fillStyle = `rgb(${bright[0]},${bright[1]},${bright[2]})`;
+          ctx.beginPath(); ctx.moveTo(3.5, 0); ctx.lineTo(0, 2); ctx.lineTo(-3.5, 0); ctx.lineTo(0, -2);
+          ctx.closePath(); ctx.fill();
+          ctx.restore();
+        }
+        if (m) lightCast(mx / m, my / m, 60, gold, 0.08);
+      },
+    });
+    return (dur + 0.06) * 1000;
+  },
+};
+
+ATTACK_FX.artillery = {
+  launch(a, b, rgb) {
+    const dist = Math.hypot(b.x - a.x, b.y - a.y) || 1;
+    const dur = Math.max(0.3, Math.min(0.42, 0.26 + dist * 0.0003));
+    const arc = Math.min(100, 40 + dist * 0.24);
+    const c = { x: (a.x + b.x) / 2, y: Math.min(a.y, b.y) - arc };
+    const d0 = bezierDir(0, a, c, b), l0 = Math.hypot(d0.x, d0.y) || 1;
+    const mdir = { x: d0.x / l0, y: d0.y / l0 };
+    const mx = a.x + mdir.x * 46, my = a.y + mdir.y * 46;
+    muzzle(mx, my, rgb, mdir, 1.6);
+    fxPools.shocks.push({ x: mx, y: my, r: 4, max: 30, life: 0, dur: 0.2, w: 2, rgb });
+    for (let i = 0; i < 3; i++) {
+      fxPools.smoke.push({ x: mx + rf(6, -6), y: my + rf(6, -6),
+        vx: mdir.x * rf(70, 25) + rf(18, -18), vy: mdir.y * rf(70, 25) - rf(26, 8),
+        size: rf(13, 8), grow: rf(24, 14), life: -i * 0.02, dur: rf(0.7, 0.45),
+        rot: rf(TAU), vr: rf(0.6, -0.6), seed: (Math.random() * 3) | 0 });
+    }
+    fxUpdaters.push({
+      t: 0, acc: 0, phase: rf(TAU), pos: null, dir: null,
+      update(dt) {
+        this.t += dt / dur;
+        if (this.t >= 1) {
+          const dE = bezierDir(1, a, c, b), lE = Math.hypot(dE.x, dE.y) || 1;
+          spawnImpact(b.x, b.y, 170, rgb, { x: dE.x / lE, y: dE.y / lE });
+          fxTimeout(() => { fxPools.shocks.push({ x: b.x, y: b.y, r: 10, max: 80, life: 0, dur: 0.34, w: 3, rgb }); startFxLoop(); }, 70);
+          for (let i = 0; i < 4; i++) {
+            fxPools.smoke.push({ x: b.x + rf(12, -12), y: b.y + rf(6, -6),
+              vx: rf(16, -16), vy: -rf(70, 34),
+              size: rf(12, 7), grow: rf(26, 16), life: -0.05 * i, dur: rf(1, 0.7),
+              rot: rf(TAU), vr: rf(0.5, -0.5), seed: (Math.random() * 3) | 0 });
+          }
+          return false;
+        }
+        const p = bezier(this.t, a, c, b);
+        const d = bezierDir(this.t, a, c, b), l = Math.hypot(d.x, d.y) || 1;
+        this.pos = p; this.dir = { x: d.x / l, y: d.y / l };
+        this.acc += dt;
+        while (this.acc > 0.012) {
+          this.acc -= 0.012;
+          fxPools.smoke.push({ x: p.x - this.dir.x * 10 + rf(4, -4), y: p.y - this.dir.y * 10 + rf(4, -4),
+            vx: -this.dir.x * rf(30, 8) + rf(12, -12), vy: -this.dir.y * rf(30, 8) - rf(12, 2),
+            size: rf(10, 6), grow: rf(20, 12), life: 0, dur: rf(0.75, 0.55),
+            rot: rf(TAU), vr: rf(0.5, -0.5), seed: (Math.random() * 3) | 0 });
+          if (Math.random() < 0.25) {
+            const ba = Math.atan2(this.dir.y, this.dir.x) + Math.PI + rf(0.6, -0.6);
+            fxPools.embers.push({ x: p.x, y: p.y, px: p.x, py: p.y,
+              vx: Math.cos(ba) * rf(60, 18), vy: Math.sin(ba) * rf(60, 18),
+              size: rf(2.2, 1), life: 0, dur: rf(0.3, 0.16), flick: rf(TAU), drag: rf(2, 1.4), rgb });
+          }
+        }
+        return true;
+      },
+      drawUnder(ctx, now) {
+        if (!this.pos) return;
+        const { x, y } = this.pos;
+        const ang = Math.atan2(this.dir.y, this.dir.x) + Math.sin(now / 85 + this.phase) * 0.14;
+        ctx.save(); ctx.translate(x, y); ctx.rotate(ang);
+        ctx.globalAlpha = 1; ctx.fillStyle = '#1a2130';
+        ctx.beginPath();
+        ctx.moveTo(-7, -3); ctx.lineTo(4, -3); ctx.quadraticCurveTo(7.5, 0, 4, 3);
+        ctx.lineTo(-7, 3); ctx.quadraticCurveTo(-8.2, 0, -7, -3); ctx.closePath(); ctx.fill();
+        ctx.globalAlpha = 0.75; ctx.strokeStyle = `rgb(${rgb[0]},${rgb[1]},${rgb[2]})`;
+        ctx.lineWidth = 1.1; ctx.stroke();
+        ctx.restore();
+      },
+      draw(ctx, now) {
+        if (!this.pos) return;
+        const { x, y } = this.pos;
+        const ang = Math.atan2(this.dir.y, this.dir.x) + Math.sin(now / 85 + this.phase) * 0.14;
+        const flick = 1 + Math.sin(now / 34 + this.phase) * 0.18;
+        lightCast(x, y, 70, rgb, 0.11);
+        ctx.globalAlpha = 0.85;
+        ctx.drawImage(fireFor(rgb), x - 16, y - 16, 32, 32);
+        ctx.save(); ctx.translate(x, y); ctx.rotate(ang);
+        ctx.globalAlpha = 0.95;
+        const fw = 20 * flick;
+        ctx.drawImage(coreFor(rgb), -8 - fw * 0.62, -4, fw, 8);
+        ctx.restore();
+      },
+    });
+    return dur * 1000;
+  },
+};
+
+ATTACK_FX.claws = {
+  // melee: no projectile — three JAGGED rakes tear across the target card,
+  // delayed so they land as the attacker's lunge visually connects
+  launch(a, b, rgb) {
+    const DELAY = 0.13;
+    const ang = -0.65 + rf(0.15, -0.15);
+    const px = -Math.sin(ang), py = Math.cos(ang);
+    const N = 11;
+    const rakes = [];
+    for (let i = 0; i < 3; i++) {
+      const rAng = ang + rf(0.07, -0.07);
+      const dX = Math.cos(rAng), dY = Math.sin(rAng);
+      const off = (i - 1) * rf(19, 14);
+      const along = (i - 1) * rf(9, 4);
+      const len = 116 * (i === 1 ? rf(1.12, 0.98) : rf(0.98, 0.8));
+      const cx = b.x + px * off + dX * along, cy = b.y + py * off + dY * along;
+      const pts = [];
+      for (let k = 0; k < N; k++) {
+        const q = k / (N - 1);
+        const alongPos = (q - 0.5) * len;
+        const jit = rf(3.4, -3.4);
+        pts.push({ x: cx + dX * alongPos - dY * jit, y: cy + dY * alongPos + dX * jit,
+          w: Math.pow(Math.sin(Math.PI * q), 0.55) * rf(1.2, 0.7) });
+      }
+      for (let s = 0; s < 2; s++) { // snag kinks where the claw caught
+        const k = 2 + ((Math.random() * (N - 4)) | 0);
+        const j = (Math.random() < 0.5 ? -1 : 1) * rf(7.5, 4.5);
+        pts[k].x += -dY * j; pts[k].y += dX * j;
+      }
+      const notches = []; // torn-back flaps along the cut
+      const nn = 2 + (Math.random() < 0.5 ? 1 : 0);
+      for (let s = 0; s < nn; s++) {
+        notches.push({ k: 1 + ((Math.random() * (N - 2)) | 0),
+          side: Math.random() < 0.5 ? -1 : 1, jut: rf(6.5, 3.4), base: rf(6.5, 3.8) });
+      }
+      rakes.push({ pts, notches, start: DELAY + 0.05 * i, sweep: 0.08, linger: 0.4,
+        drip: rf(0.05), phase: rf(TAU) });
+    }
+    const dark = mix(rgb, [0, 0, 0], 0.78);
+    const darkCss = `rgb(${dark[0]},${dark[1]},${dark[2]})`;
+    const midC = mix(rgb, [255, 255, 255], 0.35);
+    const coreC = mix(rgb, [255, 255, 255], 0.8);
+    const headAt = (r, sw) => {
+      const f = sw * (r.pts.length - 1);
+      const i0 = Math.min(r.pts.length - 2, f | 0), fr = f - i0;
+      const p0 = r.pts[i0], p1 = r.pts[i0 + 1];
+      return { x: p0.x + (p1.x - p0.x) * fr, y: p0.y + (p1.y - p0.y) * fr, w: p0.w };
+    };
+    const strokePath = (ctx, r, sw, width, alpha, color) => {
+      const f = sw * (r.pts.length - 1);
+      const iEnd = Math.min(r.pts.length - 2, f | 0);
+      ctx.strokeStyle = color; ctx.lineJoin = 'round';
+      for (let k = 0; k <= iEnd; k++) {
+        const p0 = r.pts[k];
+        const p1 = k === iEnd ? headAt(r, sw) : r.pts[k + 1];
+        ctx.globalAlpha = alpha;
+        ctx.lineWidth = Math.max(0.6, width * (p0.w + p1.w) / 2);
+        ctx.beginPath(); ctx.moveTo(p0.x, p0.y); ctx.lineTo(p1.x, p1.y); ctx.stroke();
+      }
+    };
+    let finished = false;
+    fxUpdaters.push({
+      t: 0,
+      update(dt) {
+        this.t += dt;
+        let alive = false;
+        for (let i = 0; i < rakes.length; i++) {
+          const r = rakes[i];
+          const lt = this.t - r.start;
+          if (lt < 0) { alive = true; continue; }
+          const sw = Math.min(1, lt / r.sweep);
+          if (sw < 1) {
+            alive = true;
+            const h = headAt(r, sw);
+            if (Math.random() < 0.8) {
+              fxPools.embers.push({ x: h.x, y: h.y, px: h.x, py: h.y,
+                vx: Math.cos(ang) * rf(90, 30) + rf(50, -50), vy: Math.sin(ang) * rf(90, 30) - rf(60, 10),
+                size: rf(2.6, 1.2), life: 0, dur: rf(0.4, 0.2), flick: rf(TAU), drag: rf(2, 1.4), rgb });
+            }
+          } else if (lt < r.sweep + r.linger) {
+            alive = true;
+            if (i === rakes.length - 1 && !finished) {
+              finished = true;
+              fxPools.flashes.push({ x: b.x, y: b.y, r: 4, max: 22, life: 0, dur: 0.1, rgb });
+              for (let d = 0; d < 3; d++) {
+                const da = rf(TAU), sp = rf(90, 30);
+                fxPools.debris.push({ x: b.x, y: b.y, vx: Math.cos(da) * sp, vy: Math.sin(da) * sp - rf(60, 20),
+                  w: rf(7, 3), h: rf(5, 3), rot: rf(TAU), vr: rf(8, -8), life: 0, dur: rf(0.45, 0.3), rgb });
+              }
+            }
+            r.drip += dt;
+            if (r.drip > 0.07 && lt < r.sweep + 0.25) {
+              r.drip = 0;
+              const g = r.pts[1 + ((Math.random() * (r.pts.length - 2)) | 0)];
+              fxPools.embers.push({ x: g.x, y: g.y, px: g.x, py: g.y,
+                vx: rf(12, -12), vy: rf(24, 6),
+                size: rf(2.2, 1.2), life: 0, dur: rf(0.45, 0.25), flick: rf(TAU), drag: rf(1.2, 0.8), rgb });
+            }
+          }
+        }
+        return alive;
+      },
+      drawUnder(ctx) {
+        ctx.lineCap = 'round';
+        for (const r of rakes) {
+          const lt = this.t - r.start;
+          if (lt <= 0) continue;
+          const sw = Math.min(1, lt / r.sweep);
+          const fade = lt > r.sweep ? Math.max(0, 1 - (lt - r.sweep) / r.linger) : 1;
+          if (fade <= 0) continue;
+          strokePath(ctx, r, sw, 3.6, 0.55 * fade, darkCss);
+          const passed = sw * (r.pts.length - 1);
+          for (const n of r.notches) {
+            if (passed <= n.k) continue;
+            const p = r.pts[n.k];
+            const q0 = r.pts[Math.max(0, n.k - 1)], q1 = r.pts[Math.min(r.pts.length - 1, n.k + 1)];
+            let tx = q1.x - q0.x, ty = q1.y - q0.y;
+            const tl = Math.hypot(tx, ty) || 1; tx /= tl; ty /= tl;
+            const nx = -ty * n.side, ny = tx * n.side;
+            ctx.globalAlpha = 0.5 * fade;
+            ctx.fillStyle = darkCss;
+            ctx.beginPath();
+            ctx.moveTo(p.x - tx * n.base / 2, p.y - ty * n.base / 2);
+            ctx.lineTo(p.x + nx * n.jut, p.y + ny * n.jut);
+            ctx.lineTo(p.x + tx * n.base / 2, p.y + ty * n.base / 2);
+            ctx.closePath(); ctx.fill();
+          }
+        }
+      },
+      draw(ctx, now) {
+        ctx.lineCap = 'round';
+        let anyFade = 0;
+        for (const r of rakes) {
+          const lt = this.t - r.start;
+          if (lt <= 0) continue;
+          const sw = Math.min(1, lt / r.sweep);
+          const fade = lt > r.sweep ? Math.max(0, 1 - (lt - r.sweep) / r.linger) : 1;
+          if (fade <= 0) continue;
+          anyFade = Math.max(anyFade, fade);
+          const pulse = sw >= 1 ? 1 + Math.sin(now / 60 + r.phase) * 0.08 : 1;
+          strokePath(ctx, r, sw, 8, 0.28 * fade * pulse, `rgb(${rgb[0]},${rgb[1]},${rgb[2]})`);
+          strokePath(ctx, r, sw, 3.4, 0.8 * fade * pulse, `rgb(${midC[0]},${midC[1]},${midC[2]})`);
+          strokePath(ctx, r, sw, 1.6, fade, `rgb(${coreC[0]},${coreC[1]},${coreC[2]})`);
+          if (sw < 1) { const h = headAt(r, sw); glintDraw(h.x, h.y, 13, rgb, 0.9); }
+        }
+        if (anyFade > 0) lightCast(b.x, b.y, 70, rgb, 0.1 * anyFade);
+      },
+    });
+    return (DELAY + 0.02) * 1000 + 20;
+  },
+};
+
+// ---- archetype selection: attacker card class → attack fx ----
+// Per-card overrides beat the tag lookup — Helix's actual BEASTS maul with
+// claws while its lab-grown pathogens lob globs, and Bullion Golem (robotic
+// + financial) throws gold, which is obviously funnier than bullets.
+const ATTACK_FX_OVERRIDE = {
+  ob_021: 'ledger', // Bullion Golem
+  hx_t_hydra: 'claws', hx_t_labrat: 'claws', // Hydra Clone, Lab Rat
+  hx_004: 'claws', // Plasma Leech
+  hx_012: 'claws', // Hemo Harvester
+  hx_014: 'claws', // Apex Specimen
+  hx_016: 'claws', // Symbiotic Titan
+  hx_017: 'claws', // The Hydra Initiative
+  hx_020: 'claws', // Chimera Calf
+  hx_022: 'claws', // Gigafauna
+};
+const TAG_FX = { robotic: 'bullets', software: 'laser', organism: 'bio', financial: 'ledger', facility: 'artillery' };
+function attackFxFor(def) {
+  if (!def) return 'kinetic';
+  const o = ATTACK_FX_OVERRIDE[def.id];
+  if (o) return o;
+  for (const t of ['robotic', 'software', 'organism', 'financial', 'facility']) {
+    if (def.tags && def.tags.includes(t)) return TAG_FX[t];
+  }
+  return 'kinetic'; // personnel + anything untagged
+}
+
+/** Fire the attacker's archetype at the target. Returns ms until the payload
+ *  visually lands so the caller can sync the target's hit reaction. */
+function launchAttackFx(key, atkEl, tgtEl) {
+  ensureFxCanvas();
+  const ra = atkEl.getBoundingClientRect(), rb = tgtEl.getBoundingClientRect();
+  const a = { x: ra.left + ra.width / 2, y: ra.top + ra.height / 2 };
+  const b = { x: rb.left + rb.width / 2, y: rb.top + rb.height / 2 };
+  const fc = getComputedStyle(atkEl).getPropertyValue('--fc').trim() || '#94a3b8';
+  const impactMs = (ATTACK_FX[key] || ATTACK_FX.kinetic).launch(a, b, cssToRgb(fc));
+  startFxLoop();
+  return Math.min(430, Math.round(impactMs));
+}
+
 function fxTick(now) {
   if (!fxRunning || !fxCtx) return;
   const dt = Math.min(0.05, (now - fxLast) / 1000); fxLast = now;
@@ -447,22 +1272,32 @@ function fxTick(now) {
   ctx.clearRect(0, 0, innerWidth, innerHeight);
   const SM = smokeSprites();
 
-  // SMOKE (source-over, behind everything)
+  // custom projectile logic (beams, shells, globs, rakes) advances first so
+  // anything it spawns this frame still renders this frame
+  for (let i = fxUpdaters.length - 1; i >= 0; i--) {
+    if (!fxUpdaters[i].update(dt, now)) fxUpdaters.splice(i, 1);
+  }
+
+  // SMOKE (source-over, behind everything). Detonation smoke carries
+  // turb/buoy/phase; simpler projectile-trail smoke omits them (|| 0).
   for (let i = P.smoke.length - 1; i >= 0; i--) {
     const p = P.smoke[i]; p.life += dt; if (p.life < 0) continue;
     const t = p.life / p.dur; if (t >= 1) { P.smoke.splice(i, 1); continue; }
-    p.phase += dt * 1.4;
-    p.vx += Math.sin(p.phase + p.y * 0.012) * p.turb * dt;
-    p.vy += (Math.cos(p.phase * 0.9 + p.x * 0.012) * p.turb - p.buoy * (0.4 + t)) * dt;
+    p.phase = (p.phase || 0) + dt * 1.4;
+    p.vx += Math.sin(p.phase + p.y * 0.012) * (p.turb || 0) * dt;
+    p.vy += (Math.cos(p.phase * 0.9 + p.x * 0.012) * (p.turb || 0) - (p.buoy || 0) * (0.4 + t)) * dt;
     p.vx *= (1 - 1.1 * dt); p.vy *= (1 - 1.0 * dt);
     p.x += p.vx * dt; p.y += p.vy * dt; p.rot += p.vr * dt;
     const sz = p.size + p.grow * p.life * (1 + t);
     const step = Math.min(SM.length - 1, (t * SM.length) | 0);
-    const spr = SM[step][p.seed % SM[step].length];
+    const spr = p.rgb ? puffFor(p.rgb) : SM[step][(p.seed || 0) % SM[step].length];
     ctx.globalAlpha = Math.min(1, t / 0.09) * (1 - Math.pow(t, 1.7)) * 0.5;
     ctx.globalCompositeOperation = 'source-over';
     ctx.save(); ctx.translate(p.x, p.y); ctx.rotate(p.rot); ctx.drawImage(spr, -sz, -sz, sz * 2, sz * 2); ctx.restore();
   }
+  // updater bodies that belong under the glow (shell casings, glob body, cuts)
+  ctx.globalCompositeOperation = 'source-over';
+  for (const u of fxUpdaters) if (u.drawUnder) { ctx.globalAlpha = 1; u.drawUnder(ctx, now); }
   // FIRE (additive)
   ctx.globalCompositeOperation = 'lighter';
   for (let i = P.fire.length - 1; i >= 0; i--) {
@@ -473,6 +1308,8 @@ function fxTick(now) {
     ctx.globalAlpha = (1 - t) * (1 - t) * 0.9;
     ctx.save(); ctx.translate(p.x, p.y); ctx.rotate(p.rot); ctx.drawImage(fireFor(p.rgb), -sz, -sz, sz * 2, sz * 2); ctx.restore();
   }
+  // updater glows/cores/beams (additive)
+  for (const u of fxUpdaters) if (u.draw) { ctx.globalAlpha = 1; u.draw(ctx, now); }
   // DEBRIS (source-over)
   ctx.globalCompositeOperation = 'source-over';
   for (let i = P.debris.length - 1; i >= 0; i--) {
@@ -512,9 +1349,18 @@ function fxTick(now) {
     const r = p.r + (p.max - p.r) * t;
     ctx.globalAlpha = 1 - t; ctx.drawImage(fireFor(p.rgb), p.x - r, p.y - r, r * 2, r * 2);
   }
+  // GLINTS (additive, lens-flare twinkles: pop in fast, fade out)
+  for (let i = P.glints.length - 1; i >= 0; i--) {
+    const p = P.glints[i]; p.life += dt; const t = p.life / p.dur; if (t >= 1) { P.glints.splice(i, 1); continue; }
+    const env = t < 0.3 ? t / 0.3 : 1 - (t - 0.3) / 0.7;
+    const s = p.s * (0.6 + 0.6 * env);
+    ctx.globalAlpha = env;
+    ctx.save(); ctx.translate(p.x, p.y); if (p.rot) ctx.rotate(p.rot);
+    ctx.drawImage(glintFor(p.rgb), -s, -s, s * 2, s * 2); ctx.restore();
+  }
 
   ctx.globalAlpha = 1; ctx.globalCompositeOperation = 'source-over';
-  const alive = P.smoke.length + P.fire.length + P.debris.length + P.embers.length + P.shocks.length + P.flashes.length;
+  const alive = fxUpdaters.length + P.smoke.length + P.fire.length + P.debris.length + P.embers.length + P.shocks.length + P.flashes.length + P.glints.length;
   if (alive === 0) { fxRunning = false; return; } // sleep until the next blast
   requestAnimationFrame(fxTick);
 }
@@ -642,40 +1488,8 @@ function heroHurtVignette() {
   setTimeout(() => v.remove(), 360);
 }
 
-/** Small glowing shell lobbed from attacker to target (artillery-style arc trajectory). */
-function fireShell(fromEl, toEl, duration = 260) {
-  if (!fromEl || !toEl) return;
-  const a = centerOf(fromEl), b = centerOf(toEl);
-  const shell = document.createElement('div');
-  shell.className = 'shell-projectile';
-  // position once at launch; all motion is compositor-friendly transform
-  shell.style.left = a.x + 'px';
-  shell.style.top = a.y + 'px';
-  shell.style.transform = 'translate(-50%,-50%)';
-  fxLayer.appendChild(shell);
-  void shell.offsetWidth;
-  const midX = (a.x + b.x) / 2, midY = Math.min(a.y, b.y) - 44;
-  const half = duration / 2;
-  // phase 1: arc up to the midpoint
-  shell.style.transition = `transform ${half}ms ease-out`;
-  shell.style.transform = `translate(-50%,-50%) translate(${midX - a.x}px, ${midY - a.y}px)`;
-  fxTimeout(() => {
-    // phase 2: accelerate down onto the target
-    shell.style.transition = `transform ${half}ms ease-in`;
-    shell.style.transform = `translate(-50%,-50%) translate(${b.x - a.x}px, ${b.y - a.y}px)`;
-  }, half);
-  setTimeout(() => shell.remove(), duration + 40);
-}
-
-/** Melee attack impact: sparks/debris/dust kick off the struck unit itself
- *  (canvas particle system — see spawnImpact above), colored by the target's
- *  own faction, instead of a generic fixed-orange radial burst. */
-function explosionBurst(el) {
-  if (!el) return;
-  const r = el.getBoundingClientRect();
-  const fc = getComputedStyle(el).getPropertyValue('--fc').trim() || '#94a3b8';
-  spawnImpact(r.left + r.width / 2, r.top + r.height / 2, Math.min(r.width, r.height), cssToRgb(fc));
-}
+/* attack projectiles render on the #fx-canvas particle system — see the
+   ATTACK_FX archetype registry above (launchAttackFx in the attack event). */
 
 /** Energy arc shot from a CEO portrait to the target of their power. */
 function powerBeam(fromEl, toEl, color = '#7dd8ff', duration = 220) {
@@ -1026,11 +1840,12 @@ async function playEvent(ev) {
     }
     case 'attack': {
       const atk = hooks.resolveTarget(ev.attackerId);
-      // robotic-tagged attackers (mechs, drones, golems) get their own gunfire/
-      // servo sound pool; everything else falls back to the generic pool.
+      // the attacker's asset class picks both the projectile archetype and its
+      // attack sound: sfx-attack-<archetype> with numbered variants, falling
+      // back to the generic sfx-attack pool (kinetic uses it directly)
       const atkDef = atk?.dataset.cardId ? getCard(atk.dataset.cardId) : null;
-      const robotic = atkDef?.tags?.includes('robotic');
-      audio.playSfx(robotic ? 'sfx-attack-robotic' : 'sfx-attack', 'sfx-attack');
+      const fxKey = attackFxFor(atkDef);
+      audio.playSfx(fxKey === 'kinetic' ? 'sfx-attack' : 'sfx-attack-' + fxKey, 'sfx-attack');
       const tgt = hooks.resolveTarget(ev.targetId);
       const heroHit = typeof ev.targetId === 'string' && ev.targetId.startsWith('hero');
       const up = atk
@@ -1061,21 +1876,26 @@ async function playEvent(ev) {
         }
         // (b) strike: hard lunge with a motion streak trailing behind
         pulseClass(atk, up ? 'anim-lunge-up' : 'anim-lunge-down', 430);
-        if (tgt) fireShell(atk, tgt, 180);
       }
+      // the archetype projectile flies (or the claws rake) — launchAttackFx
+      // reports when the payload visually lands so the target's reaction
+      // syncs to the actual arrival (bullets ~230ms, laser beam-on ~110ms,
+      // arcing shell ~300-420ms) instead of a fixed delay
+      let impactMs = 160;
+      if (atk && tgt) impactMs = launchAttackFx(fxKey, atk, tgt);
       if (tgt) {
         // (c) impact + follow-through: white flash frame, knockback with
-        // spring return, explosion + shake + hit-stop to sell the weight
+        // spring return, shake + hit-stop to sell the weight; the canvas
+        // burst itself is spawned by the archetype at its landing point
         // (generation-guarded: must never respawn fx after stopAnim/initAnim)
         fxTimeout(() => {
           pulseClass(tgt, 'anim-white-flash', 160);
           pulseClass(tgt, up ? 'anim-knock-up' : 'anim-knock-down', 430);
-          explosionBurst(tgt);
           screenShake(heroHit ? 'heavy' : 'medium');
           hitStop(90);
-        }, 160);
+        }, impactMs);
       }
-      await wait(445);
+      await wait(Math.max(445, impactMs + 285));
       break;
     }
     case 'damage': {
