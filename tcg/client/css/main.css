@@ -263,7 +263,12 @@ button {
   inset: 0; width: 100%; height: 100%; opacity: 1;
   mask-image: none; -webkit-mask-image: none;
 }
-.faction-card .fc-portrait.has-photo img.ceo-real { object-position: center; }
+/* Full-bleed portraits are cropped from a ~1.4-1.8:1 source to a ~2.25:1 box —
+   that's 20-40% of the image height lost. Anchor to the TOP so the crop is
+   taken entirely from the bottom (chair/desk clutter) instead of splitting it
+   evenly and cutting into hair/heads that sit close to the top of the source
+   art (several CEO portraits have almost no headroom above the hairline). */
+.faction-card .fc-portrait.has-photo img.ceo-real { object-position: center top; }
 .faction-card:has(.fc-portrait.has-photo) .fc-industry,
 .faction-card:has(.fc-portrait.has-photo) .fc-name,
 .faction-card:has(.fc-portrait.has-photo) .fc-tagline {
