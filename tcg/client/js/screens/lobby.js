@@ -2,7 +2,7 @@
 // match (create/join), VS bot, deck builder entry.
 
 import {
-  FACTIONS, factionMeta, starterDecks, loadCustomDecks, deckValidity,
+  FACTIONS, FACTION_IDS, factionMeta, starterDecks, loadCustomDecks, deckValidity,
   getSelectedDeckId, setSelectedDeckId, resolveDeck, session, getName,
 } from '../state.js';
 import * as net from '../net.js';
@@ -110,7 +110,7 @@ export function onKey(ev, typing) {
 function allDeckChoices() {
   const out = [];
   const starters = starterDecks();
-  for (const f of ['nexus', 'vulcan', 'helix', 'obsidian']) {
+  for (const f of FACTION_IDS) {
     if (starters[f]) {
       out.push({
         selId: 'starter:' + f, name: starters[f].name || factionMeta(f).name + ' Starter',
@@ -196,7 +196,7 @@ function render() {
 
   // faction cards
   const grid = root.querySelector('#faction-grid');
-  for (const f of ['nexus', 'vulcan', 'helix', 'obsidian']) {
+  for (const f of FACTION_IDS) {
     const m = factionMeta(f);
     const card = document.createElement('button');
     card.className = 'faction-card' + (f === selFaction ? ' selected' : '');
@@ -433,7 +433,7 @@ function startBot(difficulty) {
 }
 
 // ---------- AI-vs-AI watch config (rendered inline in the Watch tab) ----------
-const WATCH_FACTIONS = ['nexus', 'vulcan', 'helix', 'obsidian'];
+const WATCH_FACTIONS = FACTION_IDS;
 const watchPick = { a: 'nexus', b: 'obsidian', matches: 5 };
 
 // ---------- modals ----------

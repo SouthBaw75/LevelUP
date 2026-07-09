@@ -47,6 +47,13 @@
 
 export const CARDS = {};
 
+// Canonical, ordered list of playable faction ids — the SINGLE source of truth
+// every layer (engine validation, server watch-mode, client lobby/builder)
+// derives from, instead of each hand-maintaining its own copy. Add a new
+// faction here once its cards/starter deck exist; client-side display
+// metadata (name/color/tagline/industry) lives separately in client/js/state.js.
+export const FACTION_IDS = ['nexus', 'vulcan', 'helix', 'obsidian'];
+
 // Tribal tags (counter auras / future tribal cards match on these). Every ASSET
 // carries one or more; the taxonomy is one signature tribe per faction plus two
 // cross-faction connectors:

@@ -19,14 +19,14 @@
 
 import crypto from 'node:crypto';
 import { createGame, applyAction, getSpectatorView } from '../shared/engine.js';
-import { STARTER_DECKS } from '../shared/cards.js';
+import { STARTER_DECKS, FACTION_IDS } from '../shared/cards.js';
 import { BotController } from './bot.js';
 
 const TURN_MS = 90_000;          // safety net; fast bots never reach it
 const BETWEEN_GAMES_MS = 2600;   // pause on the game-over screen before the next match
 const ACTION_CAP_PER_GAME = 4000; // hard backstop against a wedged simulation
 const GRACE_MS = 30_000;         // spectator reconnect grace (mirrors Room's PvP grace)
-const FACTIONS = ['nexus', 'vulcan', 'helix', 'obsidian'];
+const FACTIONS = FACTION_IDS;
 
 let nextId = 1;
 

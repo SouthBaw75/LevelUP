@@ -24,12 +24,26 @@ export const FACTIONS = {
     color: '#c084fc', tagline: 'Everything is for sale. Especially you.',
     identity: 'Greed — capital ramp, sacrifice, GOLDEN PARACHUTE value.',
   },
+  titan: {
+    id: 'titan', name: 'Titan Petrocore', industry: 'Energy',
+    color: '#e81c17', tagline: 'Energy Builds Empires.',
+    identity: 'Boom-bust — explosive Capital ramp, DEPLETION, EXTRACT, self-inflicted FLARE damage.',
+  },
   neutral: {
     id: 'neutral', name: 'Independent Contractors', industry: 'Freelance',
     color: '#94a3b8', tagline: 'Loyalty, invoiced hourly.',
     identity: 'Mercenaries usable by any conglomerate.',
   },
 };
+
+// Playable faction ids, in display order — the single source every lobby/
+// builder/watch-setup screen iterates over, instead of each hand-maintaining
+// its own copy of this list (excludes 'neutral', which isn't selectable).
+// NOTE: 'titan' is intentionally left out until its cards + starter deck land
+// (tasks in flight) — factionMeta.titan can exist ahead of time without the
+// faction appearing anywhere playable yet. Added to this list as the last
+// step of standing the faction up.
+export const FACTION_IDS = Object.keys(FACTIONS).filter((f) => f !== 'neutral' && f !== 'titan');
 
 export const KEYWORD_NAMES = {
   firewall: 'FIREWALL',

@@ -4,6 +4,7 @@
 import {
   factionMeta, getDb, getCard, loadCustomDecks, upsertCustomDeck,
   deleteCustomDeck, deckValidity, setSelectedDeckId, getSelectedDeckId, starterDecks,
+  FACTION_IDS,
 } from '../state.js';
 import { showScreen, toast } from '../main.js';
 import { renderCard, attachPreview } from '../components/card.js';
@@ -14,7 +15,7 @@ let root = null;
 let work = null; // { id, name, faction, cards: [ids] }
 let filters = { faction: null, cost: null, type: null, rarity: null, q: '' };
 
-const FACTION_ORDER = ['nexus', 'vulcan', 'helix', 'obsidian'];
+const FACTION_ORDER = FACTION_IDS;
 
 export function mount(el) { root = el; }
 

@@ -48,10 +48,10 @@
 //   (deaths swept), for EVERY operation the owner plays — including Government
 //   Subsidy and Void Clause. CEO powers are not operations and never fire it.
 
-import { CARDS, STARTER_DECKS } from './cards.js';
+import { CARDS, STARTER_DECKS, FACTION_IDS } from './cards.js';
 export { CARDS, STARTER_DECKS };
 
-const FACTIONS = ['nexus', 'vulcan', 'helix', 'obsidian'];
+const FACTIONS = FACTION_IDS;
 const MAX_HAND = 10;
 const MAX_BOARD = 7;
 const MAX_CAPITAL = 10;
@@ -59,9 +59,9 @@ const POWER_COST = 2;
 const MAX_CONTRACTS = 3;
 const BIG_HIT_THRESHOLD = 10; // cumulative enemy hero damage in one game-turn that fires a CEO taunt
 const PLAYABLE_TYPES = ['ASSET', 'OPERATION', 'CONTRACT'];
-const TARGETINGS = [null, 'any', 'anyRespectFirewall', 'anyUnit', 'enemyUnit', 'enemyUnitCost4',
-  'enemyUnitLowHealth', 'friendlyUnit', 'friendlyUnitNoFirewall', 'facilityUnit', 'enemyHero',
-  'anyHero', 'enemyContract'];
+const TARGETINGS = [null, 'any', 'anyRespectFirewall', 'anyUnit', 'enemyUnit', 'enemyUnitIgnoreVeil',
+  'enemyUnitCost4', 'enemyUnitLowHealth', 'friendlyUnit', 'friendlyUnitNoFirewall', 'facilityUnit',
+  'enemyHero', 'anyHero', 'enemyContract'];
 
 // ---------------------------------------------------------------------------
 // Seeded RNG (mulberry32 stepping state.rng)
@@ -192,12 +192,16 @@ const heroIndex = (t) => (t === 'hero0' ? 0 : 1);
 
 function makeUnit(state, cardId, overrides = {}) {
   const card = CARDS[cardId];
+  // BLOWOUT X (Titan Petrocore): printed stats are the BASE; the card enters
+  // with X counters, each baked in as +1/+1 up front (see tickBlowout for how
+  // they come back off).
+  const blowout = card.effects.blowout || 0;
   return {
     id: 'u' + state.nextUnit++,
     cardId,
-    attack: card.attack,
-    health: card.health,
-    maxHealth: card.health,
+    attack: card.attack + blowout,
+    health: card.health + blowout,
+    maxHealth: card.health + blowout,
     keywords: card.keywords.slice(),
     attacksUsed: 0,
     enteredTurn: state.turn,
@@ -205,6 +209,7 @@ function makeUnit(state, cardId, overrides = {}) {
     pendingDestroy: false,
     killedBy: null, // §3d: player index that put this unit on a death path (last-writer-wins)
     distracted: 0,  // Flirty Intern: turns of "can't attack" remaining; ticks down each owner turn
+    blowoutCounters: blowout,
     ...overrides,
   };
 }
@@ -252,6 +257,10 @@ function validTargets(state, player, targeting) {
     }
     case 'anyUnit': return [...friendlyUnits, ...enemyUnits];
     case 'enemyUnit': return enemyUnits;
+    // Directional Drilling (Titan Petrocore): reaches enemy assets regardless
+    // of CORPORATE VEIL — the only targeting mode in the game that ignores
+    // stealth's normal "can't be targeted" rule.
+    case 'enemyUnitIgnoreVeil': return state.players[enemy].board.map((u) => u.id);
     // enemy assets printed cost ≤ 4 — for Counter Offer's outbid-poach (§Counter Offer).
     // Cost is never modified in-game, so the printed CARDS[cardId].cost is stable/correct.
     case 'enemyUnitCost4':
@@ -527,12 +536,53 @@ function dealDamage(state, ev, targetId, amount, source = {}) {
       unit.pendingDestroy = true;
       if (typeof source.player === 'number') unit.killedBy = source.player;
     }
+    // BLOWOUT (Titan Petrocore): a counter ticks off on ANY damage taken, same
+    // as on damage dealt below — "whenever it deals or takes damage".
+    tickBlowout(state, ev, unit);
   }
   if (source.unit && hasKw(source.unit, 'siphon')) {
     healTarget(state, ev, 'hero' + source.player, amount);
   }
+  // DEPLETION (Titan Petrocore): the well runs a little drier with every hit
+  // it lands — a flat -1/-1 via the same buff path adjacency/buff use, so a
+  // depleted-to-0 unit is swept as a death by the normal sweepDeaths pass.
+  if (source.unit && hasKw(source.unit, 'depletion')) {
+    grantStatBuff(ev, source.unit, { attack: -1, health: -1 });
+  }
+  tickBlowout(state, ev, source.unit);
   breakStealth(source.unit);
   return amount;
+}
+
+// BLOWOUT X (Titan Petrocore): the unit enters with X counters (each worth
+// +1/+1, baked into its live stats at spawn — see makeUnit). Every counter
+// removed here is a matching -1/-1 via the shared buff path; when the LAST
+// one comes off, it detonates for damage equal to its (now-reduced) current
+// Attack against its immediate board neighbors — the only "adjacent units"
+// concept this engine has (see applyAdjacencyBuffs) — then dies. Chains
+// naturally: a neighbor with its own counters ticks down from the blast too.
+function tickBlowout(state, ev, unit) {
+  if (!unit || !(unit.blowoutCounters > 0)) return;
+  unit.blowoutCounters -= 1;
+  grantStatBuff(ev, unit, { attack: -1, health: -1 });
+  // fires exactly once as the counter crosses to 0, whether or not this same
+  // hit already brought it to (or past) 0 health on its own
+  if (unit.blowoutCounters === 0 && !unit.pendingDestroy) {
+    for (let owner = 0; owner < 2; owner++) {
+      const board = state.players[owner].board;
+      const pos = board.indexOf(unit);
+      if (pos === -1) continue;
+      const dmg = Math.max(0, unit.attack);
+      if (dmg > 0) {
+        for (const j of [pos - 1, pos + 1]) {
+          const nb = board[j];
+          if (nb) dealDamage(state, ev, nb.id, dmg, { unit, player: owner });
+        }
+      }
+      break;
+    }
+    unit.pendingDestroy = true;
+  }
 }
 
 function breakStealth(unit) {
@@ -761,6 +811,15 @@ export const OPS = {
     const player = op.player === 'opponent' ? 1 - ctx.player : ctx.player;
     drawCards(state, player, op.count, ev);
   },
+  // Draw a card; if the TOP card (the one about to be drawn) carries `tag`,
+  // draw `extra` more (default 1) — Seismic Survey. Peeking the deck's top
+  // before popping avoids needing to inspect the emitted `draw` event.
+  drawTagBonus(state, ev, op, ctx) {
+    const deck = state.players[ctx.player].deck;
+    const topId = deck[deck.length - 1];
+    const bonus = topId && (CARDS[topId]?.tags || []).includes(op.tag) ? (op.extra || 1) : 0;
+    drawCards(state, ctx.player, 1 + bonus, ev);
+  },
   summon(state, ev, op, ctx) {
     const player = op.forOpponent ? 1 - ctx.player : ctx.player;
     const n = op.count || 1;
@@ -918,6 +977,20 @@ export const OPS = {
 function layoffUnit(state, ev, player, unit) {
   ev.push({ e: 'layoff', unitId: unit.id, cardId: unit.cardId, player });
   healTarget(state, ev, 'hero' + player, unit.health);
+  unit.pendingDestroy = true;
+  unit.killedBy = player; // §3d: self-sacrifice — owner-caused, so severance must NOT fire
+  sweepDeaths(state, ev);
+}
+
+// EXTRACT X (Titan Petrocore): same 3-step shape as §3c LAYOFF above — free
+// self-sacrifice, any time on the owner's turn — but the payout is a FLAT
+// printed Capital amount (`effects.extract`) instead of healing the CEO by
+// current Health. Emits its own `extract` event so the client can play a
+// distinct animation from a layoff.
+function extractUnit(state, ev, player, unit) {
+  const amount = CARDS[unit.cardId].effects.extract || 0;
+  ev.push({ e: 'extract', unitId: unit.id, cardId: unit.cardId, player, amount });
+  if (amount > 0) OPS.addCapital(state, ev, { op: 'addCapital', amount }, { player });
   unit.pendingDestroy = true;
   unit.killedBy = player; // §3d: self-sacrifice — owner-caused, so severance must NOT fire
   sweepDeaths(state, ev);
@@ -1260,6 +1333,17 @@ function applyActionInner(state, playerIndex, action) {
       return { ok: true, events: ev };
     }
 
+    // EXTRACT X (Titan Petrocore): free self-sacrifice for a flat Capital
+    // payout — same no-cost/no-exhaustion shape as LAYOFF above.
+    case 'extract': {
+      const found = findUnit(state, action.unitId);
+      if (!found || found.owner !== playerIndex) return { ok: false, error: 'invalid unit' };
+      if (!hasKw(found.unit, 'extract'))
+        return { ok: false, error: 'asset does not have EXTRACT' };
+      extractUnit(state, ev, playerIndex, found.unit);
+      return { ok: true, events: ev };
+    }
+
     // War Chest (§reserve): crack open a banked reserve — free, any time on
     // your turn, does not end the turn. The bank becomes ASSET-only spending
     // power for the rest of this turn (cleared at this player's next startTurn).
@@ -1319,6 +1403,11 @@ export function legalActions(state, playerIndex) {
   // silence empties keywords, so silenced units are excluded automatically)
   for (const unit of p.board) {
     if (hasKw(unit, 'layoff')) actions.push({ type: 'layoff', unitId: unit.id });
+  }
+
+  // EXTRACT X (Titan Petrocore): same free-any-time shape as LAYOFF above.
+  for (const unit of p.board) {
+    if (hasKw(unit, 'extract')) actions.push({ type: 'extract', unitId: unit.id });
   }
 
   // War Chest (§reserve): free activation for any filed reserve with a bank

@@ -1226,6 +1226,104 @@ ATTACK_FX.claws = {
   },
 };
 
+ATTACK_FX.gusher = {
+  // oil-fire projectile: a roaring, churning fireball flying low and flat,
+  // trailing a thick column of near-black soot — an oil-well blowout as a
+  // weapon. Distinct from artillery's tumbling shell (opaque metal body,
+  // high lob) and kinetic's clean white-hot comet (single tight sprite).
+  launch(a, b, rgb) {
+    const dist = Math.hypot(b.x - a.x, b.y - a.y) || 1;
+    const dur = Math.max(0.24, Math.min(0.4, 0.2 + dist * 0.00035));
+    const arc = Math.min(55, 18 + dist * 0.12); // low & flat, not lobbed
+    const c = { x: (a.x + b.x) / 2, y: Math.min(a.y, b.y) - arc };
+    const soot = mix(rgb, [20, 16, 14], 0.85); // near-black, faint faction tint
+    const d0 = bezierDir(0, a, c, b), l0 = Math.hypot(d0.x, d0.y) || 1;
+    const mdir = { x: d0.x / l0, y: d0.y / l0 };
+    const mx = a.x + mdir.x * 46, my = a.y + mdir.y * 46;
+    muzzle(mx, my, rgb, mdir, 1.4);
+    // extra big roaring flames kicking off the launch, on top of muzzle()'s own
+    for (let i = 0; i < 3; i++) {
+      fxPools.fire.push({ x: mx + rf(6, -6), y: my + rf(6, -6),
+        vx: mdir.x * rf(60, 20) + rf(20, -20), vy: mdir.y * rf(60, 20) - rf(20, 4),
+        size: rf(30, 18), grow: rf(2, 1), life: -i * 0.02, dur: rf(0.3, 0.18),
+        rot: rf(TAU), vr: rf(2, -2), rgb });
+    }
+    fxUpdaters.push({
+      t: 0, acc: 0, eAcc: 0, phase: [rf(TAU), rf(TAU), rf(TAU)], pos: null, dir: null,
+      update(dt) {
+        this.t += dt / dur;
+        if (this.t >= 1) {
+          const dE = bezierDir(1, a, c, b), lE = Math.hypot(dE.x, dE.y) || 1;
+          const dir = { x: dE.x / lE, y: dE.y / lE };
+          spawnImpact(b.x, b.y, 150, rgb, dir);
+          for (let i = 0; i < 2; i++) { // secondary flare, bigger than the core payload's own fireball
+            fxPools.fire.push({ x: b.x + rf(10, -10), y: b.y + rf(10, -10),
+              vx: rf(40, -40), vy: -rf(60, 20),
+              size: rf(46, 30), grow: rf(2.2, 1.2), life: -i * 0.03, dur: rf(0.5, 0.32),
+              rot: rf(TAU), vr: rf(2.4, -2.4), rgb });
+          }
+          for (let i = 0; i < 4; i++) { // black smoke mushroom blooming over the fireball
+            fxPools.smoke.push({ x: b.x + rf(16, -16), y: b.y + rf(10, -10),
+              vx: rf(20, -20), vy: -rf(50, 20),
+              size: rf(24, 15), grow: rf(30, 18), life: -0.04 * i, dur: rf(1.1, 0.75),
+              rot: rf(TAU), vr: rf(0.5, -0.5), rgb: soot });
+          }
+          fxTimeout(() => { // second billow so the soot column keeps rolling after the flash fades
+            for (let i = 0; i < 3; i++) {
+              fxPools.smoke.push({ x: b.x + rf(20, -20), y: b.y + rf(12, -12),
+                vx: rf(14, -14), vy: -rf(40, 16),
+                size: rf(20, 12), grow: rf(24, 14), life: 0, dur: rf(0.9, 0.6),
+                rot: rf(TAU), vr: rf(0.5, -0.5), rgb: soot });
+            }
+            startFxLoop();
+          }, 70);
+          return false;
+        }
+        const p = bezier(this.t, a, c, b);
+        const d = bezierDir(this.t, a, c, b), l = Math.hypot(d.x, d.y) || 1;
+        this.pos = p; this.dir = { x: d.x / l, y: d.y / l };
+        this.acc += dt;
+        while (this.acc > 0.012) { // thick black soot column, shed fast
+          this.acc -= 0.012;
+          fxPools.smoke.push({ x: p.x - this.dir.x * 10 + rf(5, -5), y: p.y - this.dir.y * 10 + rf(5, -5),
+            vx: -this.dir.x * rf(34, 10) + rf(14, -14), vy: -this.dir.y * rf(34, 10) - rf(16, 2),
+            size: rf(14, 8), grow: rf(22, 13), life: 0, dur: rf(0.8, 0.55),
+            rot: rf(TAU), vr: rf(0.5, -0.5), rgb: soot });
+        }
+        this.eAcc += dt;
+        while (this.eAcc > 0.02) { // embers spitting off the burning tail
+          this.eAcc -= 0.02;
+          const ba = Math.atan2(this.dir.y, this.dir.x) + Math.PI + rf(0.7, -0.7);
+          fxPools.embers.push({ x: p.x, y: p.y, px: p.x, py: p.y,
+            vx: Math.cos(ba) * rf(70, 20), vy: Math.sin(ba) * rf(70, 20),
+            size: rf(2.6, 1.1), life: 0, dur: rf(0.32, 0.16), flick: rf(TAU), drag: rf(2, 1.4), rgb });
+        }
+        return true;
+      },
+      draw(ctx, now) {
+        if (!this.pos) return;
+        const { x, y } = this.pos;
+        const ang = Math.atan2(this.dir.y, this.dir.x);
+        lightCast(x, y, 82, rgb, 0.15);
+        ctx.save(); ctx.translate(x, y); ctx.rotate(ang); // hot core, oriented along travel, under the churn
+        ctx.globalAlpha = 0.9;
+        ctx.drawImage(coreFor(rgb), -24, -9, 32, 18);
+        ctx.restore();
+        // 3 independently-wobbling flame blobs on top — a churning, irregular mass, not a clean comet
+        const blobs = [
+          { dx: Math.sin(now / 46 + this.phase[0]) * 6, dy: Math.cos(now / 61 + this.phase[0]) * 5, r: 22 },
+          { dx: Math.cos(now / 38 + this.phase[1]) * 7, dy: Math.sin(now / 53 + this.phase[1]) * 6, r: 18 },
+          { dx: Math.sin(now / 71 + this.phase[2]) * 5, dy: Math.cos(now / 44 + this.phase[2]) * 7, r: 15 },
+        ];
+        ctx.globalAlpha = 0.85;
+        for (const bl of blobs) ctx.drawImage(fireFor(rgb), x + bl.dx - bl.r, y + bl.dy - bl.r, bl.r * 2, bl.r * 2);
+        glintDraw(x, y, 14, rgb, 0.6);
+      },
+    });
+    return dur * 1000;
+  },
+};
+
 // ---- archetype selection: attacker card class → attack fx ----
 // Per-card overrides beat the tag lookup — Helix's actual BEASTS maul with
 // claws while its lab-grown pathogens lob globs, and Bullion Golem (robotic
@@ -1248,6 +1346,9 @@ function attackFxFor(def) {
   if (!def) return 'kinetic';
   const o = ATTACK_FX_OVERRIDE[def.id];
   if (o) return o;
+  // Titan Petrocore burns everything it touches — faction identity beats the
+  // tag lookup (a facility-tagged rig still throws fire, not a siege shell).
+  if (def.faction === 'titan') return 'gusher';
   for (const t of ['robotic', 'software', 'organism', 'financial', 'facility']) {
     if (def.tags && def.tags.includes(t)) return TAG_FX[t];
   }
