@@ -45,6 +45,13 @@ const FACTIONS = {
     color: '#c084fc',
     tagline: 'Everything is for sale. Especially you.',
   },
+  titan: {
+    id: 'titan',
+    name: 'Titan Petrocore',
+    industry: 'Energy',
+    color: '#e81c17',
+    tagline: 'Energy Builds Empires.',
+  },
   neutral: {
     id: 'neutral',
     name: 'Independent Contractors',

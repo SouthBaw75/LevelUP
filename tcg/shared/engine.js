@@ -163,7 +163,7 @@ export function createGame({ decks, names, seed, firstPlayer = 0 }) {
 }
 
 function factionPrefix(faction) {
-  return { nexus: 'nx', vulcan: 'vx', helix: 'hx', obsidian: 'ob' }[faction];
+  return { nexus: 'nx', vulcan: 'vx', helix: 'hx', obsidian: 'ob', titan: 'tp' }[faction];
 }
 
 export function cloneState(state) {

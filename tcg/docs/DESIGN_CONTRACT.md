@@ -55,6 +55,7 @@ battle for industry dominance. Tone: sleek corporate cyberpunk, dry satirical fl
 | `vulcan`  | Vulcan Heavy Industries  | Manufacturing/defense | Aggro: direct damage, VESTED, big late-game assets     | orange `#f97316` |
 | `helix`   | Helix Biosystems         | Biotech               | Growth: healing, buffs, clone tokens, SIPHON           | green `#4ade80` |
 | `obsidian`| Obsidian Capital         | Finance/private equity| Greed: capital ramp, sacrifice, GOLDEN PARACHUTE value | violet-gold `#c084fc` |
+| `titan`   | Titan Petrocore          | Energy (oil & gas)    | Boom-bust: explosive Capital ramp, DEPLETION, EXTRACT, self-inflicted FLARE damage, BLOWOUT counters (§3h) | red `#e81c17` |
 | `neutral` | Independent Contractors  | —                     | Usable in any deck                                     | gray `#94a3b8` |
 
 ## 3. Keywords (fixed list — engine implements exactly these)
@@ -72,6 +73,8 @@ battle for industry dominance. Tone: sleek corporate cyberpunk, dry satirical fl
 | `layoff`         | LAYOFF              | Once, any time on your turn: sacrifice this asset for free; your CEO gains Integrity equal to its current Integrity (see §3c) |
 | `severance`      | SEVERANCE           | When destroyed by an ENEMY, its owner draws a card (compensation payout; see §3d) |
 | `raid`           | RAID                | An attack this unit survives (checked after damage/retaliation resolve, before the death sweep) banks a 1-Capital steal against the defender — applied once and cleared at the start of the defender's next turn |
+| `depletion`      | DEPLETION           | Every time this asset deals damage (combat or otherwise), it takes a permanent -1/-1 (Titan Petrocore; see §3h) |
+| `extract`        | EXTRACT             | Once, any time on your turn: sacrifice this asset for free; gain a flat printed amount of Capital (Titan Petrocore; see §3h) |
 | Triggered abilities (not stand-alone keywords, defined per-card in effect data):          |
 | `onboarding`     | ONBOARDING          | Effect when played from hand (Battlecry)                        |
 | `parachute`      | GOLDEN PARACHUTE    | Effect when destroyed (Deathrattle)                             |
@@ -375,7 +378,56 @@ squirrels away unspent Capital across turns, then lets you crack it open to buy 
   in the view once activated — like capital, both players can see how much asset-buying power is on the
   table.
 
-### v1 contract set (13 faction + 2 neutral contracts + 2 neutral answers)
+## 3h. Titan Petrocore mechanics (DEPLETION, EXTRACT, BLOWOUT, and two reused patterns)
+
+Titan Petrocore (energy/oil & gas) is a boom-bust faction: explosive Capital ramp and big
+one-shot swings, paid for by assets that visibly run down or blow themselves up. Three new
+primitives, plus two cards that reuse existing ops in a way worth calling out.
+
+- **`depletion` (DEPLETION).** A stand-alone keyword (see §3 table). Every time a unit carrying
+  it deals damage — combat or otherwise, checked at the same point as SIPHON, at the bottom of
+  `dealDamage` — it takes a permanent `-1/-1` via `grantStatBuff` (the same baked-stat path
+  adjacency buffs use). A unit that also has an ONBOARDING/effect that deals damage on its own
+  ticks itself down from that too — there is no special-casing between combat and non-combat
+  damage. **v1 cards**: `tp_003` Test Well, `tp_020` Blowtorch Rig, `tp_t_derrick` Burning Derrick.
+- **`extract` (EXTRACT X).** A stand-alone keyword with a printed flat Capital payout in
+  `effects.extract`. Same free/any-time/self-sacrifice shape as LAYOFF (§3c) — the `extractUnit`
+  function mirrors `layoffUnit` exactly — but the payout is the printed amount instead of the
+  unit's current Integrity, and it emits its own `extract` event (distinct client animation from
+  a layoff). New action: `{ type: "extract", unitId }`. **v1 card**: `tp_013` Stripper Well
+  (EXTRACT 2).
+- **BLOWOUT X (counters, not a keyword).** `effects.blowout = X` on an ASSET. `makeUnit` bakes
+  all X counters into the unit's stats at spawn (`attack/health/maxHealth += X`) and records
+  `unit.blowoutCounters = X`. `tickBlowout(state, ev, unit)` runs from BOTH sides of
+  `dealDamage` — once for the unit taking damage, once for a unit that deals damage as
+  `source.unit` — so a counter ticks off (with a matching `-1/-1` buff) whenever the unit deals
+  **or** takes damage, from any source, not just combat. When the last counter comes off, the
+  unit **detonates**: it deals damage equal to its own (already-reduced) current Attack to each
+  of its immediate board neighbors (the only "adjacency" concept the engine has — see §3f), then
+  dies. Detonation damage recurses through the normal `dealDamage` path, so a neighbor with its
+  own BLOWOUT counters chains naturally. Printed stats are the BASE value — the card's `attack`/
+  `health` fields — with the counters shown as the bonus on top. **v1 cards**: `tp_014` Wildcat
+  Prospect (BLOWOUT 3), `tp_024` The Gusher (BLOWOUT 4 — note its own ONBOARDING blast ticks
+  its own counter once, since that's "dealt damage" like any other).
+- **`drawTagBonus` op** (`{op:'drawTagBonus', tag, extra?}`). Peeks the top of the owner's deck
+  (the card about to be drawn — `deck[deck.length-1]`, since `drawCards` pops from the end)
+  and draws `1 + extra` (default `extra: 1`) total if that card's `tags` include `tag`, else
+  just 1. Avoids needing to inspect the emitted `draw` event to decide the bonus. **v1 card**:
+  `tp_005` Seismic Survey ("Draw a card. If it is a FACILITY asset, draw an additional card.").
+- **`enemyUnitIgnoreVeil` targeting.** A new `validTargets()` case returning every enemy unit
+  with NO stealth filter — the first targeting mode in the game able to reach through CORPORATE
+  VEIL. **v1 card**: `tp_012` Directional Drilling ("Deal 3 damage to an enemy asset. Ignores
+  CORPORATE VEIL.").
+- **Reused, zero new engine code**: `tp_025` Emergency Flare-Off (FLARE — `aoeDamage side:'all'`,
+  hits both players' boards including the caster's own); `tp_c01` Mineral Rights (CONTRACT
+  `startOfTurn` + `addCapital`, same shape as `ob_c01`); `tp_015` LNG Terminal Facility (GOLDEN
+  PARACHUTE + `addCapital perFriendlyTag: 'facility'`, same shape as `ob_029` Cayman
+  Clearinghouse — §3f-ter); `tp_010` Manufacturing Facility (`onFriendlyAssetPlayed` gated to
+  `robotic` instead of `financial` — §3f-quater); `tp_009` Refinery Facility / `tp_022` Vertical
+  Integration (`adjacencyBuff` gated to `robotic` / `facility` — §3f, and the game's first
+  FACILITY-tag adjacency buff).
+
+### v1 contract set (14 faction + 2 neutral contracts + 2 neutral answers)
 
 | id | Name | Cost | Effect |
 |---|---|---|---|
@@ -392,6 +444,7 @@ squirrels away unspent Capital across turns, then lets you crack it open to buy 
 | `ob_c01` | Payday Lending Agreement | 2 | At the start of your turn, gain 1 Capital this turn only. **Fine print:** your CEO takes 1 damage each turn. |
 | `ob_c02` | Bridge Loan | 4 | **Term 2.** At the start of your turn, gain +1 permanent max Capital. |
 | `ob_c03` | Liquidation Rights | 3 | Whenever a friendly asset is destroyed, gain 1 Capital this turn only. |
+| `tp_c01` | Mineral Rights | 3 | At the start of your turn, gain 1 Capital. |
 | `ntr_c03` | Regulatory Capture | 4 | Your opponent's cards cost (1) more (every type — see `enemyCostIncrease` above). |
 | `ntr_c04` | War Chest | 2 | At end of turn, bank unspent Capital (max 8, private); Activate to spend the bank on ASSETS this turn (§3g). |
 | `ntr_c01` | Contract Attorney | 3 | ASSET 2/3. ONBOARDING: declare an enemy contract null & void. |
@@ -410,9 +463,9 @@ The server exposes them to the client as JSON via `GET /api/cards`.
 
 ```jsonc
 {
-  "id": "vx_004",             // <factionprefix>_<number>; prefixes: nx, vx, hx, ob, ntr
+  "id": "vx_004",             // <factionprefix>_<number>; prefixes: nx, vx, hx, ob, tp, ntr
   "name": "Strike Battalion",
-  "faction": "vulcan",         // nexus|vulcan|helix|obsidian|neutral
+  "faction": "vulcan",         // nexus|vulcan|helix|obsidian|titan|neutral
   "type": "ASSET",             // ASSET | OPERATION | CEO | POWER
   "cost": 4,
   "attack": 4,                 // ASSET only
@@ -439,10 +492,11 @@ convention. The card data schema needs no art field.
 - `type: "CEO"` cards (one per faction, e.g. `nx_ceo`) define the hero: name, 40 health, `powerId`.
 - `type: "POWER"` cards define the CEO power: cost 2, `text`, effects.
 - Tokens (summoned units) are non-collectible ASSET cards in the same map.
-- **155 collectible cards total**: ~26 per faction (obsidian 35) + 44 neutral. Costs 0–10, all rarities.
+- **184 collectible cards total**: 25 nexus, 26 vulcan, 25 helix, 36 obsidian, 28 titan + 44
+  neutral. Costs 0–10, all rarities.
 
-`STARTER_DECKS`: `{ nexus: {name, faction, cards:[40 ids]}, vulcan: {...}, helix: {...}, obsidian: {...} }`
-— four tuned, playable prebuilt decks.
+`STARTER_DECKS`: `{ nexus: {name, faction, cards:[40 ids]}, vulcan: {...}, helix: {...}, obsidian: {...}, titan: {...} }`
+— five tuned, playable prebuilt decks.
 
 ## 5. Engine API (`shared/engine.js`, ESM)
 

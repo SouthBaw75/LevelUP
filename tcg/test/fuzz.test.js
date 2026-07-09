@@ -5,16 +5,16 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import {
   createGame, applyAction, legalActions, getView, redactEvents, cloneState,
-  validateDeck, STARTER_DECKS,
+  validateDeck, STARTER_DECKS, CARDS,
 } from '../shared/engine.js';
 
-const FACTIONS = ['nexus', 'vulcan', 'helix', 'obsidian'];
+const FACTIONS = ['nexus', 'vulcan', 'helix', 'obsidian', 'titan'];
 const EVENT_TYPES = new Set([
   'turnStart', 'capital', 'draw', 'mill', 'fatigue', 'cardPlayed', 'summon',
   'attack', 'damage', 'heal', 'shieldBreak', 'death', 'buff', 'keyword',
   'heroPower', 'returnToHand', 'silence', 'transform', 'gameOver',
   'contractFiled', 'contractVoided', 'layoff', 'severance', 'distract', 'capitalRaid', 'bigHit',
-  'bankCapital', 'reserveActivated',
+  'bankCapital', 'reserveActivated', 'extract',
 ]);
 
 // independent PRNG for action choice (not the engine's)
@@ -108,17 +108,18 @@ function playGame(seed, f0, f1, decks) {
   return steps;
 }
 
-test('fuzz: 224 complete random games across all faction pairings', () => {
+test('fuzz: 350 complete random games across all faction pairings', () => {
   let total = 0;
   let games = 0;
-  for (let seed = 0; seed < 224; seed++) {
-    const f0 = FACTIONS[seed % 4];
-    const f1 = FACTIONS[(seed >> 2) % 4];
+  const N = FACTIONS.length;
+  for (let seed = 0; seed < 350; seed++) {
+    const f0 = FACTIONS[seed % N];
+    const f1 = FACTIONS[Math.floor(seed / N) % N];
     total += playGame(seed, f0, f1);
     games++;
   }
-  assert.equal(games, 224);
-  assert.ok(total > 224 * 10, 'games actually played out');
+  assert.equal(games, 350);
+  assert.ok(total > 350 * 10, 'games actually played out');
 });
 
 // Contract-stuffed decks: 2x every faction contract + 2x each neutral answer,
@@ -128,12 +129,16 @@ test('fuzz: 224 complete random games across all faction pairings', () => {
 // existing 10000-step cap still comfortably terminates every game — no cap
 // raise was needed.
 function contractDeck(faction) {
-  const prefix = { nexus: 'nx', vulcan: 'vx', helix: 'hx', obsidian: 'ob' }[faction];
+  const prefix = { nexus: 'nx', vulcan: 'vx', helix: 'hx', obsidian: 'ob', titan: 'tp' }[faction];
   const cards = [];
   const add = (id) => {
     if (cards.length < 40 && cards.filter((x) => x === id).length < 2) cards.push(id);
   };
-  for (const n of [1, 2, 3]) { const id = `${prefix}_c0${n}`; add(id); add(id); }
+  // not every faction has 3 contracts (Titan currently only has tp_c01)
+  for (const n of [1, 2, 3]) {
+    const id = `${prefix}_c0${n}`;
+    if (CARDS[id]) { add(id); add(id); }
+  }
   for (const id of ['ntr_c01', 'ntr_c01', 'ntr_c02', 'ntr_c02']) add(id);
   for (const id of STARTER_DECKS[faction].cards) add(id);
   return { faction, cards };
@@ -144,12 +149,14 @@ test('fuzz: contract-heavy games still terminate and views stay valid', () => {
     assert.deepEqual(validateDeck(contractDeck(f)), { ok: true }, f + ' contract deck validates');
   }
   let total = 0;
-  for (let seed = 1000; seed < 1032; seed++) {
-    const f0 = FACTIONS[seed % 4];
-    const f1 = FACTIONS[(seed >> 2) % 4];
+  const N = FACTIONS.length;
+  const games = N * N * 2; // 2 reps of every ordered pairing
+  for (let seed = 1000; seed < 1000 + games; seed++) {
+    const f0 = FACTIONS[seed % N];
+    const f1 = FACTIONS[Math.floor((seed - 1000) / N) % N];
     total += playGame(seed, f0, f1, [contractDeck(f0), contractDeck(f1)]);
   }
-  assert.ok(total > 32 * 10, 'games actually played out');
+  assert.ok(total > games * 10, 'games actually played out');
 });
 
 test('fuzz: determinism — same seed and action script replays identically', () => {

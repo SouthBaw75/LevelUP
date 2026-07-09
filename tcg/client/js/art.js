@@ -360,7 +360,7 @@ export function mountCeoPortrait(el, faction, cardId) {
 // Short placeholder monogram shown in the faction-icon badge until a real
 // symbol is dropped into assets/faction-icons/. Kept distinct per faction id
 // (avoids "N" colliding between nexus and neutral).
-const ICON_GLYPH = { nexus: 'N', vulcan: 'V', helix: 'H', obsidian: 'O', neutral: 'IC' };
+const ICON_GLYPH = { nexus: 'N', vulcan: 'V', helix: 'H', obsidian: 'O', titan: 'T', neutral: 'IC' };
 
 function iconPlaceholderSvg(faction) {
   const c = factionColor(faction);

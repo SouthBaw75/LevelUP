@@ -6,10 +6,10 @@ import {
   CARDS, STARTER_DECKS, validateDeck, OPS, SPECIALS, TARGETING_VALUES,
 } from '../shared/engine.js';
 
-const FACTIONS = ['nexus', 'vulcan', 'helix', 'obsidian', 'neutral'];
-const PREFIX = { nexus: 'nx', vulcan: 'vx', helix: 'hx', obsidian: 'ob', neutral: 'ntr' };
+const FACTIONS = ['nexus', 'vulcan', 'helix', 'obsidian', 'titan', 'neutral'];
+const PREFIX = { nexus: 'nx', vulcan: 'vx', helix: 'hx', obsidian: 'ob', titan: 'tp', neutral: 'ntr' };
 const KEYWORDS = ['firewall', 'fasttrack', 'stealth', 'shielded', 'overtime', 'toxic', 'siphon',
-  'layoff', 'severance', 'bullish', 'raid'];
+  'layoff', 'severance', 'bullish', 'raid', 'depletion', 'extract'];
 const TAG_VALUES = ['robotic', 'software', 'facility', 'organism', 'financial', 'personnel'];
 const RARITIES = ['common', 'rare', 'epic', 'legendary'];
 const TYPES = ['ASSET', 'OPERATION', 'CEO', 'POWER', 'CONTRACT'];
@@ -129,6 +129,17 @@ test('every referenced DSL op / special / token / keyword is implemented', () =>
         assert.ok(Number.isInteger(val.capital) && val.capital > 0, `${card.id} onFriendlyAssetPlayed.capital`);
         continue;
       }
+      if (key === 'extract') {
+        assert.equal(card.type, 'ASSET', `${card.id} extract is asset-only`);
+        assert.ok(Number.isInteger(val) && val > 0, `${card.id} extract value`);
+        assert.ok(card.keywords.includes('extract'), `${card.id} extract effect without EXTRACT keyword`);
+        continue;
+      }
+      if (key === 'blowout') {
+        assert.equal(card.type, 'ASSET', `${card.id} blowout is asset-only`);
+        assert.ok(Number.isInteger(val) && val > 0, `${card.id} blowout value`);
+        continue;
+      }
       assert.ok(TRIGGERS.includes(key), `${card.id} unknown trigger ${key}`);
       assert.ok(Array.isArray(val), `${card.id} trigger ${key} must be an ops array`);
       for (const op of val) {
@@ -158,7 +169,7 @@ test('every referenced DSL op / special / token / keyword is implemented', () =>
   }
 });
 
-test('collectible counts match the contract (26 vulcan, 36 obsidian, 25 nexus/helix + 44 neutral = 156)', () => {
+test('collectible counts match the contract (26 vulcan, 36 obsidian, 25 nexus/helix, 28 titan + 44 neutral = 184)', () => {
   const byFaction = {};
   for (const c of collectible) byFaction[c.faction] = (byFaction[c.faction] || 0) + 1;
   assert.equal(byFaction.nexus, 25);
@@ -168,16 +179,18 @@ test('collectible counts match the contract (26 vulcan, 36 obsidian, 25 nexus/he
   // Executive Suite; + ob_027 Mega Yacht; + ob_028 Federal Reserve Annex; + ob_029 Cayman
   // Clearinghouse; + ob_030 The Exchange; + ob_031 Talent Acquisition Center; + ob_032 Margin Call;
   // + ob_033 Venture Strike Team
+  assert.equal(byFaction.titan, 28); // tp_001..tp_027 + tp_c01 Mineral Rights
   assert.equal(byFaction.neutral, 44); // + ntr_035..ntr_040, ntr_c03 Regulatory Capture, ntr_c04 War Chest
-  assert.equal(collectible.length, 156);
+  assert.equal(collectible.length, 184);
   // CONTRACT cards: 3 per faction, plus vx_c04 (a 4th Vulcan, the counter card), plus
-  // the neutral pair ntr_c03 Regulatory Capture and ntr_c04 War Chest
+  // tp_c01 (Titan's Mineral Rights), plus the neutral pair ntr_c03 Regulatory Capture and ntr_c04 War Chest
   const contracts = collectible.filter((c) => c.type === 'CONTRACT');
-  assert.equal(contracts.length, 15);
+  assert.equal(contracts.length, 16);
   for (const f of ['nexus', 'helix', 'obsidian']) {
     assert.equal(contracts.filter((c) => c.faction === f).length, 3, f + ' contracts');
   }
   assert.equal(contracts.filter((c) => c.faction === 'vulcan').length, 4, 'vulcan contracts (+Retooling Order)');
+  assert.equal(contracts.filter((c) => c.faction === 'titan').length, 1, 'titan contracts');
   assert.equal(contracts.filter((c) => c.faction === 'neutral').length, 2, 'neutral contracts (Regulatory Capture, War Chest)');
 });
 
@@ -196,6 +209,8 @@ test('tribal tags: every ASSET has ≥1 valid tag; non-assets untagged; spot che
   assert.deepEqual(CARDS.ob_t_shell.tags, ['financial'], 'Shell Corp');
   assert.deepEqual(CARDS.ntr_001.tags, ['personnel'], 'Unpaid Intern (default)');
   assert.deepEqual(CARDS.ob_021.tags, ['robotic', 'financial'], 'Bullion Golem dual-tag');
+  assert.deepEqual(CARDS.tp_003.tags, ['facility'], 'Test Well');
+  assert.deepEqual(CARDS.tp_004.tags, ['robotic'], 'Iron Roughneck');
   // the Vulcan robotic tribe is exactly these six
   const robotic = Object.values(CARDS).filter((c) => c.faction === 'vulcan' && c.tags.includes('robotic')).map((c) => c.id).sort();
   assert.deepEqual(robotic, ['vx_002', 'vx_011', 'vx_016', 'vx_017', 'vx_022', 'vx_t_scrapbot']);
@@ -213,8 +228,8 @@ test('cost and rarity spreads', () => {
   }
 });
 
-test('CEO and POWER cards exist for all four factions; subsidy exists', () => {
-  for (const f of ['nx', 'vx', 'hx', 'ob']) {
+test('CEO and POWER cards exist for all five factions; subsidy exists', () => {
+  for (const f of ['nx', 'vx', 'hx', 'ob', 'tp']) {
     const ceo = CARDS[`${f}_ceo`];
     const power = CARDS[`${f}_power`];
     assert.ok(ceo && ceo.type === 'CEO', f + '_ceo');
@@ -235,9 +250,9 @@ test('contract sample card vx_004 matches the contract', () => {
   assert.equal(c.flavor, 'Quarterly targets are not a suggestion.');
 });
 
-test('STARTER_DECKS: four tuned decks that validate', () => {
+test('STARTER_DECKS: five tuned decks that validate', () => {
   assert.deepEqual(Object.keys(STARTER_DECKS).sort(),
-    ['helix', 'nexus', 'obsidian', 'vulcan']);
+    ['helix', 'nexus', 'obsidian', 'titan', 'vulcan']);
   for (const [key, deck] of Object.entries(STARTER_DECKS)) {
     assert.equal(deck.faction, key);
     assert.ok(typeof deck.name === 'string' && deck.name.length > 0);
@@ -260,6 +275,7 @@ test('§3b contract set matches the spec table exactly', () => {
     ['ob_c01', 'Payday Lending Agreement', 2, undefined],
     ['ob_c02', 'Bridge Loan', 4, 2],
     ['ob_c03', 'Liquidation Rights', 3, undefined],
+    ['tp_c01', 'Mineral Rights', 3, undefined],
   ];
   for (const [id, name, cost, term] of table) {
     const c = CARDS[id];

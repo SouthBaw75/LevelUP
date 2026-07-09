@@ -39,11 +39,7 @@ export const FACTIONS = {
 // Playable faction ids, in display order — the single source every lobby/
 // builder/watch-setup screen iterates over, instead of each hand-maintaining
 // its own copy of this list (excludes 'neutral', which isn't selectable).
-// NOTE: 'titan' is intentionally left out until its cards + starter deck land
-// (tasks in flight) — factionMeta.titan can exist ahead of time without the
-// faction appearing anywhere playable yet. Added to this list as the last
-// step of standing the faction up.
-export const FACTION_IDS = Object.keys(FACTIONS).filter((f) => f !== 'neutral' && f !== 'titan');
+export const FACTION_IDS = Object.keys(FACTIONS).filter((f) => f !== 'neutral');
 
 export const KEYWORD_NAMES = {
   firewall: 'FIREWALL',

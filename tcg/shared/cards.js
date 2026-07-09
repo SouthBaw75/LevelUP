@@ -52,7 +52,7 @@ export const CARDS = {};
 // derives from, instead of each hand-maintaining its own copy. Add a new
 // faction here once its cards/starter deck exist; client-side display
 // metadata (name/color/tagline/industry) lives separately in client/js/state.js.
-export const FACTION_IDS = ['nexus', 'vulcan', 'helix', 'obsidian'];
+export const FACTION_IDS = ['nexus', 'vulcan', 'helix', 'obsidian', 'titan'];
 
 // Tribal tags (counter auras / future tribal cards match on these). Every ASSET
 // carries one or more; the taxonomy is one signature tribe per faction plus two
@@ -91,6 +91,14 @@ const ASSET_TAGS = {
   ob_t_shell: ['financial'], ob_004: ['financial'], ob_011: ['financial'],
   ob_013: ['financial'], ob_t_subsidiary: ['financial'], ob_024: ['financial'],
   ntr_025: ['financial'],
+  // titan facility (rigs, terminals, wells, plants)
+  tp_t_derrick: ['facility'], tp_003: ['facility'], tp_008: ['facility'],
+  tp_009: ['facility'], tp_010: ['facility'], tp_011: ['facility'],
+  tp_013: ['facility'], tp_014: ['facility'], tp_015: ['facility'],
+  tp_016: ['facility'], tp_020: ['facility'], tp_021: ['facility'], tp_022: ['facility'],
+  tp_024: ['facility'],
+  // titan robotic
+  tp_004: ['robotic'],
 };
 
 function C(card) {
@@ -148,6 +156,14 @@ C({ id: 'ob_power', name: 'Shell Company', faction: 'obsidian', type: 'POWER', c
   flavor: 'Registered in a jurisdiction that is technically a boat.',
   effects: { targeting: null, play: [{ op: 'summon', cardId: 'ob_t_shell' }] } });
 
+C({ id: 'tp_ceo', name: 'Dutch Kessler', faction: 'titan', type: 'CEO', cost: 0, health: 40,
+  powerId: 'tp_power', collectible: false, rarity: 'legendary',
+  text: 'CEO of Titan Petrocore.', flavor: 'He has never once said the word "diversify."' });
+C({ id: 'tp_power', name: 'Drill Baby Drill', faction: 'titan', type: 'POWER', cost: 2,
+  collectible: false, text: 'Deal 2 damage to an asset. Gain 1 Capital.',
+  flavor: 'Somewhere, an environmental impact report is being politely ignored.',
+  effects: { targeting: 'anyUnit', play: [{ op: 'damage', amount: 2, to: 'target' }, { op: 'addCapital', amount: 1 }] } });
+
 // ---------------------------------------------------------------------------
 // Tokens (non-collectible)
 // ---------------------------------------------------------------------------
@@ -169,6 +185,11 @@ O('ntr_subsidy', 'Government Subsidy', 'neutral', 0, { collectible: false,
   text: 'Gain 1 Capital this turn only.',
   flavor: 'Too big to fail, small enough to pocket.',
   effects: { targeting: null, play: [{ op: 'addCapital', amount: 1 }] } });
+A('tp_t_wildcat', 'Wildcat Crew', 'titan', 1, 1, 1, { collectible: false,
+  flavor: 'Three guys, a lease, and a rumor.' });
+A('tp_t_derrick', 'Burning Derrick', 'titan', 1, 2, 2, { collectible: false,
+  keywords: ['depletion'], text: 'DEPLETION.', tags: ['facility'],
+  flavor: 'What is left standing after the well makes the evening news.' });
 
 // ---------------------------------------------------------------------------
 // NEXUS DYNAMICS (nx) — AI & software. Tempo/control: draw, bounce, cheap ops.
@@ -534,6 +555,113 @@ A('ob_031', 'Talent Acquisition Center', 'obsidian', 4, 3, 5, { rarity: 'rare',
   effects: { adjacencyBuff: { attack: 1, health: 1, match: { tag: 'personnel' } } } });
 
 // ---------------------------------------------------------------------------
+// TITAN PETROCORE (tp) — energy/oil & gas. Boom-bust: explosive Capital ramp,
+// DEPLETION, EXTRACT, self-inflicted FLARE damage.
+// ---------------------------------------------------------------------------
+A('tp_001', 'Landman', 'titan', 1, 1, 2, {
+  text: 'ONBOARDING: Gain 1 Capital this turn only.',
+  flavor: 'Shows up with a briefcase and somehow leaves with your grandmother’s back forty.',
+  effects: { onboarding: [{ op: 'addCapital', amount: 1 }] } });
+A('tp_002', 'Roughneck', 'titan', 1, 2, 2, {
+  text: 'GOLDEN PARACHUTE: Summon a 1/1 Wildcat Crew.',
+  flavor: 'First one on the rig, first one laid off, first one rehired.',
+  effects: { parachute: [{ op: 'summon', cardId: 'tp_t_wildcat' }] } });
+A('tp_003', 'Test Well', 'titan', 1, 3, 2, { keywords: ['depletion'],
+  text: 'DEPLETION. GOLDEN PARACHUTE: Summon a 1/1 Burning Derrick.',
+  flavor: 'Every reserve estimate is a rumor until the well says otherwise.',
+  effects: { parachute: [{ op: 'summon', cardId: 'tp_t_derrick' }] } });
+A('tp_004', 'Iron Roughneck', 'titan', 2, 3, 3, { keywords: ['overtime'],
+  text: 'OVERTIME.',
+  flavor: 'Doesn’t clock out. Doesn’t file grievances. Doesn’t blink.' });
+O('tp_005', 'Seismic Survey', 'titan', 2, {
+  text: 'Draw a card. If it is a FACILITY asset, draw an additional card.',
+  flavor: 'The data always says drill here. The data is owned by the drilling company.',
+  effects: { targeting: null, play: [{ op: 'drawTagBonus', tag: 'facility', extra: 1 }] } });
+A('tp_006', 'Casing Crew', 'titan', 2, 2, 4, { keywords: ['firewall'],
+  text: 'FIREWALL.',
+  flavor: 'Nothing gets past them, least of all a fair performance review.' });
+O('tp_007', 'Force Majeure', 'titan', 2, {
+  text: 'Declare an enemy contract null & void.',
+  flavor: 'An act of god, filed in triplicate, notarized by our legal team.',
+  effects: { targeting: 'enemyContract', play: [{ op: 'nullify', to: 'target' }] } });
+A('tp_008', 'Pumpjack Field', 'titan', 3, 2, 5, {
+  text: 'REFINE 1. At the end of your turn, gain 1 Capital.',
+  flavor: 'Nods along to a rhythm nobody asked it to keep.',
+  effects: { endOfTurn: [{ op: 'addCapital', amount: 1 }] } });
+A('tp_009', 'Refinery Facility', 'titan', 3, 4, 4, { rarity: 'rare',
+  text: 'Adjacent ROBOTIC assets gain +1/+1.',
+  flavor: 'Turns crude into product and product into someone else’s problem.',
+  effects: { adjacencyBuff: { attack: 1, health: 1, match: { tag: 'robotic' } } } });
+A('tp_010', 'Manufacturing Facility', 'titan', 3, 3, 5, { rarity: 'rare',
+  text: 'Whenever you play a ROBOTIC asset, gain 1 Capital.',
+  flavor: 'The assembly line doesn’t ask what it’s building. Neither should you.',
+  effects: { onFriendlyAssetPlayed: { match: { tag: 'robotic' }, capital: 1 } } });
+A('tp_011', 'Blowout Preventer', 'titan', 3, 2, 4, { keywords: ['firewall'],
+  text: 'FIREWALL. GOLDEN PARACHUTE: Gain 1 Capital.',
+  flavor: 'The one part of the rig everyone hopes never has to work.',
+  effects: { parachute: [{ op: 'addCapital', amount: 1 }] } });
+O('tp_012', 'Directional Drilling', 'titan', 3, { rarity: 'rare',
+  text: 'Deal 3 damage to an enemy asset. Ignores CORPORATE VEIL.',
+  flavor: 'It doesn’t matter whose lease line they think they’re hiding behind.',
+  effects: { targeting: 'enemyUnitIgnoreVeil', play: [{ op: 'damage', amount: 3, to: 'target' }] } });
+A('tp_013', 'Stripper Well', 'titan', 2, 1, 3, { keywords: ['extract'],
+  text: 'EXTRACT 2.',
+  flavor: 'Barely producing, technically an asset, definitely someone’s tax write-off.',
+  effects: { extract: 2 } });
+A('tp_014', 'Wildcat Prospect', 'titan', 4, 2, 2, { rarity: 'rare',
+  text: 'BLOWOUT 3. Enters play with +3/+3 that fades one point per hit. When the last '
+    + 'counter is spent, this detonates for damage equal to its Attack to each adjacent asset.',
+  flavor: 'Somewhere between a payday and a funeral.',
+  effects: { blowout: 3 } });
+A('tp_015', 'LNG Terminal Facility', 'titan', 4, 3, 6, { rarity: 'rare',
+  text: 'GOLDEN PARACHUTE: Gain 1 Capital for each other FACILITY asset you control.',
+  flavor: 'Ships the same molecule three times and charges for the trip each time.',
+  effects: { parachute: [{ op: 'addCapital', perFriendlyTag: 'facility' }] } });
+A('tp_016', 'Crude Storage Terminal', 'titan', 5, 4, 6, { rarity: 'rare',
+  text: 'GOLDEN PARACHUTE: Gain 2 Capital.',
+  flavor: 'Every barrel has a buyer. Even the ones we forgot were down there.',
+  effects: { parachute: [{ op: 'addCapital', amount: 2 }] } });
+O('tp_017', 'Blowback', 'titan', 5, { rarity: 'rare',
+  text: 'Deal 5 damage to an enemy asset. Gain 2 Capital.',
+  flavor: 'What comes up the pipe doesn’t always come up clean.',
+  effects: { targeting: 'enemyUnit', play: [{ op: 'damage', amount: 5, to: 'target' }, { op: 'addCapital', amount: 2 }] } });
+O('tp_018', 'Workover', 'titan', 2, {
+  text: 'Give an asset +2/+2.',
+  flavor: 'Nothing down there is dead. It’s just resting between quarters.',
+  effects: { targeting: 'friendlyUnit', play: [{ op: 'buff', attack: 2, health: 2, to: 'target' }] } });
+A('tp_019', 'Frac Crew', 'titan', 5, 5, 5, { keywords: ['fasttrack'],
+  text: 'VESTED.',
+  flavor: 'Contracted, deployed, and gone before the water table notices.' });
+A('tp_020', 'Blowtorch Rig', 'titan', 5, 7, 6, { rarity: 'rare', keywords: ['depletion'],
+  text: 'DEPLETION.',
+  flavor: 'Burns bright. Burns out. Bills for both.' });
+A('tp_021', 'Export Terminal', 'titan', 6, 6, 7, { rarity: 'epic',
+  text: 'At the end of your turn, gain 2 Capital.',
+  flavor: 'Every tanker that leaves the dock is a line on next quarter’s slide deck.',
+  effects: { endOfTurn: [{ op: 'addCapital', amount: 2 }] } });
+A('tp_022', 'Vertical Integration', 'titan', 6, 5, 6, { rarity: 'epic',
+  text: 'Adjacent FACILITY assets gain +1/+1.',
+  flavor: 'Own the well, the pipe, and the pump. Never let a margin escape the building.',
+  effects: { adjacencyBuff: { attack: 1, health: 1, match: { tag: 'facility' } } } });
+A('tp_023', 'Supermajor', 'titan', 7, 6, 7, { rarity: 'epic', keywords: ['bullish'],
+  text: 'BULLISH. At the end of your turn, gain 1 Capital.',
+  flavor: 'Too large to regulate, too profitable to ignore, too old to apologize.',
+  effects: { endOfTurn: [{ op: 'addCapital', amount: 1 }] } });
+A('tp_024', 'The Gusher', 'titan', 8, 4, 4, { rarity: 'legendary',
+  text: 'BLOWOUT 4. ONBOARDING: Deal 3 damage to the enemy CEO.',
+  flavor: 'They said cap it. Dutch said cash it.',
+  effects: { blowout: 4, onboarding: [{ op: 'damage', amount: 3, to: 'enemyHero' }] } });
+O('tp_025', 'Emergency Flare-Off', 'titan', 3, { rarity: 'rare',
+  text: 'FLARE 1. Deal 1 damage to all assets, including your own.',
+  flavor: 'Burn it off before it becomes a headline.',
+  effects: { targeting: null, play: [{ op: 'aoeDamage', amount: 1, side: 'all' }] } });
+A('tp_026', 'Roustabout', 'titan', 1, 2, 1, {
+  flavor: 'Does the job nobody wrote a manual for.' });
+A('tp_027', 'Well Control Team', 'titan', 4, 4, 5, { rarity: 'rare', keywords: ['firewall'],
+  text: 'FIREWALL.',
+  flavor: 'When it goes wrong, they’re the only ones running toward it.' });
+
+// ---------------------------------------------------------------------------
 // NEUTRAL — Independent Contractors (ntr)
 // ---------------------------------------------------------------------------
 A('ntr_001', 'Unpaid Intern', 'neutral', 0, 1, 1, { keywords: ['layoff'],
@@ -731,6 +859,11 @@ K('ob_c03', 'Liquidation Rights', 'obsidian', 3, { rarity: 'rare',
   flavor: 'Anything not nailed down is collateral. The nails are a separate schedule.',
   effects: { onFriendlyAssetDestroyed: [{ op: 'addCapital', amount: 1 }] } });
 
+K('tp_c01', 'Mineral Rights', 'titan', 3, { rarity: 'rare',
+  text: 'At the start of your turn, gain 1 Capital.',
+  flavor: 'Whoever owns what’s under the ground owns whoever is standing on it.',
+  effects: { startOfTurn: [{ op: 'addCapital', amount: 1 }] } });
+
 A('ntr_c01', 'Contract Attorney', 'neutral', 3, 2, 3, { rarity: 'rare',
   text: 'ONBOARDING: Declare an enemy contract null & void.',
   flavor: 'Bills by the hour, wins by the loophole.',
@@ -818,5 +951,16 @@ export const STARTER_DECKS = {
       'ob_010', 'ob_012', 'ob_013', 'ob_019', 'ob_022', 'ob_024', 'ob_023', 'ntr_037',
       'ob_002', 'ob_011', 'ob_016', 'ob_017', 'ob_020', 'ob_032', 'ob_033'],
     ['ob_024', 'ob_023', 'ob_022', 'ntr_037'], 'ob_c03'),
+  },
+  titan: {
+    // swaps: -1 tp_024 (The Gusher, a game-ending legendary bomb kept to a
+    // single copy), -1 tp_021 (Export Terminal, kept off the top curve as a
+    // single copy) / +1 tp_c01 (Mineral Rights), +1 ntr_c02
+    name: 'Titan Petrocore — Drill Baby Drill',
+    faction: 'titan',
+    cards: withContracts(['tp_002', 'tp_003', 'tp_026', 'tp_004', 'tp_006', 'tp_013', 'tp_018',
+      'tp_008', 'tp_009', 'tp_011', 'tp_012', 'tp_025', 'tp_014', 'tp_015', 'tp_027',
+      'tp_017', 'tp_019', 'tp_020', 'tp_021', 'tp_024'],
+    ['tp_024', 'tp_021'], 'tp_c01'),
   },
 };

@@ -52,8 +52,8 @@ test('getSpectatorView reveals BOTH hands (god mode)', () => {
   assert.equal(v.players[0].handCount, undefined, 'no hidden handCount in god view');
 });
 
-test('isFaction guards the four conglomerates', () => {
-  for (const f of ['nexus', 'vulcan', 'helix', 'obsidian']) assert.ok(isFaction(f));
+test('isFaction guards the five conglomerates', () => {
+  for (const f of ['nexus', 'vulcan', 'helix', 'obsidian', 'titan']) assert.ok(isFaction(f));
   for (const f of ['neutral', 'x', '', null, undefined]) assert.ok(!isFaction(f));
 });
 
